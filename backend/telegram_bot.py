@@ -6,7 +6,7 @@ django.setup()
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from users.models import CustomUser, Wallet
+from accounts.models import CustomUser, Wallet
 from tasks.models import Task
 
 BOT_TOKEN = '7584827421:AAH-Iqh5QX_7bLjKJLq9E8m9_7Y_nB0Zs6c'
