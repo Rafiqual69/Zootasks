@@ -1,0 +1,111 @@
+ZooTasks
+
+Professional Task Marketplace & Earning Platform
+
+ZooTasks is a Django-powered task marketplace platform designed to connect task creators and task workers. Users can explore tasks, complete work, manage their wallets, and participate in promotions and offers.
+
+Features
+
+User registration and authentication
+
+User dashboard
+
+Task marketplace and task submission
+
+Task management and administration
+
+Wallet and transaction management
+
+Withdrawal request management
+
+Promotions and offers
+
+Django admin panel
+
+Telegram bot integration
+
+Responsive web interface
+
+Technology Stack
+
+Backend: Python, Django
+
+Database: SQLite for local development
+
+Frontend: HTML, CSS, Django Templates
+
+Bot: Python Telegram Bot integration
+
+Deployment: Configured for web hosting and deployment workflows
+
+Project Structure
+
+zootasks/ ├── backend/ │ ├── accounts/ │ ├── config/ │ ├── core/ │ ├── main/ │ ├── offers/ │ ├── promotions/ │ ├── tasks/ │ ├── wallet/ │ ├── manage.py │ └── requirements.txt ├── Dockerfile ├── docker-compose.yml ├── railway.json ├── build.sh └── README.md 
+
+Local Development
+
+1. Clone the repository
+
+git clone https://github.com/Rafiqual69/Zootasks.git cd Zootasks 
+
+2. Create and activate a virtual environment
+
+python -m venv venv source venv/bin/activate 
+
+3. Install dependencies
+
+cd backend pip install -r requirements.txt 
+
+4. Configure environment variables
+
+Create a .env file and add your local configuration, Django secret key, and other required settings.
+
+Never commit secrets, passwords, or API tokens to GitHub.
+
+5. Run migrations
+
+python manage.py migrate 
+
+6. Create an admin account
+
+python manage.py createsuperuser 
+
+7. Start the development server
+
+python manage.py runserver 
+
+Open the website at:
+
+http://127.0.0.1:8000/ 
+
+Admin panel:
+
+http://127.0.0.1:8000/admin/ 
+
+Project Status
+
+ZooTasks is under active development. Features, user interfaces, and backend functionality may continue to evolve.
+
+Security
+
+Keep .env files private.
+
+Do not expose production credentials.
+
+Use strong passwords for administrator accounts.
+
+Review configuration before deploying publicly.
+
+License
+
+License information will be added in a future release.
+
+Author
+
+Rafiqual69
+
+GitHub: https://github.com/Rafiqual69
+
+Repository
+
+https://github.com/Rafiqual69/Zootasks
