@@ -1,0 +1,95 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+PROJECT="$HOME/taskbazar-pro"
+BACKUPS="$HOME/zootasks-backups"
+DOWNLOADS="$HOME/storage/downloads"
+
+case "$1" in
+
+backup)
+    mkdir -p "$BACKUPS"
+
+    DATE=$(date +%Y-%m-%d_%H-%M-%S)
+    FILE="$BACKUPS/zootasks-$DATE.tar.gz"
+
+    cd "$PROJECT"
+
+    tar \
+      --exclude='venv' \
+      --exclude='venv-zootasks' \
+      --exclude='__pycache__' \
+      --exclude='*.pyc' \
+      --exclude='.git' \
+      --exclude='db.sqlite3' \
+      -czf "$FILE" .
+
+    if [ -f "$PROJECT/backend/db.sqlite3" ]; then
+        cp "$PROJECT/backend/db.sqlite3" "$BACKUPS/db-$DATE.sqlite3"
+    fi
+
+    mkdir -p "$DOWNLOADS"
+    cp "$FILE" "$DOWNLOADS/"
+    [ -f "$BACKUPS/db-$DATE.sqlite3" ] && cp "$BACKUPS/db-$DATE.sqlite3" "$DOWNLOADS/"
+
+    echo "======================================"
+    echo "✅ ZooTasks BACKUP COMPLETE"
+    echo "======================================"
+    echo "📦 $FILE"
+    echo "📥 Copied to Download folder"
+    ;;
+
+list)
+    echo "======================================"
+    echo "📦 ZooTasks BACKUPS"
+    echo "======================================"
+    ls -lh "$BACKUPS" 2>/dev/null || echo "No backups found."
+    ;;
+
+restore)
+    FILE="$2"
+
+    if [ -z "$FILE" ]; then
+        echo "Usage:"
+        echo "./zootasks restore /path/to/backup.tar.gz"
+        exit 1
+    fi
+
+    if [ ! -f "$FILE" ]; then
+        echo "❌ Backup file not found:"
+        echo "$FILE"
+        exit 1
+    fi
+
+    echo "⚠️ Restoring ZooTasks..."
+    echo "Backup: $FILE"
+
+    tar -xzf "$FILE" -C "$PROJECT"
+
+    echo "======================================"
+    echo "✅ ZooTasks RESTORE COMPLETE"
+    echo "======================================"
+    ;;
+
+status)
+    cd "$PROJECT/backend"
+    python manage.py check
+    ;;
+
+*)
+    echo "======================================"
+    echo "🦁 ZooTasks Manager"
+    echo "======================================"
+    echo
+    echo "Backup:"
+    echo "./zootasks backup"
+    echo
+    echo "List backups:"
+    echo "./zootasks list"
+    echo
+    echo "Check project:"
+    echo "./zootasks status"
+    echo
+    echo "Restore:"
+    echo "./zootasks restore BACKUP_FILE"
+    ;;
+esac

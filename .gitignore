@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment secrets
+.env
+.env.*
+
+# Django
+db.sqlite3
+*.sqlite3
+staticfiles/
+media/
+
+# Backups
+backup_*/
+*.tar.gz
