@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Live Wallet Dashboard | ZooTasks{% endblock %}
+
+{% block content %}
+<div style="padding:20px;">
+<h1>💰 Live Wallet Dashboard</h1>
+<p>ZooTasks wallet and withdrawal overview.</p>
+<h2>💵 Total Earned: ৳{{ total_earned|floatformat:2 }}</h2>
+<h2>📤 Total Withdrawn: ৳{{ total_withdrawn|floatformat:2 }}</h2>
+<h2>⏳ Pending Withdrawals: ৳{{ pending_withdrawals|floatformat:2 }}</h2>
+<h2>👥 Total Workers: {{ total_workers }}</h2>
+<h2>✅ Approved Withdrawals: ৳{{ approved_withdrawals|floatformat:2 }}</h2>
+<h2>💳 Paid Withdrawals: ৳{{ paid_withdrawals|floatformat:2 }}</h2>
+<h2>💼 Worker Balance: ৳{{ worker_balance|floatformat:2 }}</h2>
+<br><a href="">🔄 Refresh Dashboard</a>
+</div>
+{% endblock %}

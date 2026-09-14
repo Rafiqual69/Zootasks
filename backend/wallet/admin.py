@@ -1,0 +1,186 @@
+from django.contrib import admin, messages
+from django.db import transaction
+from django.utils import timezone
+
+from .models import WalletTransaction, WithdrawalRequest
+
+
+@admin.register(WalletTransaction)
+class WalletTransactionAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "amount",
+        "transaction_type",
+        "description",
+        "created_at",
+    )
+
+    list_filter = (
+        "transaction_type",
+        "created_at",
+    )
+
+    search_fields = (
+        "user__username",
+        "description",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+
+@admin.action(description="✅ Approve selected withdrawals")
+def approve_withdrawals(modeladmin, request, queryset):
+    updated = queryset.filter(
+        status="pending"
+    ).update(
+        status="approved",
+        processed_at=timezone.now(),
+    )
+
+    modeladmin.message_user(
+        request,
+        f"{updated} withdrawal request(s) approved.",
+        messages.SUCCESS,
+    )
+
+
+@admin.action(description="❌ Reject selected withdrawals")
+def reject_withdrawals(modeladmin, request, queryset):
+    updated = queryset.filter(
+        status="pending"
+    ).update(
+        status="rejected",
+        processed_at=timezone.now(),
+    )
+
+    modeladmin.message_user(
+        request,
+        f"{updated} withdrawal request(s) rejected.",
+        messages.WARNING,
+    )
+
+
+@admin.action(description="💵 Mark selected withdrawals as PAID")
+def mark_withdrawals_paid(modeladmin, request, queryset):
+
+    paid_count = 0
+    skipped_count = 0
+
+    for withdrawal_id in queryset.values_list("id", flat=True):
+
+        with transaction.atomic():
+
+            withdrawal = (
+                WithdrawalRequest.objects
+                .select_for_update()
+                .get(id=withdrawal_id)
+            )
+
+            if withdrawal.status != "approved":
+                skipped_count += 1
+                continue
+
+            already_paid = WalletTransaction.objects.filter(
+                user=withdrawal.user,
+                transaction_type="withdrawal",
+                description=f"Withdrawal #{withdrawal.id}",
+            ).exists()
+
+            if already_paid:
+                withdrawal.status = "paid"
+                withdrawal.processed_at = (
+                    withdrawal.processed_at
+                    or timezone.now()
+                )
+                withdrawal.save(
+                    update_fields=[
+                        "status",
+                        "processed_at",
+                    ]
+                )
+
+                skipped_count += 1
+                continue
+
+            WalletTransaction.objects.create(
+                user=withdrawal.user,
+                amount=withdrawal.amount,
+                transaction_type="withdrawal",
+                description=f"Withdrawal #{withdrawal.id}",
+            )
+
+            withdrawal.status = "paid"
+            withdrawal.processed_at = timezone.now()
+
+            withdrawal.save(
+                update_fields=[
+                    "status",
+                    "processed_at",
+                ]
+            )
+
+            paid_count += 1
+
+    if paid_count:
+        modeladmin.message_user(
+            request,
+            f"{paid_count} withdrawal(s) marked as paid and wallet updated.",
+            messages.SUCCESS,
+        )
+
+    if skipped_count:
+        modeladmin.message_user(
+            request,
+            f"{skipped_count} withdrawal(s) skipped because they were not ready or already paid.",
+            messages.WARNING,
+        )
+
+
+@admin.register(WithdrawalRequest)
+class WithdrawalRequestAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "id",
+        "user",
+        "amount",
+        "bank_name",
+        "account_holder",
+        "bank_account",
+        "status",
+        "requested_at",
+        "processed_at",
+    )
+
+    list_filter = (
+        "status",
+        "bank_name",
+        "requested_at",
+    )
+
+    search_fields = (
+        "user__username",
+        "bank_name",
+        "account_holder",
+        "bank_account",
+    )
+
+    ordering = (
+        "-requested_at",
+    )
+
+    actions = [
+        approve_withdrawals,
+        reject_withdrawals,
+        mark_withdrawals_paid,
+    ]
+
+    readonly_fields = (
+        "user",
+        "amount",
+        "bank_name",
+        "account_holder",
+        "bank_account",
+        "requested_at",
+    )

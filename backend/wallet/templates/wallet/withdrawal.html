@@ -1,0 +1,312 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdraw Money — ZooTasks</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+        }
+
+        .navbar {
+            background: #111827;
+            color: white;
+            padding: 15px 20px;
+        }
+
+        .nav-inner {
+            max-width: 900px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 18px;
+        }
+
+        .nav-links a {
+            color: #dbeafe;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 0 18px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            color: white;
+            padding: 28px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+        }
+
+        .hero p {
+            margin: 0;
+            opacity: .9;
+        }
+
+        .balance {
+            background: white;
+            padding: 22px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(15,23,42,.06);
+        }
+
+        .balance-label {
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .balance-value {
+            font-size: 30px;
+            font-weight: 800;
+            margin-top: 5px;
+        }
+
+        .form-card {
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(15,23,42,.06);
+        }
+
+        .form-card h2 {
+            margin-top: 0;
+        }
+
+        label {
+            display: block;
+            font-weight: 700;
+            margin: 16px 0 7px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+        }
+
+        .hint {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 13px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            margin-top: 22px;
+            padding: 15px;
+            border: 0;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .submit-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 18px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .notice {
+            background: #eff6ff;
+            color: #1e40af;
+            padding: 14px;
+            border-radius: 10px;
+            margin-top: 18px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+            padding: 30px 0;
+        }
+
+        @media (max-width: 600px) {
+            .nav-inner {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .hero h1 {
+                font-size: 24px;
+            }
+
+            .balance-value {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar">
+    <div class="nav-inner">
+        <div class="logo">🦁 ZooTasks</div>
+
+        <div class="nav-links">
+            <a href="/accounts/dashboard/">Dashboard</a>
+            <a href="/tasks/">Tasks</a>
+            <a href="/promotions/">Promos</a>
+        </div>
+    </div>
+</nav>
+
+<main class="container">
+
+    <section class="hero">
+        <h1>💸 Withdraw Money</h1>
+        <p>Request a withdrawal from your available ZooTasks balance.</p>
+    </section>
+
+    <section class="balance">
+        <div class="balance-label">Available Balance</div>
+        <div class="balance-value">
+            ৳{{ balance|floatformat:2 }}
+        </div>
+    </section>
+
+    <section class="form-card">
+
+        <h2>Withdrawal Request</h2>
+
+        {% if error %}
+            <div class="error">
+                ⚠️ {{ error }}
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <label for="amount">Withdrawal Amount</label>
+
+            <input
+                type="number"
+                id="amount"
+                name="amount"
+                min="{{ minimum_withdrawal }}"
+                max="{{ balance }}"
+                step="0.01"
+                placeholder="Enter amount"
+                required
+            >
+
+            <div class="hint">
+                Minimum withdrawal: ৳{{ minimum_withdrawal|floatformat:2 }}
+            </div>
+
+            <label for="bank_name">Bank Name</label>
+
+            <input
+                type="text"
+                id="bank_name"
+                name="bank_name"
+                placeholder="Enter bank name"
+                maxlength="100"
+                required
+            >
+
+            <label for="account_holder">Account Holder Name</label>
+
+            <input
+                type="text"
+                id="account_holder"
+                name="account_holder"
+                placeholder="Enter account holder name"
+                maxlength="150"
+                required
+            >
+
+            <label for="bank_account">Account Number</label>
+
+            <input
+                type="text"
+                id="bank_account"
+                name="bank_account"
+                placeholder="Enter bank account number"
+                maxlength="50"
+                required
+            >
+
+            <button type="submit" class="submit-btn">
+                💸 Submit Withdrawal Request
+            </button>
+        </form>
+
+        <div class="notice">
+            ⏳ Withdrawal requests are reviewed by the ZooTasks administration team.
+            Please make sure your payment information is correct before submitting.
+        </div>
+
+        <a class="back" href="/accounts/dashboard/">
+            ← Back to Dashboard
+        </a>
+
+    </section>
+
+</main>
+
+<footer class="footer">
+    © 2026 ZooTasks — Work • Earn • Grow
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Marketplace - ZooTasks</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #172033;
+        }
+
+        header {
+            background: #111827;
+            color: white;
+            padding: 20px;
+        }
+
+        header a {
+            color: white;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .tasks {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 5px 25px rgba(0,0,0,.07);
+        }
+
+        .reward {
+            font-size: 26px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 10px;
+            background: #111827;
+            color: white;
+            text-decoration: none;
+        }
+
+        .empty {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <a href="/">ZooTasks</a>
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <a href="{% url 'logout' %}">Logout</a>
+</header>
+
+<div class="container">
+    <h1>Task Marketplace</h1>
+    <p>Choose a task that matches your skills.</p>
+
+    {% if tasks %}
+    <div class="tasks">
+
+        {% for task in tasks %}
+        <div class="card">
+            <small>{{ task.category }}</small>
+
+            <h2>{{ task.title }}</h2>
+
+            <p>{{ task.description|truncatewords:25 }}</p>
+
+            <div class="reward">
+                ৳{{ task.reward }}
+            </div>
+
+            <p>
+                Available:
+                {{ task.completed_workers }}/{{ task.max_workers }}
+            </p>
+
+            {% if task.id in claimed_ids %}
+                <a class="button"
+                   href="{% url 'task_detail' task.id %}">
+                    View My Task
+                </a>
+            {% else %}
+                <a class="button"
+                   href="{% url 'task_detail' task.id %}">
+                    View Task
+                </a>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+
+    <div class="empty">
+        <h2>No tasks available right now</h2>
+        <p>New opportunities will appear here.</p>
+    </div>
+
+    {% endif %}
+</div>
+
+</body>
+</html>

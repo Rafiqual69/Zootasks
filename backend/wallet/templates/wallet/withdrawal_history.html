@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdrawal History | ZooTasks</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+        }
+
+        .navbar {
+            background: #111827;
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a,
+        .logout-btn {
+            color: white;
+            text-decoration: none;
+            background: #1f2937;
+            border: 0;
+            padding: 9px 13px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .container {
+            width: min(1000px, 94%);
+            margin: 30px auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 7px 24px rgba(0,0,0,.06);
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #667085;
+            margin-bottom: 25px;
+        }
+
+        .withdrawal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 18px 0;
+            border-bottom: 1px solid #edf0f4;
+        }
+
+        .withdrawal:last-child {
+            border-bottom: 0;
+        }
+
+        .amount {
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .details {
+            color: #667085;
+            font-size: 14px;
+            margin-top: 7px;
+            line-height: 1.6;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 7px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .pending {
+            background: #fff4cc;
+            color: #8a6500;
+        }
+
+        .approved {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .paid {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .rejected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .empty {
+            text-align: center;
+            color: #667085;
+            padding: 40px 10px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 11px 16px;
+            background: #111827;
+            color: white;
+            text-decoration: none;
+            border-radius: 9px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 600px) {
+            .navbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .withdrawal {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar">
+
+    <div class="brand">
+        🦁 ZooTasks
+    </div>
+
+    <div class="nav-links">
+
+        <a href="/">Home</a>
+
+        <a href="/tasks/">
+            Tasks
+        </a>
+
+        <a href="/promotions/">
+            Promos
+        </a>
+
+        <a href="/wallet/">
+            Wallet
+        </a>
+
+        <form method="post"
+              action="/accounts/logout/"
+              style="display:inline;">
+
+            {% csrf_token %}
+
+            <button class="logout-btn" type="submit">
+                Logout
+            </button>
+
+        </form>
+
+    </div>
+
+</nav>
+
+
+<div class="container">
+
+    <div class="card">
+
+        <h1>
+            📋 Withdrawal History
+        </h1>
+
+        <div class="subtitle">
+            View all your ZooTasks withdrawal requests.
+        </div>
+
+
+        {% for withdrawal in withdrawals %}
+
+            <div class="withdrawal">
+
+                <div>
+
+                    <div class="amount">
+                        ৳{{ withdrawal.amount|floatformat:2 }}
+                    </div>
+
+                    <div class="details">
+
+                        <strong>
+                            {{ withdrawal.bank_name }}
+                        </strong>
+
+                        <br>
+
+                        Account:
+                        {{ withdrawal.bank_account }}
+
+                        <br>
+
+                        Holder:
+                        {{ withdrawal.account_holder }}
+
+                        <br>
+
+                        Requested:
+                        {{ withdrawal.requested_at|date:"d M Y, h:i A" }}
+
+                        {% if withdrawal.processed_at %}
+                            <br>
+                            Processed:
+                            {{ withdrawal.processed_at|date:"d M Y, h:i A" }}
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <div>
+
+                    <span class="status {{ withdrawal.status }}">
+                        {{ withdrawal.status }}
+                    </span>
+
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <div class="empty">
+
+                <div style="font-size:40px;">
+                    📭
+                </div>
+
+                <h3>
+                    No withdrawals yet
+                </h3>
+
+                <p>
+                    Your withdrawal requests will appear here.
+                </p>
+
+            </div>
+
+        {% endfor %}
+
+
+        <a href="/wallet/" class="back">
+            ← Back to Wallet
+        </a>
+
+    </div>
+
+</div>
+
+</body>
+</html>

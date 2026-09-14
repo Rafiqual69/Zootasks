@@ -1,0 +1,400 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Wallet | ZooTasks</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+        }
+
+        .navbar {
+            background: #111827;
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a,
+        .logout-btn {
+            color: white;
+            text-decoration: none;
+            background: #1f2937;
+            border: 0;
+            padding: 9px 13px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .nav-links a:hover,
+        .logout-btn:hover {
+            background: #374151;
+        }
+
+        .container {
+            width: min(1100px, 94%);
+            margin: 30px auto;
+        }
+
+        .hero {
+            background: white;
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 25px rgba(0,0,0,.06);
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        .hero p {
+            margin: 0;
+            color: #667085;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 22px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 6px 20px rgba(0,0,0,.05);
+        }
+
+        .stat-title {
+            color: #667085;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 22px;
+        }
+
+        .btn {
+            display: inline-block;
+            text-decoration: none;
+            border: 0;
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #111827;
+            color: white;
+        }
+
+        .btn.secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .section-title {
+            margin: 0 0 16px;
+            font-size: 21px;
+        }
+
+        .transaction {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid #edf0f4;
+        }
+
+        .transaction:last-child {
+            border-bottom: 0;
+        }
+
+        .transaction-name {
+            font-weight: 700;
+        }
+
+        .transaction-date {
+            color: #667085;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .earning {
+            color: #16803c;
+            font-weight: 800;
+        }
+
+        .withdrawal {
+            color: #c0392b;
+            font-weight: 800;
+        }
+
+        .empty {
+            color: #667085;
+            padding: 10px 0;
+        }
+
+        .status {
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .status.pending {
+            background: #fff4cc;
+            color: #8a6500;
+        }
+
+        .status.approved {
+            background: #dff6e7;
+            color: #16733a;
+        }
+
+        .status.paid {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .status.rejected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        @media (max-width: 850px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 550px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .navbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .hero h1 {
+                font-size: 25px;
+            }
+
+            .transaction {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar">
+    <div class="brand">🦁 ZooTasks</div>
+
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/tasks/">Tasks</a>
+        <a href="/promotions/">Promos</a>
+        <a href="/wallet/">Wallet</a>
+
+        <form method="post" action="/accounts/logout/" style="display:inline;">
+            {% csrf_token %}
+            <button class="logout-btn" type="submit">
+                Logout
+            </button>
+        </form>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="hero">
+        <h1>💰 My Wallet</h1>
+        <p>Manage your ZooTasks earnings, withdrawals and transaction history.</p>
+    </div>
+
+    <div class="stats">
+
+        <div class="card">
+            <div class="stat-title">Available Balance</div>
+            <div class="stat-value">
+                ৳{{ available_balance|floatformat:2 }}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-title">Total Earned</div>
+            <div class="stat-value">
+                ৳{{ total_earned|floatformat:2 }}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-title">Total Withdrawn</div>
+            <div class="stat-value">
+                ৳{{ total_withdrawn|floatformat:2 }}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-title">Pending Withdrawal</div>
+            <div class="stat-value">
+                ৳{{ pending_withdrawals|floatformat:2 }}
+            </div>
+        </div>
+
+    </div>
+
+    <div class="actions">
+
+        <a href="/wallet/withdraw/" class="btn">
+            💸 Withdraw Money
+        </a>
+
+        <a href="/wallet/withdraw/history/" class="btn secondary">
+            📋 Withdrawal History
+        </a>
+
+        <a href="/tasks/" class="btn secondary">
+            🔎 Find Tasks
+        </a>
+
+    </div>
+
+    <div class="card">
+
+        <h2 class="section-title">
+            💳 Recent Transactions
+        </h2>
+
+        {% for transaction in transactions %}
+
+            <div class="transaction">
+
+                <div>
+                    <div class="transaction-name">
+                        {{ transaction.description }}
+                    </div>
+
+                    <div class="transaction-date">
+                        {{ transaction.created_at|date:"d M Y, h:i A" }}
+                    </div>
+                </div>
+
+                <div>
+                    {% if transaction.transaction_type == "earning" %}
+                        <span class="earning">
+                            +৳{{ transaction.amount|floatformat:2 }}
+                        </span>
+                    {% elif transaction.transaction_type == "withdrawal" %}
+                        <span class="withdrawal">
+                            -৳{{ transaction.amount|floatformat:2 }}
+                        </span>
+                    {% else %}
+                        <span>
+                            ৳{{ transaction.amount|floatformat:2 }}
+                        </span>
+                    {% endif %}
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <div class="empty">
+                No wallet transactions yet.
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+    <br>
+
+    <div class="card">
+
+        <h2 class="section-title">
+            📤 Recent Withdrawals
+        </h2>
+
+        {% for withdrawal in withdrawals %}
+
+            <div class="transaction">
+
+                <div>
+                    <div class="transaction-name">
+                        ৳{{ withdrawal.amount|floatformat:2 }}
+                    </div>
+
+                    <div class="transaction-date">
+                        {{ withdrawal.bank_name }}
+                        ·
+                        {{ withdrawal.requested_at|date:"d M Y, h:i A" }}
+                    </div>
+                </div>
+
+                <div>
+                    <span class="status {{ withdrawal.status }}">
+                        {{ withdrawal.status }}
+                    </span>
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <div class="empty">
+                No withdrawal requests yet.
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+</body>
+</html>

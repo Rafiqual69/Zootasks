@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ task.title }} - ZooTasks</title>
+</head>
+
+<body>
+
+<h1>{{ task.title }}</h1>
+
+<p><strong>Category:</strong> {{ task.category }}</p>
+
+<p>{{ task.description }}</p>
+
+<h2>Reward: ৳{{ task.reward }}</h2>
+
+<p>
+Workers:
+{{ task.completed_workers }}/{{ task.max_workers }}
+</p>
+
+{% if claim %}
+
+    {% if claim.status == "claimed" %}
+        <h3>✅ You claimed this task.</h3>
+
+        <a href="{% url 'submit_task' task.id %}">
+            Submit Completed Work
+        </a>
+
+    {% elif claim.status == "submitted" %}
+        <h3>⏳ Your submission is under review.</h3>
+
+    {% elif claim.status == "approved" %}
+        <h3>✅ Task approved!</h3>
+
+    {% elif claim.status == "rejected" %}
+        <h3>❌ Submission rejected.</h3>
+    {% endif %}
+
+{% else %}
+
+    {% if task.completed_workers < task.max_workers %}
+
+    <form method="post"
+          action="{% url 'claim_task' task.id %}">
+        {% csrf_token %}
+        <button type="submit">
+            Claim This Task
+        </button>
+    </form>
+
+    {% else %}
+        <p>This task is no longer available.</p>
+    {% endif %}
+
+{% endif %}
+
+<p>
+<a href="{% url 'marketplace' %}">← Back to Marketplace</a>
+</p>
+
+</body>
+</html>
