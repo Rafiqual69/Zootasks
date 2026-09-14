@@ -20,3 +20,6 @@ media/
 # Backups
 backup_*/
 *.tar.gz
+# Backup source files
+*.backup
+*.bak
