@@ -75,6 +75,7 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
             withdrawal = (
                 WithdrawalRequest.objects
                 .select_for_update()
+                .select_related("user")
                 .get(id=withdrawal_id)
             )
 
@@ -104,12 +105,34 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 skipped_count += 1
                 continue
 
+            profile = (
+                WorkerProfile.objects
+                .select_for_update()
+                .get(user=withdrawal.user)
+            )
+
+            amount = withdrawal.amount
+
+            if profile.balance < amount:
+                skipped_count += 1
+                modeladmin.message_user(
+                    request,
+                    f"❌ Withdrawal #{withdrawal.id} skipped: "
+                    f"balance ৳{profile.balance} is less than "
+                    f"withdrawal ৳{amount}.",
+                    messages.ERROR,
+                )
+                continue
+
             WalletTransaction.objects.create(
                 user=withdrawal.user,
-                amount=withdrawal.amount,
+                amount=amount,
                 transaction_type="withdrawal",
                 description=f"Withdrawal #{withdrawal.id}",
             )
+
+            profile.balance -= amount
+            profile.save(update_fields=["balance"])
 
             withdrawal.status = "paid"
             withdrawal.processed_at = timezone.now()
