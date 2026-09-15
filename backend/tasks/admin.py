@@ -29,7 +29,6 @@ def approve_submissions(modeladmin, request, queryset):
     already_paid = 0
 
     for claim_id in queryset.values_list("id", flat=True):
-
         with transaction.atomic():
             claim = (
                 TaskClaim.objects
@@ -38,11 +37,9 @@ def approve_submissions(modeladmin, request, queryset):
                 .get(id=claim_id)
             )
 
-            # Only submitted claims can be approved
             if claim.status != "submitted":
                 continue
 
-            # Duplicate-payment protection
             existing_payment = WalletTransaction.objects.filter(
                 task_claim=claim
             ).first()
@@ -55,11 +52,12 @@ def approve_submissions(modeladmin, request, queryset):
 
             reward = claim.task.reward
 
-            profile, _ = WorkerProfile.objects.get_or_create(
-                user=claim.worker
+            profile = (
+                WorkerProfile.objects
+                .select_for_update()
+                .get(user=claim.worker)
             )
 
-            # Update worker profile
             profile.balance += reward
             profile.total_earned += reward
             profile.completed_tasks += 1
@@ -72,7 +70,6 @@ def approve_submissions(modeladmin, request, queryset):
                 ]
             )
 
-            # Create exactly one earning transaction
             WalletTransaction.objects.create(
                 user=claim.worker,
                 amount=reward,
@@ -81,7 +78,6 @@ def approve_submissions(modeladmin, request, queryset):
                 task_claim=claim,
             )
 
-            # Mark claim approved
             claim.status = "approved"
             claim.save(update_fields=["status"])
 
@@ -97,7 +93,8 @@ def approve_submissions(modeladmin, request, queryset):
     if already_paid:
         modeladmin.message_user(
             request,
-            f"{already_paid} submission(s) were already paid. No duplicate payment made.",
+            f"{already_paid} submission(s) were already paid. "
+            "No duplicate payment made.",
             messages.WARNING,
         )
 
