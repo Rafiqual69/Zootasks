@@ -23,3 +23,11 @@ backup_*/
 # Backup source files
 *.backup
 *.bak
+
+# Runtime logs
+*.log
+
+# Local backup files
+*.backup*
+*.before-*
+*.withdraw-final-backup
