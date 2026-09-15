@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
 
-PROJECT_DIR="$HOME/taskbazar-pro"
+PROJECT_DIR="$HOME/ZooTasks"
 BACKUP_DIR="$HOME/zootasks-backups"
 DATE=$(date +%Y-%m-%d_%H-%M-%S)
 BACKUP_FILE="$BACKUP_DIR/zootasks-backup-$DATE.tar.gz"

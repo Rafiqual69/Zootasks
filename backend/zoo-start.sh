@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-PROJECT_DIR="$HOME/taskbazar-pro"
+PROJECT_DIR="$HOME/ZooTasks"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
 cd "$BACKEND_DIR" || exit 1

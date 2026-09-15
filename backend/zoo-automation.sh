@@ -2,7 +2,7 @@
 
 set -u
 
-PROJECT_DIR="$HOME/taskbazar-pro"
+PROJECT_DIR="$HOME/ZooTasks"
 BACKEND_DIR="$PROJECT_DIR/backend"
 BACKUP_DIR="$PROJECT_DIR/auto-backups"
 
