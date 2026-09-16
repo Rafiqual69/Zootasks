@@ -31,3 +31,7 @@ backup_*/
 *.backup*
 *.before-*
 *.withdraw-final-backup
+
+backups/
+*.sqlite3
+.env
