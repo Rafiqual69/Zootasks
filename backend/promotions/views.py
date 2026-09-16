@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.middleware.csrf import get_token
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -8,7 +9,7 @@ from wallet.models import WalletTransaction
 
 @login_required
 def marketplace(request):
-    promotions = Promotion.objects.filter(status="approved").order_by("-created_at")
+    promotions = Promotion.objects.filter(status__in=["active", "approved", "paused"]).order_by("-created_at")
     search = request.GET.get("search", "").strip()
     if search:
         promotions = promotions.filter(title__icontains=search)
@@ -26,7 +27,7 @@ def marketplace(request):
             else:
                 action = '<div class="status-badge danger">❌ Rejected</div>'
         elif remaining > 0:
-            action = f'<form method="post" action="/promotions/{promotion.id}/start/" style="margin:0"><input type="hidden" name="csrfmiddlewaretoken" value="{request.META.get("CSRF_COOKIE", "")}"><button class="btn-action" type="submit">🎯 Start Now</button></form>'
+            action = f'<form method="post" action="/promotions/{promotion.id}/start/" style="margin:0"><input type="hidden" name="csrfmiddlewaretoken" value="{get_token(request)}"><button class="btn-action" type="submit">🎯 Start Now</button></form>'
         else:
             action = '<div class="status-badge">🔒 Full</div>'
         progress = (promotion.completed_workers / max(promotion.max_workers, 1)) * 100
@@ -58,7 +59,7 @@ def marketplace(request):
 def start_promotion(request, promotion_id):
     if request.method != "POST":
         return redirect("promotion_marketplace")
-    promotion = get_object_or_404(Promotion.objects.select_for_update(), id=promotion_id, status="approved")
+    promotion = get_object_or_404(Promotion.objects.select_for_update(), id=promotion_id, status__in=["active", "approved"])
     existing = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
     if existing or promotion.completed_workers >= promotion.max_workers:
         return redirect("promotion_marketplace")
@@ -87,6 +88,6 @@ def submit_promotion(request, promotion_id):
 <style>*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:system-ui;background:linear-gradient(135deg,#f8fafc,#e0e7ff);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}}.box{{background:white;border-radius:20px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,.15);max-width:600px;width:100%}}.box h1{{font-size:28px;margin-bottom:8px;color:#2563eb}}.box h2{{font-size:20px;color:#0f172a;margin-bottom:12px;margin-top:24px}}.box p{{color:#64748b;margin-bottom:20px;line-height:1.6}}textarea{{width:100%;min-height:160px;padding:16px;border:2px solid #e2e8f0;border-radius:12px;font-family:inherit;font-size:14px}}textarea:focus{{outline:none;border-color:#2563eb}}button{{width:100%;padding:14px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:white;border:none;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;margin-top:20px;transition:transform .2s,box-shadow .2s}}button:hover{{transform:translateY(-2px);box-shadow:0 10px 20px rgba(37,99,235,.3)}}</style>
 </head><body>
 <div class="box"><h1>📤 Submit Proof</h1><h2>{claim.promotion.title}</h2><p>{claim.promotion.description}</p>
-<form method="post"><input type="hidden" name="csrfmiddlewaretoken" value="{request.META.get("CSRF_COOKIE", "")}"><textarea name="proof" placeholder="Describe completion..." required></textarea><button type="submit">✓ Submit</button></form></div>
+<form method="post"><input type="hidden" name="csrfmiddlewaretoken" value="{get_token(request)}"><textarea name="proof" placeholder="Describe completion..." required></textarea><button type="submit">✓ Submit</button></form></div>
 </body></html>"""
     return HttpResponse(html)

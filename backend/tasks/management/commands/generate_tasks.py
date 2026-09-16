@@ -11,8 +11,8 @@ TASK_TEMPLATES = [
     {
         "title": "Website Visit Practice Task",
         "description": (
-            "Visit the provided website and carefully review its publicly "
-            "available information. Submit a short summary as proof."
+            "Visit the assigned website and review its publicly available "
+            "information. Submit a short, honest summary as proof."
         ),
         "category": "Website Review",
         "reward": Decimal("2.00"),
@@ -21,8 +21,8 @@ TASK_TEMPLATES = [
     {
         "title": "Content Quality Review Task",
         "description": (
-            "Read the assigned content and report spelling, formatting, "
-            "or clarity issues. Do not submit copied or false information."
+            "Review the assigned content and report spelling, formatting, "
+            "or clarity issues. Submit honest feedback."
         ),
         "category": "Content Review",
         "reward": Decimal("3.00"),
@@ -38,17 +38,47 @@ TASK_TEMPLATES = [
         "reward": Decimal("5.00"),
         "max_workers": 5,
     },
+    {
+        "title": "Public Information Research Task",
+        "description": (
+            "Research publicly available information on the assigned topic "
+            "and submit a short factual summary with the source link."
+        ),
+        "category": "Research",
+        "reward": Decimal("4.00"),
+        "max_workers": 10,
+    },
+    {
+        "title": "Website Usability Feedback Task",
+        "description": (
+            "Visit the assigned website and provide honest feedback about "
+            "navigation, readability, and visible usability issues."
+        ),
+        "category": "Website Feedback",
+        "reward": Decimal("4.00"),
+        "max_workers": 10,
+    },
+    {
+        "title": "Content Proofreading Task",
+        "description": (
+            "Review the assigned text for spelling, grammar, formatting, "
+            "and clarity issues. Submit honest corrections."
+        ),
+        "category": "Proofreading",
+        "reward": Decimal("3.00"),
+        "max_workers": 10,
+    },
 ]
 
 
 class Command(BaseCommand):
-    help = "Create safe ZooTasks tasks from predefined templates."
+    help = "Create safe ZooTasks tasks using rotating templates."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Show planned tasks without creating them.",
+            help="Show the next task without creating it.",
         )
         parser.add_argument(
             "--limit",
@@ -64,7 +94,10 @@ class Command(BaseCommand):
         created_count = 0
         skipped_count = 0
 
-        for template in TASK_TEMPLATES[:limit]:
+        for template in TASK_TEMPLATES:
+            if created_count >= limit:
+                break
+
             exists = Task.objects.filter(
                 title=template["title"],
                 status__in=["active", "paused"],
@@ -87,6 +120,7 @@ class Command(BaseCommand):
                         f"DRY-RUN: Would create — {template['title']}"
                     )
                 )
+                created_count += 1
                 continue
 
             Task.objects.create(
@@ -105,12 +139,14 @@ class Command(BaseCommand):
                     f"(Reward: ৳{template['reward']})"
                 )
             )
+
             created_count += 1
 
         self.stdout.write("")
         self.stdout.write(
             self.style.SUCCESS(
                 f"Completed. Created: {created_count}, "
-                f"Skipped: {skipped_count}, Dry-run: {dry_run}"
+                f"Skipped: {skipped_count}, "
+                f"Dry-run: {dry_run}"
             )
         )

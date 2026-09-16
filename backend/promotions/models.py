@@ -5,9 +5,12 @@ from django.db import models
 class Promotion(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending Review"),
+        ("active", "Active"),
         ("approved", "Approved"),
         ("rejected", "Rejected"),
         ("paused", "Paused"),
+        ("completed", "Completed"),
+        ("expired", "Expired"),
     ]
 
     title = models.CharField(max_length=200)
