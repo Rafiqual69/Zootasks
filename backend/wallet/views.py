@@ -2,10 +2,11 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F, Sum
 from django.shortcuts import redirect, render
 
 from .models import WalletTransaction, WithdrawalRequest
+from accounts.models import WorkerProfile
 
 
 MIN_WITHDRAWAL = Decimal("50.00")
@@ -32,21 +33,13 @@ def get_wallet_summary(user):
         or Decimal("0.00")
     )
 
-    pending_withdrawals = (
-        WithdrawalRequest.objects
-        .filter(
-            user=user,
-            status="pending",
-        )
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    profile = WorkerProfile.objects.get_or_create(
+        user=user
+    )[0]
 
-    available_balance = (
-        total_earned
-        - total_withdrawn
-        - pending_withdrawals
-    )
+    pending_withdrawals = profile.reserved_balance
+
+    available_balance = profile.balance - profile.reserved_balance
 
     return {
         "total_earned": total_earned,
@@ -114,7 +107,21 @@ def request_withdrawal(request):
             error = "Please complete all payment information."
 
         else:
-            WithdrawalRequest.objects.create(
+            reserved = (
+                WorkerProfile.objects
+                .filter(
+                    user=request.user,
+                    balance__gte=F("reserved_balance") + amount,
+                )
+                .update(
+                    reserved_balance=F("reserved_balance") + amount
+                )
+            )
+
+            if not reserved:
+                error = "Insufficient available balance."
+            else:
+                WithdrawalRequest.objects.create(
                 user=request.user,
                 amount=amount,
                 bank_name=bank_name,

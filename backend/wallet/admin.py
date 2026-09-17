@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.db import transaction
 from django.utils import timezone
+from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
 
@@ -48,12 +49,37 @@ def approve_withdrawals(modeladmin, request, queryset):
 
 @admin.action(description="❌ Reject selected withdrawals")
 def reject_withdrawals(modeladmin, request, queryset):
-    updated = queryset.filter(
-        status="pending"
-    ).update(
-        status="rejected",
-        processed_at=timezone.now(),
-    )
+    updated = 0
+
+    for withdrawal_id in queryset.values_list("id", flat=True):
+        with transaction.atomic():
+            withdrawal = (
+                WithdrawalRequest.objects
+                .select_for_update()
+                .get(id=withdrawal_id)
+            )
+
+            if withdrawal.status != "pending":
+                continue
+
+            profile = (
+                WorkerProfile.objects
+                .select_for_update()
+                .get(user=withdrawal.user)
+            )
+
+            if profile.reserved_balance < withdrawal.amount:
+                continue
+
+            profile.reserved_balance -= withdrawal.amount
+            profile.save(update_fields=["reserved_balance"])
+
+            withdrawal.status = "rejected"
+            withdrawal.processed_at = timezone.now()
+            withdrawal.save(
+                update_fields=["status", "processed_at"]
+            )
+            updated += 1
 
     modeladmin.message_user(
         request,
@@ -90,6 +116,16 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
             ).exists()
 
             if already_paid:
+                profile = (
+                    WorkerProfile.objects
+                    .select_for_update()
+                    .get(user=withdrawal.user)
+                )
+
+                if profile.reserved_balance >= withdrawal.amount:
+                    profile.reserved_balance -= withdrawal.amount
+                    profile.save(update_fields=["reserved_balance"])
+
                 withdrawal.status = "paid"
                 withdrawal.processed_at = (
                     withdrawal.processed_at
@@ -113,6 +149,17 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
 
             amount = withdrawal.amount
 
+            if profile.reserved_balance < amount:
+                skipped_count += 1
+                modeladmin.message_user(
+                    request,
+                    f"❌ Withdrawal #{withdrawal.id} skipped: "
+                    f"reserved balance ৳{profile.reserved_balance} "
+                    f"is less than withdrawal ৳{amount}.",
+                    messages.ERROR,
+                )
+                continue
+
             if profile.balance < amount:
                 skipped_count += 1
                 modeladmin.message_user(
@@ -132,7 +179,13 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
             )
 
             profile.balance -= amount
-            profile.save(update_fields=["balance"])
+            profile.reserved_balance -= amount
+            profile.save(
+                update_fields=[
+                    "balance",
+                    "reserved_balance",
+                ]
+            )
 
             withdrawal.status = "paid"
             withdrawal.processed_at = timezone.now()

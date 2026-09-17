@@ -56,7 +56,7 @@ def dashboard(request):
         or 0
     )
 
-    balance = total_earned - total_withdrawn
+    balance = profile.balance
 
     completed_tasks = (
         WalletTransaction.objects.filter(

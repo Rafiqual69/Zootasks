@@ -18,13 +18,14 @@ from telegram.ext import (
 )
 
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 from accounts.models import WorkerProfile
 from tasks.models import Task, TaskClaim
 from wallet.models import WalletTransaction, WithdrawalRequest
 from decimal import Decimal, InvalidOperation
-from django.db.models import Sum
+from django.db.models import F, Sum
 
 
 print("\n" + "=" * 60)
@@ -175,36 +176,38 @@ async def claim_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         WorkerProfile.objects.get_or_create(user=user)
 
         try:
-            task = Task.objects.get(
-                id=task_id,
-                status="active",
-            )
+            with transaction.atomic():
+                task = (
+                    Task.objects
+                    .select_for_update()
+                    .get(id=task_id, status="active")
+                )
+
+                if task.completed_workers >= task.max_workers:
+                    return "❌ এই task-এর worker limit পূর্ণ হয়ে গেছে।"
+
+                if TaskClaim.objects.filter(
+                    task=task,
+                    worker=user,
+                ).exists():
+                    return "⚠️ আপনি এই task ইতিমধ্যে claim করেছেন।"
+
+                TaskClaim.objects.create(
+                    task=task,
+                    worker=user,
+                    status="claimed",
+                )
+
+                task.completed_workers += 1
+                if task.completed_workers >= task.max_workers:
+                    task.status = "completed"
+
+                task.save(
+                    update_fields=["completed_workers", "status"]
+                )
+
         except Task.DoesNotExist:
             return "❌ এই task আর available নেই।"
-
-        if task.completed_workers >= task.max_workers:
-            return "❌ এই task-এর worker limit পূর্ণ হয়ে গেছে।"
-
-        if TaskClaim.objects.filter(
-            task=task,
-            worker=user,
-        ).exists():
-            return "⚠️ আপনি এই task ইতিমধ্যে claim করেছেন।"
-
-        TaskClaim.objects.create(
-            task=task,
-            worker=user,
-            status="claimed",
-        )
-
-        task.completed_workers += 1
-
-        if task.completed_workers >= task.max_workers:
-            task.status = "completed"
-
-        task.save(
-            update_fields=["completed_workers", "status"]
-        )
 
         return (
             "✅ Task successfully claimed!\n\n"
@@ -419,15 +422,46 @@ async def withdrawal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         bank = context.user_data["withdraw_bank"]
         holder = context.user_data["withdraw_holder"]
 
-        withdrawal = await sync_to_async(
-            WithdrawalRequest.objects.create
-        )(
-            user=user,
-            amount=amount,
-            bank_name=bank,
-            account_holder=holder,
-            bank_account=text,
-        )
+        @sync_to_async
+        def create_withdrawal():
+            with transaction.atomic():
+                profile = (
+                    WorkerProfile.objects
+                    .select_for_update()
+                    .get(user=user)
+                )
+
+                reserved = (
+                    WorkerProfile.objects
+                    .filter(
+                        user=user,
+                        balance__gte=F("reserved_balance") + amount,
+                    )
+                    .update(
+                        reserved_balance=F("reserved_balance") + amount
+                    )
+                )
+
+                if not reserved:
+                    return None
+
+                return WithdrawalRequest.objects.create(
+                    user=user,
+                    amount=amount,
+                    bank_name=bank,
+                    account_holder=holder,
+                    bank_account=text,
+                )
+
+        withdrawal = await create_withdrawal()
+
+        if withdrawal is None:
+            context.user_data.clear()
+            await update.message.reply_text(
+                "❌ এই মুহূর্তে পর্যাপ্ত available balance নেই।\n"
+                "দয়া করে আবার চেষ্টা করুন।"
+            )
+            return True
 
         context.user_data.clear()
 
@@ -664,57 +698,76 @@ async def review_claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
     @sync_to_async
     def process_claim():
         try:
-            claim = (
-                TaskClaim.objects
-                .select_related("task", "worker")
-                .get(id=claim_id)
-            )
+            with transaction.atomic():
+                claim = (
+                    TaskClaim.objects
+                    .select_for_update()
+                    .select_related("task", "worker")
+                    .get(id=claim_id)
+                )
+
+                if claim.status != "submitted":
+                    return (
+                        f"⚠️ এই claim আগে থেকেই "
+                        f"{claim.status} অবস্থায় আছে।"
+                    )
+
+                if action == "reject":
+                    claim.status = "rejected"
+                    claim.save(update_fields=["status"])
+                    return f"❌ Claim #{claim.id} rejected হয়েছে।"
+
+                if action == "approve":
+                    profile, _ = (
+                        WorkerProfile.objects
+                        .select_for_update()
+                        .get_or_create(user=claim.worker)
+                    )
+
+                    existing_tx = WalletTransaction.objects.filter(
+                        task_claim=claim,
+                        transaction_type="earning",
+                    ).first()
+
+                    if existing_tx:
+                        claim.status = "approved"
+                        claim.save(update_fields=["status"])
+                        return (
+                            f"✅ Claim #{claim.id} already credited ছিল।"
+                        )
+
+                    WalletTransaction.objects.create(
+                        user=claim.worker,
+                        amount=claim.task.reward,
+                        transaction_type="earning",
+                        description=f"Reward for: {claim.task.title}",
+                        task_claim=claim,
+                    )
+
+                    profile.balance += claim.task.reward
+                    profile.total_earned += claim.task.reward
+                    profile.completed_tasks += 1
+                    profile.save(
+                        update_fields=[
+                            "balance",
+                            "total_earned",
+                            "completed_tasks",
+                        ]
+                    )
+
+                    claim.status = "approved"
+                    claim.save(update_fields=["status"])
+
+                    return (
+                        f"✅ Claim #{claim.id} approved হয়েছে.\n\n"
+                        f"💰 Reward ৳{claim.task.reward} "
+                        f"worker-এর balance-এ যোগ হয়েছে।"
+                    )
+
+                return "❌ Invalid action."
+
         except TaskClaim.DoesNotExist:
             return "❌ Claim পাওয়া যায়নি।"
-
-        if claim.status != "submitted":
-            return f"⚠️ এই claim আগে থেকেই {claim.status} অবস্থায় আছে।"
-
-        if action == "reject":
-            claim.status = "rejected"
-            claim.save(update_fields=["status"])
-            return f"❌ Claim #{claim.id} rejected হয়েছে।"
-
-        if action == "approve":
-            profile, _ = WorkerProfile.objects.get_or_create(
-                user=claim.worker
-            )
-
-            profile.balance += claim.task.reward
-            profile.total_earned += claim.task.reward
-            profile.completed_tasks += 1
-            profile.save(
-                update_fields=[
-                    "balance",
-                    "total_earned",
-                    "completed_tasks",
-                ]
-            )
-
-            WalletTransaction.objects.get_or_create(
-                task_claim=claim,
-                defaults={
-                    "user": claim.worker,
-                    "amount": claim.task.reward,
-                    "transaction_type": "earning",
-                    "description": f"Reward for: {claim.task.title}",
-                },
-            )
-
-            claim.status = "approved"
-            claim.save(update_fields=["status"])
-
-            return (
-                f"✅ Claim #{claim.id} approved হয়েছে।\\n\\n"
-                f"💰 Reward ৳{claim.task.reward} worker-এর balance-এ যোগ হয়েছে।"
-            )
-
-        return "❌ Invalid action."
 
     result = await process_claim()
     await query.edit_message_text(result)
