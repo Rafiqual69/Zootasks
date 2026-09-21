@@ -9,7 +9,14 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 from accounts.models import CustomUser, Wallet
 from tasks.models import Task
 
-BOT_TOKEN = '7584827421:AAH-Iqh5QX_7bLjKJLq9E8m9_7Y_nB0Zs6c'
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+if not BOT_TOKEN:
+    raise RuntimeError("TELEGRAM_BOT_TOKEN is not set in .env")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -108,7 +115,6 @@ def main():
     print("="*60)
     print("\n🤖 Bot Status: RUNNING")
     print("👤 Bot: @ZooTasksBot")
-    print("🔌 Token: " + BOT_TOKEN[:20] + "...")
     print("\n📋 Commands:")
     print("   /start - শুরু করুন")
     print("   /tasks - কাজ দেখুন")

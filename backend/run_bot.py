@@ -25,7 +25,7 @@ from accounts.models import WorkerProfile
 from tasks.models import Task, TaskClaim
 from wallet.models import WalletTransaction, WithdrawalRequest
 from decimal import Decimal, InvalidOperation
-from django.db.models import F, Sum
+from django.db.models import F
 
 
 print("\n" + "=" * 60)
@@ -357,25 +357,11 @@ async def withdrawal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return True
 
-        earned = await sync_to_async(
-            lambda: WalletTransaction.objects.filter(
-                user=user, transaction_type="earning"
-            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        profile = await sync_to_async(
+            lambda: WorkerProfile.objects.get(user=user)
         )()
 
-        withdrawn = await sync_to_async(
-            lambda: WalletTransaction.objects.filter(
-                user=user, transaction_type="withdrawal"
-            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        )()
-
-        pending = await sync_to_async(
-            lambda: WithdrawalRequest.objects.filter(
-                user=user, status="pending"
-            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        )()
-
-        available = earned - withdrawn - pending
+        available = profile.balance - profile.reserved_balance
 
         if amount < Decimal("50.00"):
             await update.message.reply_text(
