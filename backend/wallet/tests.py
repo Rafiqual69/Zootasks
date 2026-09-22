@@ -392,6 +392,36 @@ class WithdrawalAdminActionTests(TestCase):
             first_transactions,
         )
 
+    def test_paid_withdrawal_with_existing_matching_transaction_is_completed(self):
+        withdrawal = self.create_withdrawal(status="approved")
+
+        WalletTransaction.objects.create(
+            user=self.user,
+            amount=withdrawal.amount,
+            transaction_type="withdrawal",
+            description=f"Withdrawal #{withdrawal.id}",
+        )
+
+        mark_withdrawals_paid(
+            self.modeladmin,
+            self.request,
+            WithdrawalRequest.objects.filter(pk=withdrawal.pk),
+        )
+
+        withdrawal.refresh_from_db()
+        self.profile.refresh_from_db()
+
+        self.assertEqual(withdrawal.status, "paid")
+        self.assertEqual(self.profile.balance, Decimal("200.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                user=self.user,
+                transaction_type="withdrawal",
+            ).count(),
+            1,
+        )
+
     def test_reject_withdrawal_without_reservation_keeps_pending(self):
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["reserved_balance"])

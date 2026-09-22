@@ -204,7 +204,7 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                         "processed_at",
                     ]
                 )
-                skipped_count += 1
+                paid_count += 1
                 continue
 
             profile = (
