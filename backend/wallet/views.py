@@ -94,7 +94,11 @@ def request_withdrawal(request):
         except (InvalidOperation, TypeError):
             amount = Decimal("0.00")
 
-        if amount < MIN_WITHDRAWAL:
+        if not amount.is_finite():
+            error = "Please enter a valid withdrawal amount."
+        elif amount.as_tuple().exponent < -2:
+            error = "Withdrawal amount can have at most 2 decimal places."
+        elif amount < MIN_WITHDRAWAL:
             error = (
                 f"Minimum withdrawal is "
                 f"৳{MIN_WITHDRAWAL:.2f}."

@@ -33,18 +33,58 @@ class WalletTransactionAdmin(admin.ModelAdmin):
 
 @admin.action(description="✅ Approve selected withdrawals")
 def approve_withdrawals(modeladmin, request, queryset):
-    updated = queryset.filter(
-        status="pending"
-    ).update(
-        status="approved",
-        processed_at=timezone.now(),
-    )
+    updated = 0
+    skipped = 0
 
-    modeladmin.message_user(
-        request,
-        f"{updated} withdrawal request(s) approved.",
-        messages.SUCCESS,
-    )
+    for withdrawal_id in queryset.values_list("id", flat=True):
+        with transaction.atomic():
+            withdrawal = (
+                WithdrawalRequest.objects
+                .select_for_update()
+                .get(id=withdrawal_id)
+            )
+
+            if withdrawal.status != "pending":
+                skipped += 1
+                continue
+
+            profile = (
+                WorkerProfile.objects
+                .select_for_update()
+                .get(user=withdrawal.user)
+            )
+
+            if profile.reserved_balance < withdrawal.amount:
+                skipped += 1
+                modeladmin.message_user(
+                    request,
+                    f"❌ Withdrawal #{withdrawal.id} skipped: "
+                    f"reserved balance ৳{profile.reserved_balance} "
+                    f"is less than withdrawal ৳{withdrawal.amount}.",
+                    messages.ERROR,
+                )
+                continue
+
+            withdrawal.status = "approved"
+            withdrawal.processed_at = timezone.now()
+            withdrawal.save(
+                update_fields=["status", "processed_at"]
+            )
+            updated += 1
+
+    if updated:
+        modeladmin.message_user(
+            request,
+            f"{updated} withdrawal request(s) approved.",
+            messages.SUCCESS,
+        )
+
+    if skipped:
+        modeladmin.message_user(
+            request,
+            f"{skipped} withdrawal request(s) skipped.",
+            messages.WARNING,
+        )
 
 
 @admin.action(description="❌ Reject selected withdrawals")
@@ -109,27 +149,54 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 skipped_count += 1
                 continue
 
-            already_paid = WalletTransaction.objects.filter(
-                user=withdrawal.user,
-                transaction_type="withdrawal",
-                description=f"Withdrawal #{withdrawal.id}",
-            ).exists()
+            existing_transaction = (
+                WalletTransaction.objects
+                .filter(
+                    user=withdrawal.user,
+                    transaction_type="withdrawal",
+                    description=f"Withdrawal #{withdrawal.id}",
+                )
+                .first()
+            )
 
-            if already_paid:
+            if existing_transaction:
+                if existing_transaction.amount != withdrawal.amount:
+                    skipped_count += 1
+                    modeladmin.message_user(
+                        request,
+                        f"❌ Withdrawal #{withdrawal.id} skipped: "
+                        f"existing transaction amount "
+                        f"৳{existing_transaction.amount} does not match "
+                        f"withdrawal ৳{withdrawal.amount}. "
+                        f"Manual reconciliation required.",
+                        messages.ERROR,
+                    )
+                    continue
+
                 profile = (
                     WorkerProfile.objects
                     .select_for_update()
                     .get(user=withdrawal.user)
                 )
 
-                if profile.reserved_balance >= withdrawal.amount:
-                    profile.reserved_balance -= withdrawal.amount
-                    profile.save(update_fields=["reserved_balance"])
+                if profile.reserved_balance < withdrawal.amount:
+                    skipped_count += 1
+                    modeladmin.message_user(
+                        request,
+                        f"❌ Withdrawal #{withdrawal.id} skipped: "
+                        f"reserved balance ৳{profile.reserved_balance} "
+                        f"is less than withdrawal ৳{withdrawal.amount}. "
+                        f"Manual reconciliation required.",
+                        messages.ERROR,
+                    )
+                    continue
+
+                profile.reserved_balance -= withdrawal.amount
+                profile.save(update_fields=["reserved_balance"])
 
                 withdrawal.status = "paid"
                 withdrawal.processed_at = (
-                    withdrawal.processed_at
-                    or timezone.now()
+                    withdrawal.processed_at or timezone.now()
                 )
                 withdrawal.save(
                     update_fields=[
@@ -137,7 +204,6 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                         "processed_at",
                     ]
                 )
-
                 skipped_count += 1
                 continue
 

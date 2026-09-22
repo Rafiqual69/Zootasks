@@ -358,6 +358,18 @@ async def withdrawal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return True
 
+        if not amount.is_finite():
+            await update.message.reply_text(
+                "❌ সঠিক amount দিন। যেমন: 50"
+            )
+            return True
+
+        if amount.as_tuple().exponent < -2:
+            await update.message.reply_text(
+                "❌ Amount-এ সর্বোচ্চ ২টি decimal place ব্যবহার করুন।"
+            )
+            return True
+
         profile = await sync_to_async(
             lambda: WorkerProfile.objects.get(user=user)
         )()
@@ -820,8 +832,9 @@ app.add_handler(
     CallbackQueryHandler(review_claim, pattern=r"^(approve|reject):\d+$")
 )
 
-try:
-    app.run_polling()
+if __name__ == "__main__":
+    try:
+        app.run_polling()
 
-except KeyboardInterrupt:
-    print("\\n❌ Bot বন্ধ করা হয়েছে")
+    except KeyboardInterrupt:
+        print("\\n❌ Bot বন্ধ করা হয়েছে")

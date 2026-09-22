@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdrawal Submitted | ZooTasks</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f7fb; color: #172033; }
+        .navbar { background: #111827; color: white; padding: 15px 20px; }
+        .nav-inner { max-width: 900px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+        .logo { font-size: 22px; font-weight: 800; }
+        .nav-links { display: flex; gap: 18px; flex-wrap: wrap; }
+        .nav-links a { color: #dbeafe; text-decoration: none; font-size: 14px; }
+        .container { max-width: 700px; margin: 40px auto; padding: 0 18px; }
+        .card { background: white; padding: 32px 25px; border-radius: 20px; text-align: center; box-shadow: 0 5px 20px rgba(15,23,42,.06); }
+        .icon { font-size: 52px; margin-bottom: 10px; }
+        h1 { margin: 0 0 10px; font-size: 28px; }
+        .message { color: #64748b; line-height: 1.6; margin-bottom: 25px; }
+        .balance { background: #eff6ff; color: #1e40af; padding: 16px; border-radius: 12px; margin-bottom: 22px; }
+        .balance-label { font-size: 13px; }
+        .balance-value { font-size: 26px; font-weight: 800; margin-top: 5px; }
+        .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .btn { display: inline-block; padding: 12px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; }
+        .primary { background: #2563eb; color: white; }
+        .secondary { background: #111827; color: white; }
+        .footer { text-align: center; color: #64748b; font-size: 13px; padding: 30px 0; }
+        @media (max-width: 600px) { .nav-inner { flex-direction: column; align-items: flex-start; } h1 { font-size: 24px; } }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-inner">
+        <div class="logo">🦁 ZooTasks</div>
+        <div class="nav-links">
+            <a href="/accounts/dashboard/">Dashboard</a>
+            <a href="/tasks/">Tasks</a>
+            <a href="/promotions/">Promos</a>
+        </div>
+    </div>
+</nav>
+<main class="container">
+    <section class="card">
+        <div class="icon">✅</div>
+        <h1>Withdrawal Request Submitted</h1>
+        <p class="message">
+            Your withdrawal request has been submitted successfully.
+            The requested amount has been reserved from your available balance
+            and is awaiting processing.
+        </p>
+        <div class="balance">
+            <div class="balance-label">Available Balance</div>
+            <div class="balance-value">৳{{ available_balance|floatformat:2 }}</div>
+        </div>
+        <div class="actions">
+            <a class="btn primary" href="/wallet/">View Wallet</a>
+            <a class="btn secondary" href="/wallet/withdrawals/">Withdrawal History</a>
+        </div>
+    </section>
+    <div class="footer">© ZooTasks — Work Smart. Complete Tasks. Earn Rewards.</div>
+</main>
+</body>
+</html>
