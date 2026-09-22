@@ -3,9 +3,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 import django
 
+load_dotenv(Path(__file__).resolve().parent / '.env')
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
-load_dotenv(Path(__file__).resolve().parent / '.env')
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
