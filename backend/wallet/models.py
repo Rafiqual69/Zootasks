@@ -43,6 +43,11 @@ class WithdrawalRequest(models.Model):
 
     class Meta:
         ordering = ["-requested_at"]
+        permissions = [
+            ("approve_withdrawal", "Can approve withdrawals"),
+            ("reject_withdrawal", "Can reject withdrawals"),
+            ("mark_withdrawal_paid", "Can mark withdrawals as paid"),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - ৳{self.amount} ({self.status})"

@@ -27,12 +27,26 @@ class WalletTransactionAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = (
+        "user",
+        "amount",
+        "transaction_type",
+        "description",
+        "task_claim",
+        "promotion_claim",
         "created_at",
     )
 
 
 @admin.action(description="✅ Approve selected withdrawals")
 def approve_withdrawals(modeladmin, request, queryset):
+    if not request.user.has_perm("wallet.approve_withdrawal"):
+        modeladmin.message_user(
+            request,
+            "You do not have permission to approve withdrawals.",
+            messages.ERROR,
+        )
+        return
+
     updated = 0
     skipped = 0
 
@@ -89,6 +103,14 @@ def approve_withdrawals(modeladmin, request, queryset):
 
 @admin.action(description="❌ Reject selected withdrawals")
 def reject_withdrawals(modeladmin, request, queryset):
+    if not request.user.has_perm("wallet.reject_withdrawal"):
+        modeladmin.message_user(
+            request,
+            "You do not have permission to reject withdrawals.",
+            messages.ERROR,
+        )
+        return
+
     updated = 0
 
     for withdrawal_id in queryset.values_list("id", flat=True):
@@ -130,6 +152,13 @@ def reject_withdrawals(modeladmin, request, queryset):
 
 @admin.action(description="💵 Mark selected withdrawals as PAID")
 def mark_withdrawals_paid(modeladmin, request, queryset):
+    if not request.user.has_perm("wallet.mark_withdrawal_paid"):
+        modeladmin.message_user(
+            request,
+            "You do not have permission to mark withdrawals as paid.",
+            messages.ERROR,
+        )
+        return
 
     paid_count = 0
     skipped_count = 0
@@ -172,27 +201,6 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                         messages.ERROR,
                     )
                     continue
-
-                profile = (
-                    WorkerProfile.objects
-                    .select_for_update()
-                    .get(user=withdrawal.user)
-                )
-
-                if profile.reserved_balance < withdrawal.amount:
-                    skipped_count += 1
-                    modeladmin.message_user(
-                        request,
-                        f"❌ Withdrawal #{withdrawal.id} skipped: "
-                        f"reserved balance ৳{profile.reserved_balance} "
-                        f"is less than withdrawal ৳{withdrawal.amount}. "
-                        f"Manual reconciliation required.",
-                        messages.ERROR,
-                    )
-                    continue
-
-                profile.reserved_balance -= withdrawal.amount
-                profile.save(update_fields=["reserved_balance"])
 
                 withdrawal.status = "paid"
                 withdrawal.processed_at = (
@@ -324,5 +332,7 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         "bank_name",
         "account_holder",
         "bank_account",
+        "status",
         "requested_at",
+        "processed_at",
     )

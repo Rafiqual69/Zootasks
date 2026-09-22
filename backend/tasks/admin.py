@@ -25,6 +25,14 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.action(description="✅ Approve selected submissions & pay reward")
 def approve_submissions(modeladmin, request, queryset):
+    if not request.user.has_perm("tasks.approve_task_submission"):
+        modeladmin.message_user(
+            request,
+            "You do not have permission to approve task submissions.",
+            messages.ERROR,
+        )
+        return
+
     approved = 0
     already_paid = 0
 
@@ -108,6 +116,14 @@ def approve_submissions(modeladmin, request, queryset):
 
 @admin.action(description="❌ Reject selected submissions")
 def reject_submissions(modeladmin, request, queryset):
+    if not request.user.has_perm("tasks.reject_task_submission"):
+        modeladmin.message_user(
+            request,
+            "You do not have permission to reject task submissions.",
+            messages.ERROR,
+        )
+        return
+
     updated = queryset.filter(
         status="submitted"
     ).update(
@@ -156,6 +172,7 @@ class TaskClaimAdmin(admin.ModelAdmin):
         "task",
         "worker",
         "proof",
+        "status",
         "claimed_at",
         "submitted_at",
     )

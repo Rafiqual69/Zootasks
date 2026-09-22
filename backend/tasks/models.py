@@ -26,6 +26,10 @@ class Task(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        permissions = [
+            ("approve_task_submission", "Can approve task submissions"),
+            ("reject_task_submission", "Can reject task submissions"),
+        ]
 
     def __str__(self):
         return self.title

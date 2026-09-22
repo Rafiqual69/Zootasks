@@ -39,10 +39,28 @@ class PromotionClaimAdmin(admin.ModelAdmin):
         "worker__username",
     )
 
+    readonly_fields = (
+        "promotion",
+        "worker",
+        "proof",
+        "status",
+        "claimed_at",
+        "submitted_at",
+        "approved_at",
+    )
+
     actions = ["approve_claims", "reject_claims"]
 
     @admin.action(description="Approve selected promotion claims and pay reward")
     def approve_claims(self, request, queryset):
+        if not request.user.has_perm("promotions.approve_promotion_claim"):
+            self.message_user(
+                request,
+                "You do not have permission to approve promotion claims.",
+                messages.ERROR,
+            )
+            return
+
         paid = 0
         already_paid = 0
         failed = 0
@@ -156,6 +174,14 @@ class PromotionClaimAdmin(admin.ModelAdmin):
 
     @admin.action(description="Reject selected promotion claims")
     def reject_claims(self, request, queryset):
+        if not request.user.has_perm("promotions.reject_promotion_claim"):
+            self.message_user(
+                request,
+                "You do not have permission to reject promotion claims.",
+                messages.ERROR,
+            )
+            return
+
         updated = queryset.filter(
             status="submitted"
         ).update(

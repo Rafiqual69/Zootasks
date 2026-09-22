@@ -75,7 +75,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-LOGIN_URL = "register"
+LOGIN_URL = "login"
 
 # =============== EMAIL SETTINGS ===============
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

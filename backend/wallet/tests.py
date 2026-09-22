@@ -272,7 +272,17 @@ class WithdrawalAdminActionTests(TestCase):
                 pass
 
         self.modeladmin = ModelAdminStub()
-        self.request = object()
+
+        self.admin_user = User.objects.create_superuser(
+            username="wallet_test_admin",
+            password="test-admin-password-123",
+        )
+
+        class RequestStub:
+            pass
+
+        self.request = RequestStub()
+        self.request.user = self.admin_user
 
     def create_withdrawal(self, status="pending", amount="50.00"):
         return WithdrawalRequest.objects.create(
@@ -393,6 +403,14 @@ class WithdrawalAdminActionTests(TestCase):
         )
 
     def test_paid_withdrawal_with_existing_matching_transaction_is_completed(self):
+        # Simulate a previously committed payment: the wallet balances have
+        # already been updated and the matching ledger transaction exists.
+        self.profile.balance = Decimal("150.00")
+        self.profile.reserved_balance = Decimal("0.00")
+        self.profile.save(
+            update_fields=["balance", "reserved_balance"]
+        )
+
         withdrawal = self.create_withdrawal(status="approved")
 
         WalletTransaction.objects.create(
@@ -412,7 +430,7 @@ class WithdrawalAdminActionTests(TestCase):
         self.profile.refresh_from_db()
 
         self.assertEqual(withdrawal.status, "paid")
-        self.assertEqual(self.profile.balance, Decimal("200.00"))
+        self.assertEqual(self.profile.balance, Decimal("150.00"))
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
         self.assertEqual(
             WalletTransaction.objects.filter(
