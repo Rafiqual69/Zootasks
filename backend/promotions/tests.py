@@ -66,3 +66,20 @@ class PromotionXSSTests(TestCase):
 
         self.assertIn("&lt;script&gt;alert(4)&lt;/script&gt;", content)
         self.assertIn("&lt;img src=x onerror=&quot;alert(5)&quot;&gt;", content)
+
+class PromotionRewardValidationTests(TestCase):
+    def test_negative_reward_is_rejected(self):
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+
+        promotion = Promotion(
+            title="Test Promotion",
+            description="Test",
+            advertiser_name="Test Advertiser",
+            reward=Decimal("-1.00"),
+            budget=Decimal("10.00"),
+            max_workers=1,
+        )
+
+        with self.assertRaises(ValidationError):
+            promotion.full_clean()

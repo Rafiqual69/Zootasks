@@ -1,4 +1,7 @@
 from django.contrib.auth.models import User
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
@@ -16,7 +19,12 @@ class Promotion(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     advertiser_name = models.CharField(max_length=150)
-    reward = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    reward = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     budget = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     max_workers = models.PositiveIntegerField(default=1)
     completed_workers = models.PositiveIntegerField(default=0)
