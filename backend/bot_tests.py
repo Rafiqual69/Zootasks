@@ -45,7 +45,7 @@ class BotWithdrawalAmountValidationTests(SimpleTestCase):
 
 from unittest.mock import AsyncMock, Mock
 from django.contrib.auth.models import User
-from accounts.models import WorkerProfile
+from accounts.models import TelegramIdentity, WorkerProfile
 from wallet.models import WithdrawalRequest
 from run_bot import withdrawal_message
 from django.test import TransactionTestCase
@@ -65,6 +65,11 @@ class BotWithdrawalIntegrationTests(TransactionTestCase):
     def test_valid_amount_uses_real_withdrawal_message(self):
         user = User.objects.create(username="bot_test_user")
         profile = WorkerProfile.objects.create(user=user, balance=Decimal("200.00"))
+        TelegramIdentity.objects.create(
+            user=user,
+            telegram_user_id=987654321,
+            username="bot_test_user",
+        )
         context = Mock()
         context.user_data = {"withdraw_step": "amount"}
 
@@ -92,3 +97,139 @@ class BotWithdrawalIntegrationTests(TransactionTestCase):
         self.assertEqual(context.user_data["withdraw_step"], "amount")
         update.message.reply_text.assert_awaited_once()
         self.assertEqual(WithdrawalRequest.objects.count(), 0)
+
+from django.contrib.auth.models import Group, Permission
+from accounts.models import TelegramIdentity
+from run_bot import telegram_user_has_perm
+
+
+class TelegramIdentityRBACSecurityTests(TransactionTestCase):
+    def make_telegram_user(self, telegram_id=987654321012345, username="test_admin"):
+        update_user = Mock()
+        update_user.id = telegram_id
+        update_user.username = username
+        update_user.first_name = "Telegram"
+        update_user.last_name = "Test"
+        return update_user
+
+    def test_telegram_identity_uses_numeric_id_and_updates_profile_data(self):
+        telegram_user = self.make_telegram_user()
+
+        user = User.objects.create(
+            username="telegram_test_user",
+        )
+
+        identity = TelegramIdentity.objects.create(
+            user=user,
+            telegram_user_id=telegram_user.id,
+            username="old_username",
+            first_name="Old",
+            last_name="Name",
+        )
+
+        telegram_user.username = "new_username"
+        telegram_user.first_name = "New"
+        telegram_user.last_name = "Person"
+
+        resolved = __import__("asyncio").run(
+            __import__("run_bot").get_telegram_account(telegram_user)
+        )
+
+        identity.refresh_from_db()
+
+        self.assertEqual(resolved.id, user.id)
+        self.assertEqual(identity.telegram_user_id, telegram_user.id)
+        self.assertEqual(identity.username, "new_username")
+        self.assertEqual(identity.first_name, "New")
+        self.assertEqual(identity.last_name, "Person")
+
+    def test_telegram_rbac_uses_django_permission(self):
+        telegram_user = self.make_telegram_user(
+            telegram_id=987654321012346,
+            username="rbac_admin",
+        )
+
+        user = User.objects.create(username="rbac_admin_user")
+
+        TelegramIdentity.objects.create(
+            user=user,
+            telegram_user_id=telegram_user.id,
+            username=telegram_user.username,
+        )
+
+        group = Group.objects.create(name="Telegram Reviewer")
+
+        permission = Permission.objects.get(
+            content_type__app_label="tasks",
+            codename="approve_task_submission",
+        )
+        group.permissions.add(permission)
+        user.groups.add(group)
+
+        allowed = __import__("asyncio").run(
+            telegram_user_has_perm(
+                telegram_user,
+                "tasks.approve_task_submission",
+            )
+        )
+
+        self.assertTrue(allowed)
+
+    def test_telegram_rbac_denies_missing_permission(self):
+        telegram_user = self.make_telegram_user(
+            telegram_id=987654321012347,
+            username="normal_user",
+        )
+
+        user = User.objects.create(username="normal_telegram_user")
+
+        TelegramIdentity.objects.create(
+            user=user,
+            telegram_user_id=telegram_user.id,
+            username=telegram_user.username,
+        )
+
+        allowed = __import__("asyncio").run(
+            telegram_user_has_perm(
+                telegram_user,
+                "tasks.approve_task_submission",
+            )
+        )
+
+        self.assertFalse(allowed)
+
+    def test_old_telegram_username_cannot_authorize_another_identity(self):
+        telegram_user = self.make_telegram_user(
+            telegram_id=987654321012348,
+            username="current_name",
+        )
+
+        user = User.objects.create(username="identity_owner")
+
+        TelegramIdentity.objects.create(
+            user=user,
+            telegram_user_id=telegram_user.id,
+            username="old_name",
+        )
+
+        group = Group.objects.create(name="Telegram Approver")
+
+        permission = Permission.objects.get(
+            content_type__app_label="tasks",
+            codename="approve_task_submission",
+        )
+        group.permissions.add(permission)
+        user.groups.add(group)
+
+        # Authorization follows the immutable numeric Telegram ID,
+        # not the cached username.
+        telegram_user.username = "someone_else"
+
+        allowed = __import__("asyncio").run(
+            telegram_user_has_perm(
+                telegram_user,
+                "tasks.approve_task_submission",
+            )
+        )
+
+        self.assertTrue(allowed)

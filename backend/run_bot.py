@@ -22,11 +22,11 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 from asgiref.sync import sync_to_async
-from accounts.models import WorkerProfile
+from accounts.models import TelegramIdentity, WorkerProfile
 from tasks.models import Task, TaskClaim
 from wallet.models import WalletTransaction, WithdrawalRequest
 from decimal import Decimal, InvalidOperation
-from django.db.models import F
+from django.db.models import F, Sum
 
 
 print("\n" + "=" * 60)
@@ -43,24 +43,74 @@ print("\n✅ Token গ্রহণ করা হয়েছে")
 print("🔌 Bot সংযোগ করছে...\n")
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_user = update.effective_user
+@sync_to_async
+def get_telegram_account(telegram_user):
+    identity = (
+        TelegramIdentity.objects
+        .select_related("user")
+        .filter(telegram_user_id=telegram_user.id)
+        .first()
+    )
 
-    @sync_to_async
-    def create_account():
-        username = telegram_user.username or f"tg_{telegram_user.id}"
+    if identity:
+        identity.username = telegram_user.username or ""
+        identity.first_name = telegram_user.first_name or ""
+        identity.last_name = telegram_user.last_name or ""
+        identity.save(
+            update_fields=[
+                "username",
+                "first_name",
+                "last_name",
+                "updated_at",
+            ]
+        )
+        user = identity.user
+    else:
+        username = f"tg_{telegram_user.id}"
 
-        user, _ = User.objects.get_or_create(
-            username=username[:150],
+        user, created = User.objects.get_or_create(
+            username=username,
             defaults={
                 "first_name": telegram_user.first_name or "",
                 "last_name": telegram_user.last_name or "",
             },
         )
 
-        WorkerProfile.objects.get_or_create(user=user)
+        if created:
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
 
-    await create_account()
+        identity = TelegramIdentity.objects.create(
+            user=user,
+            telegram_user_id=telegram_user.id,
+            username=telegram_user.username or "",
+            first_name=telegram_user.first_name or "",
+            last_name=telegram_user.last_name or "",
+            verified_at=timezone.now(),
+        )
+
+    WorkerProfile.objects.get_or_create(user=user)
+    return user
+
+
+@sync_to_async
+def telegram_user_has_perm(telegram_user, permission):
+    identity = (
+        TelegramIdentity.objects
+        .select_related("user")
+        .filter(telegram_user_id=telegram_user.id)
+        .first()
+    )
+    if not identity:
+        return False
+    return identity.user.has_perm(permission)
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    telegram_user = update.effective_user
+
+    user = await get_telegram_account(telegram_user)
+
 
     keyboard = [
         [
@@ -161,19 +211,10 @@ async def claim_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     task_id = int(query.data.split(":")[1])
     telegram_user = update.effective_user
+    user = await get_telegram_account(telegram_user)
 
     @sync_to_async
-    def do_claim():
-        username = telegram_user.username or f"tg_{telegram_user.id}"
-
-        user, _ = User.objects.get_or_create(
-            username=username[:150],
-            defaults={
-                "first_name": telegram_user.first_name or "",
-                "last_name": telegram_user.last_name or "",
-            },
-        )
-
+    def do_claim(user):
         WorkerProfile.objects.get_or_create(user=user)
 
         try:
@@ -217,10 +258,8 @@ async def claim_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📝 এখন আপনার proof submit করতে হবে।"
         )
 
-    result = await do_claim()
-
+    result = await do_claim(user)
     await query.edit_message_text(result)
-
 
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -229,16 +268,11 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
 
     telegram_user = update.effective_user
+    user = await get_telegram_account(telegram_user)
 
     @sync_to_async
-    def get_balance():
-        try:
-            user = User.objects.get(username=telegram_user.username)
-        except User.DoesNotExist:
-            return None
-
+    def get_balance(user):
         profile, _ = WorkerProfile.objects.get_or_create(user=user)
-
         return {
             "username": user.username,
             "balance": profile.balance,
@@ -246,7 +280,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "completed_tasks": profile.completed_tasks,
         }
 
-    data = await get_balance()
+    data = await get_balance(user)
 
     if data is None:
         text = "❌ আপনার ZooTasks account এখনো তৈরি হয়নি।"
@@ -267,20 +301,8 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_username = update.effective_user.username or f"tg_{update.effective_user.id}"
-
-    user, created = await sync_to_async(User.objects.get_or_create)(
-        username=telegram_username[:150],
-        defaults={
-            "first_name": update.effective_user.first_name or "",
-            "last_name": update.effective_user.last_name or "",
-        },
-    )
-
-    if created:
-        user.set_unusable_password()
-        await sync_to_async(user.save)()
-
+    telegram_user = update.effective_user
+    user = await get_telegram_account(telegram_user)
     await sync_to_async(WorkerProfile.objects.get_or_create)(
         user=user
     )
@@ -329,20 +351,8 @@ async def withdrawal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if step not in {"amount", "bank", "holder", "account"}:
         return False
 
-    telegram_username = update.effective_user.username or f"tg_{update.effective_user.id}"
-
-    user, created = await sync_to_async(User.objects.get_or_create)(
-        username=telegram_username[:150],
-        defaults={
-            "first_name": update.effective_user.first_name or "",
-            "last_name": update.effective_user.last_name or "",
-        },
-    )
-
-    if created:
-        user.set_unusable_password()
-        await sync_to_async(user.save)()
-
+    telegram_user = update.effective_user
+    user = await get_telegram_account(telegram_user)
     await sync_to_async(WorkerProfile.objects.get_or_create)(
         user=user
     )
@@ -533,16 +543,10 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def submit_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_user = update.effective_user
     proof_text = update.message.text.strip()
+    user = await get_telegram_account(telegram_user)
 
     @sync_to_async
-    def save_proof():
-        username = telegram_user.username or f"tg_{telegram_user.id}"
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return "❌ আপনার ZooTasks account পাওয়া যায়নি। আগে /start দিন।"
-
+    def save_proof(user):
         claim = (
             TaskClaim.objects
             .filter(
@@ -571,22 +575,15 @@ async def submit_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Admin approve করলে reward আপনার balance-এ যোগ হবে।"
         )
 
-    result = await save_proof()
+    result = await save_proof(user)
     await update.message.reply_text(result)
-
 
 async def myclaims(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_user = update.effective_user
+    user = await get_telegram_account(telegram_user)
 
     @sync_to_async
-    def get_claims():
-        username = telegram_user.username or f"tg_{telegram_user.id}"
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return []
-
+    def get_claims(user):
         return list(
             TaskClaim.objects
             .filter(worker=user, status="claimed")
@@ -595,7 +592,7 @@ async def myclaims(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .order_by("-claimed_at")[:10]
         )
 
-    claims = await get_claims()
+    claims = await get_claims(user)
 
     if not claims:
         await update.message.reply_text(
@@ -619,16 +616,22 @@ async def myclaims(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text)
 
-
-ADMIN_USERNAMES = {"admin", "arisha", "rafiqual"}
-
-
 async def adminclaims(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_user = update.effective_user
-    username = telegram_user.username or ""
 
-    if username not in ADMIN_USERNAMES:
-        await update.message.reply_text("❌ এই command শুধু Admin ব্যবহার করতে পারবে।")
+    can_approve = await telegram_user_has_perm(
+        telegram_user,
+        "tasks.approve_task_submission",
+    )
+    can_reject = await telegram_user_has_perm(
+        telegram_user,
+        "tasks.reject_task_submission",
+    )
+
+    if not (can_approve or can_reject):
+        await update.message.reply_text(
+            "❌ আপনার এই command ব্যবহারের permission নেই।"
+        )
         return
 
     @sync_to_async
@@ -650,7 +653,9 @@ async def adminclaims(update: Update, context: ContextTypes.DEFAULT_TYPE):
     claims = await get_pending_claims()
 
     if not claims:
-        await update.message.reply_text("✅ কোনো pending submission নেই।")
+        await update.message.reply_text(
+            "✅ কোনো pending submission নেই।"
+        )
         return
 
     for claim in claims:
@@ -666,32 +671,36 @@ async def adminclaims(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[
             InlineKeyboardButton(
                 "✅ Approve",
-                callback_data=f"approve:{claim['id']}"
+                callback_data=f"approve:{claim['id']}",
             ),
             InlineKeyboardButton(
                 "❌ Reject",
-                callback_data=f"reject:{claim['id']}"
+                callback_data=f"reject:{claim['id']}",
             ),
         ]]
 
         await update.message.reply_text(
             text,
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
         )
-
 
 async def review_claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     telegram_user = update.effective_user
-    username = telegram_user.username or ""
+    action, claim_id = query.data.split(":")
+    permission = {
+        "approve": "tasks.approve_task_submission",
+        "reject": "tasks.reject_task_submission",
+    }.get(action)
 
-    if username not in ADMIN_USERNAMES:
-        await query.edit_message_text("❌ শুধু Admin এই action করতে পারবে।")
+    if not permission or not await telegram_user_has_perm(
+        telegram_user, permission
+    ):
+        await query.edit_message_text("❌ আপনার এই action করার permission নেই।")
         return
 
-    action, claim_id = query.data.split(":")
     claim_id = int(claim_id)
 
     @sync_to_async

@@ -14,3 +14,23 @@ class WorkerProfile(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class TelegramIdentity(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="telegram_identity",
+    )
+    telegram_user_id = models.BigIntegerField(unique=True)
+    username = models.CharField(max_length=150, blank=True)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        if self.username:
+            return f"@{self.username}"
+        return f"Telegram {self.telegram_user_id}"
