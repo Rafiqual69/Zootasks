@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Secure Login - ZooTasks</title>
+</head>
+<body>
+    <h1>ZooTasks Owner Secure Login</h1>
+    <p>Password + authenticator verification are required.</p>
+
+    {% if form.non_field_errors %}
+        <div>
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <p>
+            {{ form.username.errors }}
+            {{ form.username.label_tag }}
+            {{ form.username }}
+        </p>
+
+        <p>
+            {{ form.password.errors }}
+            {{ form.password.label_tag }}
+            {{ form.password }}
+        </p>
+
+        {% if form.get_user %}
+        <p>
+            {{ form.otp_device.errors }}
+            {{ form.otp_device.label_tag }}
+            {{ form.otp_device }}
+        </p>
+        {% endif %}
+
+        <p>
+            {{ form.otp_token.errors }}
+            {{ form.otp_token.label_tag }}
+            {{ form.otp_token }}
+        </p>
+
+        <button type="submit">Secure Owner Login</button>
+
+        {% if form.get_user %}
+            <button type="submit" name="otp_challenge" value="1">
+                Get Challenge
+            </button>
+        {% endif %}
+    </form>
+
+    <p><a href="{% url 'login' %}">Normal user login</a></p>
+</body>
+</html>

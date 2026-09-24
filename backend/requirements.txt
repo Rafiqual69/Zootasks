@@ -8,3 +8,6 @@ django-cors-headers==4.3.1
 pillow==10.1.0
 celery==5.3.4
 redis==5.0.1
+
+django-otp==1.7.3
+pyotp==2.10.0

@@ -1,8 +1,15 @@
 from django.contrib.auth.views import LoginView, LogoutView
+from .forms import OwnerOTPAuthenticationForm
 from django.urls import path
 from .views import register, dashboard
 
 urlpatterns = [
+    path("owner/login/", LoginView.as_view(
+        template_name="accounts/owner_login.html",
+        authentication_form=OwnerOTPAuthenticationForm,
+        redirect_authenticated_user=False,
+    ), name="owner_login"),
+
     path("login/", LoginView.as_view(
         template_name="accounts/login.html",
         redirect_authenticated_user=True

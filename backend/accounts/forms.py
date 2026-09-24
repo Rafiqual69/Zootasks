@@ -1,4 +1,5 @@
 from django import forms
+from django_otp.forms import OTPAuthenticationForm
 from django.contrib.auth.models import User
 
 
@@ -39,3 +40,30 @@ class RegistrationForm(forms.ModelForm):
             user.save()
 
         return user
+
+
+class OwnerOTPAuthenticationForm(OTPAuthenticationForm):
+    """Password + TOTP authentication restricted to the configured Owner."""
+
+    def confirm_login_allowed(self, user):
+        from django.conf import settings
+        from django.core.exceptions import ValidationError
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+
+        super().confirm_login_allowed(user)
+
+        owner_username = getattr(settings, "OWNER_USERNAME", "").strip()
+        if not owner_username or user.username.casefold() != owner_username.casefold():
+            raise ValidationError(
+                "This authentication endpoint is restricted to the Owner account."
+            )
+
+        if not user.is_staff or not user.is_superuser:
+            raise ValidationError(
+                "This account is not authorized for Owner access."
+            )
+
+        if not TOTPDevice.objects.filter(user=user, confirmed=True).exists():
+            raise ValidationError(
+                "Owner MFA is not enrolled. Owner access is currently unavailable."
+            )
