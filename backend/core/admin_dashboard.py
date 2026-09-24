@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib import admin
 from django.contrib.auth.models import User
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.shortcuts import render
 
 from accounts.models import WorkerProfile
@@ -10,39 +10,43 @@ from wallet.models import WalletTransaction, WithdrawalRequest
 
 
 def live_wallet_dashboard(request):
-    total_earned = (
-        WalletTransaction.objects
-        .filter(transaction_type="earning")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+    wallet_totals = WalletTransaction.objects.aggregate(
+        total_earned=Sum(
+            "amount",
+            filter=Q(transaction_type="earning"),
+        ),
+        total_withdrawn=Sum(
+            "amount",
+            filter=Q(transaction_type="withdrawal"),
+        ),
     )
 
-    total_withdrawn = (
-        WalletTransaction.objects
-        .filter(transaction_type="withdrawal")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+    total_earned = wallet_totals["total_earned"] or Decimal("0.00")
+    total_withdrawn = wallet_totals["total_withdrawn"] or Decimal("0.00")
+
+    withdrawal_totals = WithdrawalRequest.objects.aggregate(
+        pending_withdrawals=Sum(
+            "amount",
+            filter=Q(status="pending"),
+        ),
+        approved_withdrawals=Sum(
+            "amount",
+            filter=Q(status="approved"),
+        ),
+        paid_withdrawals=Sum(
+            "amount",
+            filter=Q(status="paid"),
+        ),
     )
 
     pending_withdrawals = (
-        WithdrawalRequest.objects
-        .filter(status="pending")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+        withdrawal_totals["pending_withdrawals"] or Decimal("0.00")
     )
-
     approved_withdrawals = (
-        WithdrawalRequest.objects
-        .filter(status="approved")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+        withdrawal_totals["approved_withdrawals"] or Decimal("0.00")
     )
-
     paid_withdrawals = (
-        WithdrawalRequest.objects
-        .filter(status="paid")
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+        withdrawal_totals["paid_withdrawals"] or Decimal("0.00")
     )
 
     worker_balance = (
