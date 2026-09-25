@@ -1,18 +1,137 @@
 {% extends "admin/base_site.html" %}
 
-{% block title %}Live Wallet Dashboard | ZooTasks{% endblock %}
+{% block title %}Finance Control Center | ZooTasks{% endblock %}
 
 {% block content %}
-<div style="padding:20px;">
-<h1>💰 Live Wallet Dashboard</h1>
-<p>ZooTasks wallet and withdrawal overview.</p>
-<h2>💵 Total Earned: ৳{{ total_earned|floatformat:2 }}</h2>
-<h2>📤 Total Withdrawn: ৳{{ total_withdrawn|floatformat:2 }}</h2>
-<h2>⏳ Pending Withdrawals: ৳{{ pending_withdrawals|floatformat:2 }}</h2>
-<h2>👥 Total Workers: {{ total_workers }}</h2>
-<h2>✅ Approved Withdrawals: ৳{{ approved_withdrawals|floatformat:2 }}</h2>
-<h2>💳 Paid Withdrawals: ৳{{ paid_withdrawals|floatformat:2 }}</h2>
-<h2>💼 Worker Balance: ৳{{ worker_balance|floatformat:2 }}</h2>
-<br><a href="">🔄 Refresh Dashboard</a>
+<style>
+.zt-finance-shell{max-width:1280px;margin:0 auto;padding:8px 0 36px}
+.zt-finance-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}
+.zt-finance-kicker{margin:0 0 5px;color:#635bff;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.zt-finance-title{margin:0;color:#111827;font-size:clamp(28px,4vw,40px);line-height:1.08;letter-spacing:-.035em}
+.zt-finance-subtitle{max-width:700px;margin:9px 0 0;color:#64748b;font-size:14px}
+.zt-finance-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.zt-finance-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 13px;border:1px solid #d9deea;border-radius:9px;background:#fff;color:#334155;text-decoration:none;font-size:12px;font-weight:800}
+.zt-finance-button-primary{border-color:#635bff;background:#635bff;color:#fff}
+.zt-finance-nav{display:flex;gap:6px;overflow:auto;padding:5px;margin-bottom:18px;border:1px solid #e5e7eb;border-radius:12px;background:#fff}
+.zt-finance-nav a{white-space:nowrap;padding:8px 10px;border-radius:8px;color:#475569;text-decoration:none;font-size:12px;font-weight:800}
+.zt-finance-nav a:hover{background:#f1f5f9;color:#111827}
+.zt-finance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.zt-finance-card{min-width:0;padding:18px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.045)}
+.zt-finance-label{display:block;margin-bottom:7px;color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.zt-finance-value{display:block;color:#111827;font-size:24px;line-height:1.15;letter-spacing:-.025em}
+.zt-finance-muted{margin:6px 0 0;color:#94a3b8;font-size:11px}
+.zt-finance-section{margin-top:18px}
+.zt-finance-section-head{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:10px}
+.zt-finance-section-head h2{margin:0;color:#111827;font-size:18px}
+.zt-finance-section-head p{margin:0;color:#64748b;font-size:12px}
+.zt-finance-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.zt-finance-status{padding:16px;border:1px solid #e5e7eb;border-radius:14px;background:#fff}
+.zt-finance-status strong{display:block;margin-bottom:5px;color:#111827;font-size:13px}
+.zt-finance-status span{color:#64748b;font-size:12px}
+.zt-finance-control{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}
+.zt-finance-panel{padding:18px;border:1px solid #e5e7eb;border-radius:14px;background:#fff}
+.zt-finance-panel h3{margin:0 0 7px;color:#111827;font-size:15px}
+.zt-finance-panel p{margin:0;color:#64748b;font-size:12px;line-height:1.6}
+.zt-finance-flow{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}
+.zt-finance-step{padding:7px 9px;border-radius:8px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:800}
+.zt-finance-step::after{content:" →";color:#94a3b8}
+.zt-finance-step:last-child::after{content:""}
+.zt-finance-note{margin-top:12px;padding:11px 12px;border:1px solid #dbeafe;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:11px;line-height:1.55}
+@media(max-width:900px){.zt-finance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.zt-finance-control{grid-template-columns:1fr}}
+@media(max-width:640px){.zt-finance-top{flex-direction:column}.zt-finance-actions{justify-content:flex-start}.zt-finance-grid,.zt-finance-status-grid{grid-template-columns:1fr}.zt-finance-title{font-size:30px}.zt-finance-shell{padding-top:2px}}
+</style>
+
+<div class="zt-finance-shell">
+    <header class="zt-finance-top">
+        <div>
+            <p class="zt-finance-kicker">ZooTasks Finance</p>
+            <h1 class="zt-finance-title">Finance Control Center</h1>
+            <p class="zt-finance-subtitle">
+                Live treasury visibility for wallet balances, withdrawals and workforce liabilities.
+                Approval and payment actions remain permission-controlled in the admin system.
+            </p>
+        </div>
+        <div class="zt-finance-actions">
+            <a class="zt-finance-button zt-finance-button-primary" href="{% url 'live_wallet_dashboard' %}">↻ Refresh</a>
+            <a class="zt-finance-button" href="{% url 'admin:wallet_withdrawalrequest_changelist' %}">Withdrawals</a>
+            <a class="zt-finance-button" href="{% url 'admin:wallet_wallettransaction_changelist' %}">Ledger</a>
+        </div>
+    </header>
+
+    <nav class="zt-finance-nav" aria-label="Finance navigation">
+        <a href="{% url 'live_wallet_dashboard' %}">Overview</a>
+        <a href="{% url 'admin:wallet_withdrawalrequest_changelist' %}">Withdrawals</a>
+        <a href="{% url 'admin:wallet_wallettransaction_changelist' %}">Transactions</a>
+        <a href="{% url 'admin:index' %}">Admin Home</a>
+    </nav>
+
+    <section class="zt-finance-grid" aria-label="Finance overview">
+        <article class="zt-finance-card">
+            <span class="zt-finance-label">Worker balance</span>
+            <strong class="zt-finance-value">৳{{ worker_balance|floatformat:2 }}</strong>
+            <p class="zt-finance-muted">Current worker wallet balances</p>
+        </article>
+        <article class="zt-finance-card">
+            <span class="zt-finance-label">Total earned</span>
+            <strong class="zt-finance-value">৳{{ total_earned|floatformat:2 }}</strong>
+            <p class="zt-finance-muted">Recorded earning transactions</p>
+        </article>
+        <article class="zt-finance-card">
+            <span class="zt-finance-label">Total withdrawn</span>
+            <strong class="zt-finance-value">৳{{ total_withdrawn|floatformat:2 }}</strong>
+            <p class="zt-finance-muted">Recorded withdrawal transactions</p>
+        </article>
+        <article class="zt-finance-card">
+            <span class="zt-finance-label">Workers</span>
+            <strong class="zt-finance-value">{{ total_workers }}</strong>
+            <p class="zt-finance-muted">Non-staff, non-superuser accounts</p>
+        </article>
+    </section>
+
+    <section class="zt-finance-section">
+        <div class="zt-finance-section-head">
+            <div>
+                <h2>Withdrawal control</h2>
+                <p>Separate approval from payment execution.</p>
+            </div>
+            <a class="zt-finance-button" href="{% url 'admin:wallet_withdrawalrequest_changelist' %}">Open queue</a>
+        </div>
+        <div class="zt-finance-status-grid">
+            <article class="zt-finance-status">
+                <strong>Pending · ৳{{ pending_withdrawals|floatformat:2 }}</strong>
+                <span>Awaiting review and approval.</span>
+            </article>
+            <article class="zt-finance-status">
+                <strong>Approved · ৳{{ approved_withdrawals|floatformat:2 }}</strong>
+                <span>Eligible for the separately controlled payment step.</span>
+            </article>
+            <article class="zt-finance-status">
+                <strong>Paid · ৳{{ paid_withdrawals|floatformat:2 }}</strong>
+                <span>Recorded as completed withdrawal transactions.</span>
+            </article>
+        </div>
+    </section>
+
+    <section class="zt-finance-section zt-finance-control">
+        <article class="zt-finance-panel">
+            <h3>Controlled finance lifecycle</h3>
+            <p>The dashboard is visibility-focused. Operational permissions remain separated by role.</p>
+            <div class="zt-finance-flow" aria-label="Finance lifecycle">
+                <span class="zt-finance-step">Request</span>
+                <span class="zt-finance-step">Review</span>
+                <span class="zt-finance-step">Approve</span>
+                <span class="zt-finance-step">Pay</span>
+                <span class="zt-finance-step">Reconcile</span>
+                <span class="zt-finance-step">Audit</span>
+            </div>
+        </article>
+        <article class="zt-finance-panel">
+            <h3>Control note</h3>
+            <p>Finance approval and payment execution are intentionally assigned to separate permission sets.</p>
+            <div class="zt-finance-note">
+                High-value financial actions should remain subject to role permissions, audit evidence and step-up authentication as the control center expands.
+            </div>
+        </article>
+    </section>
 </div>
 {% endblock %}
