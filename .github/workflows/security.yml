@@ -56,6 +56,16 @@ jobs:
           OWNER_USERNAME: ""
         run: python manage.py check --deploy
 
+      - name: Configure and audit privileged RBAC
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-secret-key
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          OWNER_USERNAME: ""
+        run: |
+          python manage.py setup_rbac
+          python manage.py audit_security
+
       - name: Full regression tests
         working-directory: backend
         env:
