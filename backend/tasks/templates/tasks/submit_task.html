@@ -1,35 +1,58 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Submit Task - ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
 </head>
+<body class="zt-submit-page">
 
-<body>
+<header class="zt-market-header">
+    <div class="zt-market-container zt-market-nav">
+        <a class="zt-market-brand" href="/">🦁 ZooTasks</a>
+        <nav class="zt-market-links" aria-label="Primary navigation">
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'task_marketplace' %}">Tasks</a>
+            <a href="/">Home</a>
+        </nav>
+    </div>
+</header>
 
-<h1>Submit Completed Task</h1>
+<main class="zt-market-container zt-submit-content">
+    <section class="zt-submit-card">
+        <span class="zt-market-eyebrow">TASK SUBMISSION</span>
 
-<p>
-Task:
-<strong>{{ claim.task.title }}</strong>
-</p>
+        <h1>📤 Submit Task</h1>
 
-<form method="post">
-    {% csrf_token %}
+        <h2>{{ claim.task.title }}</h2>
 
-    {{ form.as_p }}
+        <p class="zt-submit-description">
+            {{ claim.task.description }}
+        </p>
 
-    <button type="submit">
-        Submit for Review
-    </button>
-</form>
+        <form method="post" class="zt-submit-form">
+            {% csrf_token %}
 
-<p>
-<a href="{% url 'task_detail' claim.task.id %}">
-    ← Back
-</a>
-</p>
+            <label for="proof">Completion proof</label>
+            <textarea
+                id="proof"
+                name="proof"
+                placeholder="Describe how you completed the task..."
+                required
+            ></textarea>
+
+            <button class="zt-task-button" type="submit">
+                ✓ Submit Proof
+            </button>
+        </form>
+
+        <a class="zt-submit-back" href="{% url 'task_marketplace' %}">
+            ← Back to Tasks
+        </a>
+    </section>
+</main>
 
 </body>
 </html>
