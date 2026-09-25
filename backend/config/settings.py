@@ -92,9 +92,36 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = "ZooTasks <noreply@zootasks.com>"
 
 # =============== SECURITY ===============
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# Development stays HTTP-friendly; production enables HTTPS-only controls.
+PRODUCTION_MODE = config("PRODUCTION_MODE", default=False, cast=bool)
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cast=bool)
+SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+
+# Only enable this when a trusted reverse proxy terminates TLS and sets
+# X-Forwarded-Proto after stripping any client-supplied copy.
+TRUST_PROXY_SSL = config("TRUST_PROXY_SSL", default=PRODUCTION_MODE, cast=bool)
+if TRUST_PROXY_SSL:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# HSTS is intentionally production-only because enabling it on an HTTP
+# development host can make the host inaccessible in a browser.
+SECURE_HSTS_SECONDS = config(
+    "SECURE_HSTS_SECONDS",
+    default=31536000 if PRODUCTION_MODE else 0,
+    cast=int,
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    default=PRODUCTION_MODE,
+    cast=bool,
+)
+SECURE_HSTS_PRELOAD = config(
+    "SECURE_HSTS_PRELOAD",
+    default=PRODUCTION_MODE,
+    cast=bool,
+)
 WSGI_APPLICATION = "config.wsgi.application"
 
 ASGI_APPLICATION = "config.asgi.application"
