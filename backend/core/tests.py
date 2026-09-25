@@ -32,6 +32,11 @@ class LiveWalletDashboardPermissionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Live Wallet Dashboard")
+        self.assertContains(response, "Finance Control Center")
+        self.assertContains(response, "Withdrawal control")
+        self.assertContains(response, "Controlled finance lifecycle")
+        self.assertContains(response, "Request")
+        self.assertContains(response, "Reconcile")
 
     def test_superuser_can_view_dashboard_without_explicit_permission(self):
         self.staff.is_superuser = True
