@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "tasks",
     "promotions",
     "wallet",
+    "core",
 ]
 
 MIDDLEWARE = [
