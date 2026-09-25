@@ -1,58 +1,108 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Secure Login - ZooTasks</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="High-assurance ZooTasks Owner authentication.">
+    <title>Owner Secure Login — ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
 </head>
-<body>
-    <h1>ZooTasks Owner Secure Login</h1>
-    <p>Password + authenticator verification are required.</p>
 
-    {% if form.non_field_errors %}
-        <div>
-            {{ form.non_field_errors }}
+<body class="zt-owner-page">
+
+<header class="zt-owner-header">
+    <a class="zt-brand" href="/">
+        <span class="zt-brand-mark">Z</span>
+        <span>ZooTasks</span>
+    </a>
+
+    <span class="zt-owner-badge">OWNER ACCESS</span>
+</header>
+
+<main class="zt-owner-main">
+    <section class="zt-owner-card">
+
+        <div class="zt-owner-symbol">◆</div>
+
+        <span class="zt-kicker zt-owner-kicker">HIGH-ASSURANCE ACCESS</span>
+        <h1>ZooTasks Owner Secure Login</h1>
+
+        <p class="zt-owner-intro">
+            This protected area requires your Owner credentials and
+            authenticator verification.
+        </p>
+
+        <div class="zt-security-note">
+            <strong>Secure Owner Login</strong>
+            <span>
+                Use your registered authenticator code. Never share your
+                password or verification code with anyone.
+            </span>
         </div>
-    {% endif %}
 
-    <form method="post">
-        {% csrf_token %}
-
-        <p>
-            {{ form.username.errors }}
-            {{ form.username.label_tag }}
-            {{ form.username }}
-        </p>
-
-        <p>
-            {{ form.password.errors }}
-            {{ form.password.label_tag }}
-            {{ form.password }}
-        </p>
-
-        {% if form.get_user %}
-        <p>
-            {{ form.otp_device.errors }}
-            {{ form.otp_device.label_tag }}
-            {{ form.otp_device }}
-        </p>
+        {% if form.non_field_errors %}
+            <div class="zt-alert zt-alert-error">
+                {{ form.non_field_errors }}
+            </div>
         {% endif %}
 
-        <p>
-            {{ form.otp_token.errors }}
-            {{ form.otp_token.label_tag }}
-            {{ form.otp_token }}
-        </p>
+        <form method="post" class="zt-owner-form">
+            {% csrf_token %}
 
-        <button type="submit">Secure Owner Login</button>
+            <div class="zt-owner-field">
+                {{ form.username.errors }}
+                {{ form.username.label_tag }}
+                {{ form.username }}
+            </div>
 
-        {% if form.get_user %}
-            <button type="submit" name="otp_challenge" value="1">
-                Get Challenge
+            <div class="zt-owner-field">
+                {{ form.password.errors }}
+                {{ form.password.label_tag }}
+                {{ form.password }}
+            </div>
+
+            {% if form.get_user %}
+                <div class="zt-owner-field">
+                    {{ form.otp_device.errors }}
+                    {{ form.otp_device.label_tag }}
+                    {{ form.otp_device }}
+                </div>
+            {% endif %}
+
+            <div class="zt-owner-field">
+                {{ form.otp_token.errors }}
+                {{ form.otp_token.label_tag }}
+                {{ form.otp_token }}
+            </div>
+
+            <button class="zt-owner-submit" type="submit">
+                Verify & Enter Owner Panel
             </button>
-        {% endif %}
-    </form>
 
-    <p><a href="{% url 'login' %}">Normal user login</a></p>
+            {% if form.get_user %}
+                <button
+                    class="zt-owner-challenge"
+                    type="submit"
+                    name="otp_challenge"
+                    value="1"
+                >
+                    Get Challenge
+                </button>
+            {% endif %}
+        </form>
+
+        <div class="zt-owner-footer">
+            <a href="{% url 'login' %}">← Return to normal login</a>
+        </div>
+
+    </section>
+</main>
+
+<footer class="zt-auth-bottom">
+    <a href="/">ZooTasks</a>
+    <span>High-assurance owner authentication</span>
+</footer>
+
 </body>
 </html>

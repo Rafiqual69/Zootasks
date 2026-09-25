@@ -1,22 +1,60 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - ZooTasks</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Create your ZooTasks account.">
+    <title>Create Account — ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
 </head>
-<body>
-    <h1>Join ZooTasks</h1>
 
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Create Account</button>
-    </form>
+<body class="zt-auth-page">
 
-    <p>
-        Already have an account?
-        <a href="{% url 'login' %}">Login</a>
-    </p>
+<header class="zt-auth-header">
+    <a class="zt-brand" href="/">
+        <span class="zt-brand-mark">Z</span>
+        <span>ZooTasks</span>
+    </a>
+</header>
+
+<main class="zt-auth-main">
+    <section class="zt-auth-card zt-auth-card-wide">
+        <div class="zt-auth-icon">+</div>
+
+        <span class="zt-kicker">GET STARTED</span>
+        <h1>Create your account</h1>
+        <p class="zt-auth-intro">
+            Join ZooTasks and start discovering tasks and reward opportunities.
+        </p>
+
+        {% if form.non_field_errors %}
+            <div class="zt-alert zt-alert-error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <form method="post" class="zt-auth-form">
+            {% csrf_token %}
+
+            {{ form.as_p }}
+
+            <button class="zt-auth-submit" type="submit">
+                Create Account
+            </button>
+        </form>
+
+        <p class="zt-auth-footer">
+            Already have an account?
+            <a href="{% url 'login' %}">Sign in</a>
+        </p>
+    </section>
+</main>
+
+<footer class="zt-auth-bottom">
+    <a href="/">ZooTasks</a>
+    <span>Secure task & reward platform</span>
+</footer>
+
 </body>
 </html>
