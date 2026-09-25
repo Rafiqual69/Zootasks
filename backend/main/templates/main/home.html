@@ -1,162 +1,249 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ZooTasks - Earn Money Completing Tasks</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8fafc;
-            color: #0f172a;
-        }
-        header {
-            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-            color: white;
-            padding: 20px 0;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        header .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .logo { font-size: 24px; font-weight: bold; }
-        .nav a {
-            color: white;
-            text-decoration: none;
-            margin: 0 16px;
-            transition: opacity 0.3s;
-        }
-        .nav a:hover { opacity: 0.8; }
-        .hero {
-            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-            color: white;
-            padding: 80px 20px;
-            text-align: center;
-        }
-        .hero h1 {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .hero p {
-            font-size: 20px;
-            margin-bottom: 32px;
-            opacity: 0.9;
-        }
-        .hero .btns {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .btn {
-            padding: 14px 32px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: bold;
-            display: inline-block;
-            cursor: pointer;
-            border: none;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .btn-primary {
-            background: white;
-            color: #2563eb;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-        }
-        .btn-secondary:hover {
-            background: white;
-            color: #2563eb;
-        }
-        .features {
-            max-width: 1200px;
-            margin: 60px auto;
-            padding: 0 16px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-        }
-        .feature {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            text-align: center;
-        }
-        .feature h3 {
-            font-size: 20px;
-            margin-bottom: 12px;
-            color: #2563eb;
-        }
-        .feature p {
-            color: #64748b;
-            font-size: 14px;
-        }
-        footer {
-            background: #1e293b;
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-            margin-top: 60px;
-        }
-    </style>
+    <meta name="description" content="ZooTasks connects people with simple online tasks, transparent rewards and secure earning tools.">
+    <title>ZooTasks — Tasks, Rewards & Secure Earning</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
 </head>
+
 <body>
-    <header>
-        <div class="container">
-            <div class="logo">🦁 ZooTasks</div>
-            <div class="nav">
-                <a href="/accounts/dashboard/">Dashboard</a>
-                <a href="/promotions/">Promotions</a>
-                <a href="/tasks/">Tasks</a>
-                <a href="/accounts/register/">Register</a>
+
+<header class="zt-header">
+    <div class="zt-container zt-nav">
+        <a class="zt-brand" href="/">
+            <span class="zt-brand-mark">Z</span>
+            <span>ZooTasks</span>
+        </a>
+
+        <nav class="zt-nav-links" aria-label="Main navigation">
+            <a href="/tasks/">Tasks</a>
+            <a href="/promotions/">Promotions</a>
+            <a href="/accounts/dashboard/">Dashboard</a>
+            <a href="/accounts/register/" class="zt-nav-cta">Get Started</a>
+        </nav>
+    </div>
+</header>
+
+<main>
+
+<section class="zt-hero">
+    <div class="zt-container zt-hero-grid">
+
+        <div>
+            <div class="zt-eyebrow">● A smarter task & reward platform</div>
+
+            <h1>
+                Turn useful work into
+                <span>real progress.</span>
+            </h1>
+
+            <p>
+                Discover simple tasks, track your rewards clearly and build
+                your earning activity inside one secure ZooTasks experience.
+            </p>
+
+            <div class="zt-actions">
+                <a class="zt-btn zt-btn-light" href="/accounts/register/">
+                    Create your account
+                </a>
+
+                <a class="zt-btn zt-btn-ghost" href="/tasks/">
+                    Explore tasks
+                </a>
             </div>
         </div>
-    </header>
 
-    <div class="hero">
-        <h1>Earn Money Completing Simple Tasks</h1>
-        <p>Join thousands of workers earning rewards from home</p>
-        <div class="btns">
-            <a href="/accounts/register/" class="btn btn-primary">Start Earning Now</a>
-            <a href="/promotions/" class="btn btn-secondary">View Promotions</a>
+        <div class="zt-preview">
+            <div class="zt-preview-top">
+                <span>Live task activity</span>
+                <span class="zt-live">● Active</span>
+            </div>
+
+            <div class="zt-task">
+                <div class="zt-task-head">
+                    <div class="zt-task-title">
+                        Review a short product listing
+                    </div>
+                    <div class="zt-reward">+৳25</div>
+                </div>
+
+                <div class="zt-task-meta">
+                    <span class="zt-chip">Quick task</span>
+                    <span class="zt-chip">Verification</span>
+                    <span class="zt-chip">5–10 min</span>
+                </div>
+            </div>
+
+            <div class="zt-task">
+                <div class="zt-task-head">
+                    <div class="zt-task-title">
+                        Complete a quality feedback task
+                    </div>
+                    <div class="zt-reward">+৳40</div>
+                </div>
+
+                <div class="zt-task-meta">
+                    <span class="zt-chip">Feedback</span>
+                    <span class="zt-chip">Available</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+<section class="zt-stats">
+    <div class="zt-container zt-stat-grid">
+
+        <div class="zt-stat">
+            <strong>Simple</strong>
+            <span>Clear task experiences</span>
+        </div>
+
+        <div class="zt-stat">
+            <strong>Transparent</strong>
+            <span>Rewards you can understand</span>
+        </div>
+
+        <div class="zt-stat">
+            <strong>Security-first</strong>
+            <span>Designed around safer access</span>
+        </div>
+
+    </div>
+</section>
+
+
+<section class="zt-section">
+    <div class="zt-container">
+
+        <div class="zt-section-head">
+            <div>
+                <span class="zt-kicker">THE ZOOTASKS EXPERIENCE</span>
+                <h2>Everything you need to get started.</h2>
+            </div>
+
+            <p>
+                A focused platform for discovering tasks, completing useful
+                work and keeping your earning activity organized.
+            </p>
+        </div>
+
+        <div class="zt-grid">
+
+            <article class="zt-card">
+                <div class="zt-icon">◆</div>
+                <h3>Clear tasks</h3>
+                <p>
+                    Understand what each task requires before you begin.
+                </p>
+            </article>
+
+            <article class="zt-card">
+                <div class="zt-icon">↗</div>
+                <h3>Reward visibility</h3>
+                <p>
+                    Keep reward information visible and easy to understand.
+                </p>
+            </article>
+
+            <article class="zt-card">
+                <div class="zt-icon">◈</div>
+                <h3>Secure access</h3>
+                <p>
+                    Security controls are built into the platform experience.
+                </p>
+            </article>
+
+            <article class="zt-card">
+                <div class="zt-icon">∞</div>
+                <h3>Built to grow</h3>
+                <p>
+                    A lightweight foundation designed for future scale.
+                </p>
+            </article>
+
         </div>
     </div>
+</section>
 
-    <div class="features">
-        <div class="feature">
-            <h3>💰 Easy Money</h3>
-            <p>Complete simple tasks and promotions to earn instant rewards</p>
+
+<section class="zt-section zt-section-soft">
+    <div class="zt-container">
+
+        <div class="zt-section-head">
+            <div>
+                <span class="zt-kicker">HOW IT WORKS</span>
+                <h2>Three simple steps.</h2>
+            </div>
         </div>
-        <div class="feature">
-            <h3>⚡ Fast Payouts</h3>
-            <p>Withdraw your earnings directly to your bank account</p>
-        </div>
-        <div class="feature">
-            <h3>🎯 Wide Selection</h3>
-            <p>Hundreds of tasks and promotions to choose from daily</p>
-        </div>
-        <div class="feature">
-            <h3>🔒 Secure</h3>
-            <p>Your data and earnings are protected with bank-level security</p>
+
+        <div class="zt-steps">
+
+            <div class="zt-step">
+                <span class="zt-step-no">01</span>
+                <h3>Discover</h3>
+                <p>Browse tasks that match your available time and skills.</p>
+            </div>
+
+            <div class="zt-step">
+                <span class="zt-step-no">02</span>
+                <h3>Complete</h3>
+                <p>Follow the task instructions and submit your work.</p>
+            </div>
+
+            <div class="zt-step">
+                <span class="zt-step-no">03</span>
+                <h3>Track</h3>
+                <p>Follow your activity and rewards from your account.</p>
+            </div>
+
         </div>
     </div>
+</section>
 
-    <footer>
-        <p>&copy; 2026 ZooTasks. All rights reserved.</p>
-    </footer>
+
+<section class="zt-cta">
+    <div class="zt-container zt-cta-inner">
+        <div>
+            <span class="zt-kicker">READY WHEN YOU ARE</span>
+            <h2>Start your ZooTasks journey.</h2>
+            <p>
+                Create an account and explore the task marketplace.
+            </p>
+        </div>
+
+        <div class="zt-actions">
+            <a class="zt-btn zt-btn-light" href="/accounts/register/">
+                Join ZooTasks
+            </a>
+
+            <a class="zt-btn zt-btn-ghost" href="/accounts/login/">
+                Sign in
+            </a>
+        </div>
+    </div>
+</section>
+
+</main>
+
+
+<footer class="zt-footer">
+    <div class="zt-container zt-footer-inner">
+        <div>
+            <strong>ZooTasks</strong>
+            <p>Tasks, rewards and secure earning tools.</p>
+        </div>
+
+        <div>
+            <p>© 2026 ZooTasks. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
+
 </body>
 </html>
