@@ -73,6 +73,7 @@ def dashboard(request):
             "transactions": transactions,
             "balance": balance,
             "total_earned": total_earned,
+            "total_withdrawn": total_withdrawn,
             "completed_tasks": completed_tasks,
         },
     )
