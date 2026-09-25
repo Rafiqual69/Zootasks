@@ -1,7 +1,10 @@
+from django.contrib import admin
 from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
+
+from wallet.models import WalletTransaction, WithdrawalRequest
 
 
 class LiveWalletDashboardPermissionTests(TestCase):
@@ -87,3 +90,24 @@ class FinanceRBACSetupTests(TestCase):
         self.assertTrue(
             super_admin.permissions.filter(pk=self.dashboard.pk).exists()
         )
+
+
+class PrivilegedFinanceSecurityAuditTests(TestCase):
+    def test_security_audit_passes_after_rbac_setup(self):
+        call_command("setup_rbac")
+        call_command("audit_security")
+
+    def test_wallet_financial_records_are_not_directly_editable_in_admin(self):
+        request = RequestFactory().get("/admin/")
+        request.user = User.objects.create_superuser(
+            username="audit_admin",
+            password="test-password-123",
+        )
+
+        wallet_admin = admin.site._registry[WalletTransaction]
+        withdrawal_admin = admin.site._registry[WithdrawalRequest]
+
+        for model_admin in (wallet_admin, withdrawal_admin):
+            self.assertFalse(model_admin.has_add_permission(request))
+            self.assertFalse(model_admin.has_change_permission(request))
+            self.assertFalse(model_admin.has_delete_permission(request))
