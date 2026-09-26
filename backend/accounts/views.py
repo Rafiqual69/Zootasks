@@ -159,6 +159,11 @@ from .models import OwnerSocialIdentity
 from .policies import is_owner
 from .social_oauth import consume_owner_social_oauth_state, issue_owner_social_oauth_state
 from .social_oauth_provider import build_owner_social_authorization_url
+from .social_oauth_exchange import (
+    exchange_owner_social_authorization_code,
+    get_owner_social_profile,
+)
+from .social_identity import bind_verified_owner_social_identity
 
 
 def _no_store(response):
@@ -207,12 +212,16 @@ def owner_social_oauth_callback(request, provider):
     if owner_entity is None or owner_entity.user_id != request.user.id:
         return _no_store(HttpResponseBadRequest("Invalid or expired OAuth state."))
 
-    # Provider-specific authorization-code exchange and identity verification
-    # are intentionally not implemented in this foundation step. No provider
-    # access token is accepted or stored here.
-    return _no_store(
-        HttpResponse(
-            "OAuth state verified. Provider identity exchange is not enabled yet.",
-            status=501,
+    try:
+        token_response = exchange_owner_social_authorization_code(provider, code)
+        profile = get_owner_social_profile(provider, token_response.access_token)
+        bind_verified_owner_social_identity(
+            owner_entity,
+            provider,
+            profile.provider_user_id,
+            profile.username,
         )
-    )
+    except (ValueError, PermissionError):
+        return _no_store(HttpResponseBadRequest("Social identity verification failed."))
+
+    return _no_store(HttpResponse("Owner social identity verified successfully."))
