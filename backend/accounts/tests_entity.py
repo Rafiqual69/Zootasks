@@ -8,6 +8,7 @@ from accounts.models import (
     AccountEntity,
     AdvertiserProfile,
     OwnerIdentityBinding,
+    OwnerSocialIdentity,
     TelegramIdentity,
 )
 
@@ -171,3 +172,74 @@ class AccountEntitySecurityTests(TestCase):
         )
 
         self.assertEqual(binding.telegram_identity_id, telegram.id)
+
+
+class OwnerSocialIdentitySecurityTests(TestCase):
+    def setUp(self):
+        owner = User.objects.create_user(
+            username="social-owner",
+            password="test-password-123",
+        )
+        self.owner_entity = AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+            identity_email="social-owner@example.test",
+        )
+
+    def test_facebook_and_instagram_identities_are_supported(self):
+        facebook = OwnerSocialIdentity.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.FACEBOOK,
+            provider_user_id="facebook-owner-001",
+            username="owner.fb",
+        )
+        instagram = OwnerSocialIdentity.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.INSTAGRAM,
+            provider_user_id="instagram-owner-001",
+            username="owner.ig",
+        )
+
+        self.assertEqual(facebook.provider, "facebook")
+        self.assertEqual(instagram.provider, "instagram")
+        self.assertIsNone(facebook.verified_at)
+        self.assertIsNone(instagram.verified_at)
+
+    def test_social_identity_rejects_non_owner_entity(self):
+        worker = User.objects.create_user(
+            username="social-worker",
+            password="test-password-123",
+        )
+        worker_entity = AccountEntity.objects.create(
+            user=worker,
+            entity_type=AccountEntity.EntityType.WORKER,
+            identity_email="social-worker@example.test",
+        )
+
+        with self.assertRaises(ValidationError):
+            OwnerSocialIdentity.objects.create(
+                account_entity=worker_entity,
+                provider=OwnerSocialIdentity.Provider.FACEBOOK,
+                provider_user_id="facebook-worker-001",
+            )
+
+    def test_provider_user_id_is_unique_per_provider(self):
+        OwnerSocialIdentity.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.FACEBOOK,
+            provider_user_id="same-provider-id",
+        )
+
+        with self.assertRaises(Exception):
+            OwnerSocialIdentity.objects.create(
+                account_entity=self.owner_entity,
+                provider=OwnerSocialIdentity.Provider.FACEBOOK,
+                provider_user_id="same-provider-id",
+            )
+
+        instagram = OwnerSocialIdentity.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.INSTAGRAM,
+            provider_user_id="same-provider-id",
+        )
+        self.assertEqual(instagram.provider_user_id, "same-provider-id")
