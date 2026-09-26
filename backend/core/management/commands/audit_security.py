@@ -1,6 +1,8 @@
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
+from accounts.admin import GroupAdmin, UserAdmin
+from accounts.models import WorkerProfile
 from wallet.admin import WalletTransactionAdmin, WithdrawalRequestAdmin
 from wallet.models import WalletTransaction, WithdrawalRequest
 
@@ -62,6 +64,30 @@ class Command(BaseCommand):
                     "has_delete_permission",
                 )
             ),
+            "User admin cannot add": not UserAdmin.has_add_permission(
+                object.__new__(UserAdmin), None
+            ),
+            "User admin cannot delete": not UserAdmin.has_delete_permission(
+                object.__new__(UserAdmin), None
+            ),
+            "User privilege fields are read-only": all(
+                field in UserAdmin.readonly_fields
+                for field in (
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            ),
+            "Group admin cannot add": not GroupAdmin.has_add_permission(
+                object.__new__(GroupAdmin), None
+            ),
+            "Group admin cannot change": not GroupAdmin.has_change_permission(
+                object.__new__(GroupAdmin), None
+            ),
+            "Group admin cannot delete": not GroupAdmin.has_delete_permission(
+                object.__new__(GroupAdmin), None
+            ),
             "Withdrawal records are action-controlled": all(
                 not getattr(WithdrawalRequestAdmin, method, lambda *a: True)(
                     object.__new__(WithdrawalRequestAdmin), None
@@ -76,7 +102,7 @@ class Command(BaseCommand):
 
         # Model imports above are intentional: this command should fail loudly
         # if finance models are removed or renamed.
-        _ = (WalletTransaction, WithdrawalRequest)
+        _ = (UserAdmin, GroupAdmin, WorkerProfile, WalletTransaction, WithdrawalRequest)
 
         failed = [name for name, passed in checks.items() if not passed]
 
