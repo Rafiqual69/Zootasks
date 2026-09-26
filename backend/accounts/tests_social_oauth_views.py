@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
+from unittest.mock import patch
 from django.urls import reverse
 
 from accounts.models import AccountEntity, OwnerSocialIdentity, OwnerSocialOAuthState
@@ -76,6 +77,75 @@ class OwnerSocialOAuthViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="facebook-secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/accounts/owner/social/facebook/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.views.bind_verified_owner_social_identity")
+    @patch("accounts.views.get_owner_social_profile")
+    @patch("accounts.views.exchange_owner_social_authorization_code")
+    def test_callback_exchanges_profile_and_binds_identity(
+        self,
+        mock_exchange,
+        mock_profile,
+        mock_bind,
+    ):
+        from accounts.social_oauth_exchange import (
+            OwnerSocialOAuthProfile,
+            OwnerSocialOAuthTokenResponse,
+        )
+
+        self.client.force_login(self.owner)
+        state = "callback-success-state"
+        OwnerSocialOAuthState.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.FACEBOOK,
+            state_hash=__import__("hashlib").sha256(
+                state.encode("utf-8")
+            ).hexdigest(),
+            expires_at=__import__("django.utils.timezone").utils.timezone.now()
+            + __import__("datetime").timedelta(minutes=10),
+        )
+        mock_exchange.return_value = OwnerSocialOAuthTokenResponse(
+            access_token="temporary-access-token",
+            token_type="Bearer",
+            expires_in=3600,
+        )
+        mock_profile.return_value = OwnerSocialOAuthProfile(
+            provider_user_id="facebook-owner-123",
+            username="owner",
+        )
+
+        response = self.client.get(
+            reverse(
+                "owner_social_oauth_callback",
+                kwargs={"provider": OwnerSocialIdentity.Provider.FACEBOOK},
+            ),
+            {"state": state, "code": "provider-code"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_exchange.assert_called_once_with(
+            OwnerSocialIdentity.Provider.FACEBOOK,
+            "provider-code",
+        )
+        mock_profile.assert_called_once_with(
+            OwnerSocialIdentity.Provider.FACEBOOK,
+            "temporary-access-token",
+        )
+        mock_bind.assert_called_once_with(
+            self.owner_entity,
+            OwnerSocialIdentity.Provider.FACEBOOK,
+            "facebook-owner-123",
+            "owner",
+        )
 
     def test_callback_consumes_matching_state_but_does_not_store_provider_token(self):
         self.client.force_login(self.owner)
