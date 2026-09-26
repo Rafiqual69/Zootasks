@@ -75,14 +75,32 @@ def owner_email_verification_request(request):
 
 
 def owner_email_verify(request, token):
-    if request.method != "GET":
-        return HttpResponse("Owner email verification requires GET.", status=405)
+    if request.method == "GET":
+        response = render(
+            request,
+            "accounts/owner_email_verify.html",
+            {"token": token},
+        )
+        response["Referrer-Policy"] = "no-referrer"
+        response["Cache-Control"] = "no-store"
+        return response
+
+    if request.method != "POST":
+        return HttpResponse("Owner email verification requires GET or POST.", status=405)
+
     if verify_owner_email_token(token):
-        return HttpResponse("Owner identity email verified successfully.")
-    return HttpResponse(
+        response = HttpResponse("Owner identity email verified successfully.")
+        response["Referrer-Policy"] = "no-referrer"
+        response["Cache-Control"] = "no-store"
+        return response
+
+    response = HttpResponse(
         "Invalid, expired, already-used, or exhausted verification token.",
         status=400,
     )
+    response["Referrer-Policy"] = "no-referrer"
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @login_required
