@@ -8,6 +8,10 @@ from wallet.models import WalletTransaction
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        # Tasks are financial/audit roots; archive via status instead of deleting.
+        return False
+
     list_display = (
         "title",
         "category",
