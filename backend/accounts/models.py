@@ -94,6 +94,47 @@ class OwnerIdentityBinding(models.Model):
         return f"Owner identity: {self.account_entity.user.username}"
 
 
+class OwnerSocialIdentity(models.Model):
+    class Provider(models.TextChoices):
+        FACEBOOK = "facebook", "Facebook"
+        INSTAGRAM = "instagram", "Instagram"
+
+    account_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="owner_social_identities",
+    )
+    provider = models.CharField(max_length=32, choices=Provider.choices)
+    provider_user_id = models.CharField(max_length=255)
+    username = models.CharField(max_length=150, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("provider", "provider_user_id"),
+                name="accounts_unique_owner_social_identity",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+            raise ValidationError(
+                "Owner social identity requires the canonical Owner entity."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.get_provider_display()} identity"
+
+
 class OwnerEmailVerificationChallenge(models.Model):
     account_entity = models.ForeignKey(
         AccountEntity,
