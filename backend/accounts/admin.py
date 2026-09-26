@@ -1,6 +1,51 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.models import Group, User
 
 from .models import WorkerProfile
+
+
+# Django's default User/Group admin can mutate privilege-bearing fields.
+# Keep those paths locked until ZooTasks has an explicit Owner-controlled
+# identity and RBAC management workflow.
+admin.site.unregister(User)
+admin.site.unregister(Group)
+
+
+@admin.register(User)
+class UserAdmin(DjangoUserAdmin):
+    def has_add_permission(self, request):
+        # Accounts are created through controlled application/identity flows.
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # User deletion can cascade into financial/audit records.
+        return False
+
+    readonly_fields = (
+        "is_staff",
+        "is_superuser",
+        "groups",
+        "user_permissions",
+        "last_login",
+        "date_joined",
+    )
+
+
+@admin.register(Group)
+class GroupAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = ("name",)
+    search_fields = ("name",)
+    readonly_fields = ("name", "permissions")
 
 
 @admin.register(WorkerProfile)
