@@ -1,0 +1,90 @@
+from datetime import timedelta
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from accounts.email_verification import _hash_token, verify_owner_email_token
+from accounts.models import AccountEntity, OwnerEmailVerificationChallenge
+
+
+class OwnerEmailVerificationTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.owner = User.objects.create_user(
+            username="email-owner",
+            password="Strong-Test-Password-123!",
+            is_staff=True,
+            is_superuser=True,
+            email="owner@example.test",
+        )
+        self.entity = AccountEntity.objects.create(
+            user=self.owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+            identity_email=self.owner.email,
+        )
+        self.client = Client()
+
+    @patch("accounts.email_verification.send_mail")
+    def test_owner_can_request_email_verification(self, send_mail):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("owner_email_verification_request"),
+            HTTP_HOST="127.0.0.1",
+        )
+        self.assertEqual(response.status_code, 200)
+        send_mail.assert_called_once()
+        challenge = OwnerEmailVerificationChallenge.objects.get(
+            account_entity=self.entity
+        )
+        self.assertGreater(challenge.expires_at, timezone.now())
+        self.assertEqual(challenge.attempts, 0)
+
+    @patch("accounts.email_verification.send_mail")
+    def test_non_owner_cannot_request_email_verification(self, send_mail):
+        User = get_user_model()
+        worker = User.objects.create_user(
+            username="email-worker",
+            password="Strong-Test-Password-123!",
+            email="worker@example.test",
+        )
+        AccountEntity.objects.create(
+            user=worker,
+            entity_type=AccountEntity.EntityType.WORKER,
+            identity_email=worker.email,
+        )
+        self.client.force_login(worker)
+        response = self.client.post(
+            reverse("owner_email_verification_request"),
+            HTTP_HOST="127.0.0.1",
+        )
+        self.assertEqual(response.status_code, 302)
+        send_mail.assert_not_called()
+
+    def test_owner_email_token_is_single_use(self):
+        token = "test-owner-email-token"
+        challenge = OwnerEmailVerificationChallenge.objects.create(
+            account_entity=self.entity,
+            token_hash=_hash_token(token),
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        self.assertTrue(verify_owner_email_token(token))
+        self.entity.refresh_from_db()
+        challenge.refresh_from_db()
+        self.assertIsNotNone(self.entity.email_verified_at)
+        self.assertIsNotNone(challenge.used_at)
+        self.assertEqual(challenge.attempts, 1)
+        self.assertFalse(verify_owner_email_token(token))
+
+    def test_owner_email_token_expiry_is_rejected(self):
+        token = "expired-owner-email-token"
+        OwnerEmailVerificationChallenge.objects.create(
+            account_entity=self.entity,
+            token_hash=_hash_token(token),
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        self.assertFalse(verify_owner_email_token(token))
+        self.entity.refresh_from_db()
+        self.assertIsNone(self.entity.email_verified_at)

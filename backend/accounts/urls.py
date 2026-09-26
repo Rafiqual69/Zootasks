@@ -1,7 +1,15 @@
 from django.contrib.auth.views import LoginView, LogoutView
-from .forms import OwnerOTPAuthenticationForm
 from django.urls import path
-from .views import advertiser_dashboard, advertiser_register, dashboard, register
+
+from .forms import OwnerOTPAuthenticationForm
+from .views import (
+    advertiser_dashboard,
+    advertiser_register,
+    dashboard,
+    owner_email_verification_request,
+    owner_email_verify,
+    register,
+)
 
 urlpatterns = [
     path("owner/login/", LoginView.as_view(
@@ -9,10 +17,11 @@ urlpatterns = [
         authentication_form=OwnerOTPAuthenticationForm,
         redirect_authenticated_user=False,
     ), name="owner_login"),
-
+    path("owner/email/verify/request/", owner_email_verification_request, name="owner_email_verification_request"),
+    path("owner/email/verify/<str:token>/", owner_email_verify, name="owner_email_verify"),
     path("login/", LoginView.as_view(
         template_name="accounts/login.html",
-        redirect_authenticated_user=True
+        redirect_authenticated_user=True,
     ), name="login"),
     path("register/", register, name="register"),
     path("advertiser/register/", advertiser_register, name="advertiser_register"),

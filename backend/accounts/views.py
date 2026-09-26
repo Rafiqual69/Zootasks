@@ -1,12 +1,15 @@
 from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Sum
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
+from .email_verification import issue_owner_email_verification, verify_owner_email_token
 from .forms import AdvertiserRegistrationForm, RegistrationForm
 from .models import AccountEntity, AdvertiserProfile, WorkerProfile
+from .policies import is_owner
 from promotions.models import Promotion
 from wallet.models import WalletTransaction
 
@@ -14,10 +17,8 @@ from wallet.models import WalletTransaction
 def register(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
-
     if request.method == "POST":
         form = RegistrationForm(request.POST)
-
         if form.is_valid():
             with transaction.atomic():
                 user = form.save()
@@ -31,12 +32,7 @@ def register(request):
             return redirect("dashboard")
     else:
         form = RegistrationForm()
-
-    return render(
-        request,
-        "accounts/register.html",
-        {"form": form},
-    )
+    return render(request, "accounts/register.html", {"form": form})
 
 
 def advertiser_register(request):
@@ -48,10 +44,8 @@ def advertiser_register(request):
         if entity_type == AccountEntity.EntityType.ADVERTISER:
             return redirect("advertiser_dashboard")
         return redirect("dashboard")
-
     if request.method == "POST":
         form = AdvertiserRegistrationForm(request.POST)
-
         if form.is_valid():
             with transaction.atomic():
                 user = form.save()
@@ -68,11 +62,26 @@ def advertiser_register(request):
             return redirect("login")
     else:
         form = AdvertiserRegistrationForm()
+    return render(request, "accounts/register.html", {"form": form, "account_type": "advertiser"})
 
-    return render(
-        request,
-        "accounts/register.html",
-        {"form": form, "account_type": "advertiser"},
+
+@login_required
+@user_passes_test(is_owner)
+def owner_email_verification_request(request):
+    if request.method != "POST":
+        return HttpResponse("Owner email verification requires POST.", status=405)
+    issue_owner_email_verification(request, request.user)
+    return HttpResponse("Owner email verification email sent.")
+
+
+def owner_email_verify(request, token):
+    if request.method != "GET":
+        return HttpResponse("Owner email verification requires GET.", status=405)
+    if verify_owner_email_token(token):
+        return HttpResponse("Owner identity email verified successfully.")
+    return HttpResponse(
+        "Invalid, expired, already-used, or exhausted verification token.",
+        status=400,
     )
 
 
@@ -82,59 +91,30 @@ def dashboard(request):
         entity = request.user.account_entity
     except AccountEntity.DoesNotExist as exc:
         raise PermissionDenied("A Worker account entity is required for this dashboard.") from exc
-
-    if (
-        not entity.is_active
-        or entity.entity_type != AccountEntity.EntityType.WORKER
-    ):
+    if not entity.is_active or entity.entity_type != AccountEntity.EntityType.WORKER:
         raise PermissionDenied("This dashboard is restricted to active Worker accounts.")
-
     try:
         profile = request.user.workerprofile
     except WorkerProfile.DoesNotExist as exc:
         raise PermissionDenied("Worker profile is not provisioned.") from exc
-
-    transactions = WalletTransaction.objects.filter(
-        user=request.user
-    ).order_by("-created_at")[:10]
-
-    total_earned = (
-        WalletTransaction.objects.filter(
-            user=request.user,
-            transaction_type="earning",
-        ).aggregate(total=Sum("amount"))["total"]
-        or 0
-    )
-
-    total_withdrawn = (
-        WalletTransaction.objects.filter(
-            user=request.user,
-            transaction_type="withdrawal",
-        ).aggregate(total=Sum("amount"))["total"]
-        or 0
-    )
-
-    balance = profile.balance
-
-    completed_tasks = (
-        WalletTransaction.objects.filter(
-            user=request.user,
-            transaction_type="earning",
-        ).count()
-    )
-
-    return render(
-        request,
-        "accounts/dashboard.html",
-        {
-            "profile": profile,
-            "transactions": transactions,
-            "balance": balance,
-            "total_earned": total_earned,
-            "total_withdrawn": total_withdrawn,
-            "completed_tasks": completed_tasks,
-        },
-    )
+    transactions = WalletTransaction.objects.filter(user=request.user).order_by("-created_at")[:10]
+    total_earned = WalletTransaction.objects.filter(
+        user=request.user, transaction_type="earning"
+    ).aggregate(total=Sum("amount"))["total"] or 0
+    total_withdrawn = WalletTransaction.objects.filter(
+        user=request.user, transaction_type="withdrawal"
+    ).aggregate(total=Sum("amount"))["total"] or 0
+    completed_tasks = WalletTransaction.objects.filter(
+        user=request.user, transaction_type="earning"
+    ).count()
+    return render(request, "accounts/dashboard.html", {
+        "profile": profile,
+        "transactions": transactions,
+        "balance": profile.balance,
+        "total_earned": total_earned,
+        "total_withdrawn": total_withdrawn,
+        "completed_tasks": completed_tasks,
+    })
 
 
 @login_required
@@ -143,22 +123,11 @@ def advertiser_dashboard(request):
         entity = request.user.account_entity
     except AccountEntity.DoesNotExist as exc:
         raise PermissionDenied("An Advertiser account entity is required for this dashboard.") from exc
-
-    if (
-        not entity.is_active
-        or entity.entity_type != AccountEntity.EntityType.ADVERTISER
-    ):
+    if not entity.is_active or entity.entity_type != AccountEntity.EntityType.ADVERTISER:
         raise PermissionDenied("This dashboard is restricted to active Advertiser accounts.")
-
     try:
         profile = request.user.advertiser_profile
     except AdvertiserProfile.DoesNotExist as exc:
         raise PermissionDenied("Advertiser profile is not provisioned.") from exc
-
     promotions = Promotion.objects.filter(advertiser=profile).order_by("-created_at")
-
-    return render(
-        request,
-        "accounts/advertiser_dashboard.html",
-        {"profile": profile, "promotions": promotions},
-    )
+    return render(request, "accounts/advertiser_dashboard.html", {"profile": profile, "promotions": promotions})

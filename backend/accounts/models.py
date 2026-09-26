@@ -93,6 +93,40 @@ class OwnerIdentityBinding(models.Model):
         return f"Owner identity: {self.account_entity.user.username}"
 
 
+class OwnerEmailVerificationChallenge(models.Model):
+    account_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="owner_email_verification_challenges",
+    )
+    token_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+            raise ValidationError(
+                "Owner email verification requires the canonical Owner entity."
+            )
+
+    def is_valid(self, now=None):
+        from django.utils import timezone
+
+        now = now or timezone.now()
+        return self.used_at is None and self.expires_at > now and self.attempts < 5
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Owner email verification: {self.account_entity.user.username}"
+
+
 class AdvertiserProfile(models.Model):
     user = models.OneToOneField(
         User,
