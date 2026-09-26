@@ -1,9 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from accounts.admin import AccountEntityAdmin
-from accounts.models import AccountEntity, AdvertiserProfile
+from accounts.models import (
+    AccountEntity,
+    AdvertiserProfile,
+    OwnerIdentityBinding,
+    TelegramIdentity,
+)
 
 
 class AccountEntitySecurityTests(TestCase):
@@ -86,3 +92,82 @@ class AccountEntitySecurityTests(TestCase):
             "updated_at",
         ):
             self.assertIn(field_name, model_admin.readonly_fields)
+
+    def test_owner_identity_binding_accepts_only_owner_entity(self):
+        owner = User.objects.create_user(
+            username="binding-owner",
+            password="test-password-123",
+        )
+        owner_entity = AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+            identity_email="binding-owner@example.test",
+        )
+
+        binding = OwnerIdentityBinding.objects.create(
+            account_entity=owner_entity,
+            mobile_number="+8801000000000",
+        )
+
+        self.assertEqual(binding.account_entity_id, owner_entity.id)
+
+    def test_owner_identity_binding_rejects_non_owner_entity(self):
+        with self.assertRaises(ValidationError):
+            OwnerIdentityBinding.objects.create(
+                account_entity=self.entity,
+                mobile_number="+8801000000001",
+            )
+
+    def test_owner_mobile_number_is_unique(self):
+        owner = User.objects.create_user(
+            username="binding-owner-unique",
+            password="test-password-123",
+        )
+        owner_entity = AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+            identity_email="binding-owner-unique@example.test",
+        )
+        OwnerIdentityBinding.objects.create(
+            account_entity=owner_entity,
+            mobile_number="+8801000000002",
+        )
+
+        other = User.objects.create_user(
+            username="binding-owner-other",
+            password="test-password-123",
+        )
+        other_entity = AccountEntity.objects.create(
+            user=other,
+            entity_type=AccountEntity.EntityType.SUPER_ADMIN,
+            identity_email="binding-owner-other@example.test",
+        )
+
+        with self.assertRaises(Exception):
+            OwnerIdentityBinding.objects.create(
+                account_entity=other_entity,
+                mobile_number="+8801000000002",
+            )
+
+    def test_owner_telegram_binding_is_one_to_one(self):
+        owner = User.objects.create_user(
+            username="binding-telegram-owner",
+            password="test-password-123",
+        )
+        owner_entity = AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+            identity_email="binding-telegram-owner@example.test",
+        )
+        telegram = TelegramIdentity.objects.create(
+            user=owner,
+            telegram_user_id=900000001,
+            verified_at=None,
+        )
+
+        binding = OwnerIdentityBinding.objects.create(
+            account_entity=owner_entity,
+            telegram_identity=telegram,
+        )
+
+        self.assertEqual(binding.telegram_identity_id, telegram.id)

@@ -47,6 +47,52 @@ class AccountEntity(models.Model):
         return f"{self.get_entity_type_display()}: {self.user.username}"
 
 
+class OwnerIdentityBinding(models.Model):
+    account_entity = models.OneToOneField(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="owner_identity_binding",
+    )
+    mobile_number = models.CharField(
+        max_length=32,
+        unique=True,
+        null=True,
+        blank=True,
+    )
+    mobile_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    whatsapp_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    telegram_identity = models.OneToOneField(
+        "TelegramIdentity",
+        on_delete=models.PROTECT,
+        related_name="owner_identity_binding",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+            raise ValidationError(
+                "Owner identity binding requires the canonical Owner entity."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Owner identity: {self.account_entity.user.username}"
+
+
 class AdvertiserProfile(models.Model):
     user = models.OneToOneField(
         User,
