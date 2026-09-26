@@ -35,6 +35,13 @@ class AccountEntity(models.Model):
     class Meta:
         verbose_name = "Account Entity"
         verbose_name_plural = "Account Entities"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("entity_type",),
+                condition=models.Q(entity_type="owner"),
+                name="accounts_single_owner_entity",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.get_entity_type_display()}: {self.user.username}"

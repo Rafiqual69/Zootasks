@@ -1,13 +1,12 @@
 from types import SimpleNamespace
 
-from django.conf import settings
 
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
 from accounts.admin import GroupAdmin, UserAdmin
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from promotions.admin import PromotionAdmin
 from promotions.models import Promotion
 from tasks.admin import TaskAdmin
@@ -52,12 +51,19 @@ class Command(BaseCommand):
                 pk=permissions[codename].pk
             ).exists()
 
-        owner_request = SimpleNamespace(
-            user=SimpleNamespace(
-                is_superuser=True,
-                get_username=lambda: settings.OWNER_USERNAME,
+        owner_entity = (
+            AccountEntity.objects
+            .filter(
+                entity_type=AccountEntity.EntityType.OWNER,
+                is_active=True,
             )
+            .select_related("user")
+            .first()
         )
+        if owner_entity is None:
+            raise CommandError("Canonical active Owner entity is missing.")
+
+        owner_request = SimpleNamespace(user=owner_entity.user)
         non_owner_superuser_request = SimpleNamespace(
             user=SimpleNamespace(
                 is_superuser=True,

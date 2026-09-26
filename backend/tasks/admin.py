@@ -1,5 +1,5 @@
-from django.conf import settings
 from django.contrib import admin, messages
+from accounts.policies import is_owner
 from django.db import transaction
 
 from .models import Task, TaskClaim
@@ -10,13 +10,8 @@ from wallet.models import WalletTransaction
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
-        # Only the configured Owner may create financial root objects.
-        owner_username = getattr(settings, "OWNER_USERNAME", "")
-        return (
-            bool(owner_username)
-            and request.user.is_superuser
-            and request.user.get_username() == owner_username
-        )
+        # Only the canonical active Owner may create financial root objects.
+        return is_owner(request.user)
 
     def has_delete_permission(self, request, obj=None):
         # Tasks are financial/audit roots; archive via status instead of deleting.

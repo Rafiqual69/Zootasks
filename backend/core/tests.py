@@ -8,7 +8,7 @@ from django.urls import reverse
 from wallet.models import WalletTransaction, WithdrawalRequest
 
 from accounts.admin import GroupAdmin, UserAdmin
-from accounts.models import WorkerProfile
+from accounts.models import WorkerProfile, AccountEntity
 from promotions.admin import PromotionAdmin
 from promotions.models import Promotion
 from tasks.admin import TaskAdmin
@@ -102,6 +102,16 @@ class FinanceRBACSetupTests(TestCase):
 
 class PrivilegedFinanceSecurityAuditTests(TestCase):
     def test_security_audit_passes_after_rbac_setup(self):
+        owner_user = User.objects.create_superuser(
+            username="security_audit_owner",
+            password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=owner_user,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        )
+
         call_command("setup_rbac")
         call_command("audit_security")
 
@@ -153,6 +163,11 @@ class RootObjectAdminProtectionTests(TestCase):
         self.owner_request.user = User.objects.create_superuser(
             username="root_object_owner",
             password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=self.owner_request.user,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
         )
         self.staff_request = RequestFactory().get("/admin/")
         self.staff_request.user = User.objects.create_user(
