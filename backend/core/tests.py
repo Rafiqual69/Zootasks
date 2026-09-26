@@ -8,6 +8,12 @@ from wallet.models import WalletTransaction, WithdrawalRequest
 
 from accounts.admin import GroupAdmin, UserAdmin
 from accounts.models import WorkerProfile
+from offers.admin import OfferAdmin
+from offers.models import Offer
+from promotions.admin import PromotionAdmin
+from promotions.models import Promotion
+from tasks.admin import TaskAdmin
+from tasks.models import Task
 
 
 class LiveWalletDashboardPermissionTests(TestCase):
@@ -118,14 +124,13 @@ class PrivilegedFinanceSecurityAuditTests(TestCase):
 
 class WorkerProfileAdminProtectionTests(TestCase):
     def test_worker_profile_financial_state_is_read_only_and_not_deletable(self):
-        from accounts.admin import WorkerProfileAdmin
-        from accounts.models import WorkerProfile
-
         request = RequestFactory().get("/admin/")
         request.user = User.objects.create_superuser(
             username="profile_admin",
             password="test-password-123",
         )
+
+        from accounts.admin import WorkerProfileAdmin
 
         model_admin = WorkerProfileAdmin(WorkerProfile, admin.site)
 
@@ -142,6 +147,67 @@ class WorkerProfileAdminProtectionTests(TestCase):
         ):
             self.assertIn(field_name, model_admin.readonly_fields)
 
+
+class RootObjectAdminProtectionTests(TestCase):
+    def setUp(self):
+        self.owner_request = RequestFactory().get("/admin/")
+        self.owner_request.user = User.objects.create_superuser(
+            username="root_object_owner",
+            password="test-password-123",
+        )
+        self.staff_request = RequestFactory().get("/admin/")
+        self.staff_request.user = User.objects.create_user(
+            username="root_object_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+
+    def test_task_admin_creation_is_owner_controlled(self):
+        model_admin = TaskAdmin(Task, admin.site)
+
+        self.assertTrue(model_admin.has_add_permission(self.owner_request))
+        self.assertFalse(model_admin.has_add_permission(self.staff_request))
+        self.assertFalse(model_admin.has_delete_permission(self.owner_request))
+
+    def test_task_financial_and_lifecycle_fields_are_read_only(self):
+        model_admin = TaskAdmin(Task, admin.site)
+
+        for field_name in (
+            "reward",
+            "max_workers",
+            "completed_workers",
+            "status",
+            "created_at",
+        ):
+            self.assertIn(
+                field_name,
+                model_admin.get_readonly_fields(self.owner_request),
+            )
+
+    def test_promotion_admin_creation_and_financial_fields_are_protected(self):
+        model_admin = PromotionAdmin(Promotion, admin.site)
+
+        self.assertTrue(model_admin.has_add_permission(self.owner_request))
+        self.assertFalse(model_admin.has_add_permission(self.staff_request))
+        self.assertFalse(model_admin.has_delete_permission(self.owner_request))
+
+        for field_name in (
+            "reward",
+            "budget",
+            "max_workers",
+            "completed_workers",
+            "status",
+            "created_at",
+        ):
+            self.assertIn(field_name, model_admin.readonly_fields)
+
+    def test_offer_admin_is_read_only_after_creation(self):
+        model_admin = OfferAdmin(Offer, admin.site)
+
+        self.assertTrue(model_admin.has_add_permission(self.owner_request))
+        self.assertFalse(model_admin.has_add_permission(self.staff_request))
+        self.assertFalse(model_admin.has_change_permission(self.owner_request))
+        self.assertFalse(model_admin.has_delete_permission(self.owner_request))
 
 
 class UserAdminPrivilegeProtectionTests(TestCase):
