@@ -65,3 +65,33 @@ class OwnerSocialOAuthProviderConfigTests(SimpleTestCase):
         )
         self.assertEqual(config.provider, OwnerSocialIdentity.Provider.INSTAGRAM)
         self.assertEqual(config.client_id, "instagram-client")
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://evil.example/authorize",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    def test_unapproved_oauth_host_is_rejected(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "uses an unapproved OAuth host.",
+        ):
+            get_owner_social_oauth_provider_config(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+            )
+
+    @override_settings(
+        OWNER_INSTAGRAM_OAUTH_CLIENT_ID="instagram-client",
+        OWNER_INSTAGRAM_OAUTH_AUTHORIZATION_ENDPOINT="https://www.instagram.com/oauth/authorize",
+        OWNER_INSTAGRAM_OAUTH_TOKEN_ENDPOINT="https://api.instagram.com/oauth/access_token",
+        OWNER_INSTAGRAM_OAUTH_REDIRECT_URI="https://zootasks.example/callback/",
+        OWNER_INSTAGRAM_OAUTH_SCOPES="instagram_business_basic",
+    )
+    def test_instagram_meta_hosts_are_allowed(self):
+        config = get_owner_social_oauth_provider_config(
+            OwnerSocialIdentity.Provider.INSTAGRAM,
+        )
+        self.assertEqual(config.token_endpoint, "https://api.instagram.com/oauth/access_token")
