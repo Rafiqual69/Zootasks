@@ -133,6 +133,7 @@ LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
 # High-assurance Owner access
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
+OWNER_IDENTITY_EMAIL = config("OWNER_IDENTITY_EMAIL", default="")
 OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS = config(
     "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS", default=5, cast=int
 )
