@@ -14,7 +14,7 @@ class OwnerSocialIdentityBindingSecurityTests(TestCase):
         )
         self.owner_entity = AccountEntity.objects.create(
             user=self.owner,
-            entity_type=AccountEntity.EntityType.OWNER,
+            entity_type=AccountEntity.EntityType.WORKER,
             identity_email="social-owner@example.test",
         )
 
