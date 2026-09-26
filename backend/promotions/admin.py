@@ -18,14 +18,20 @@ class PromotionAdmin(admin.ModelAdmin):
         # Promotions are financial/audit roots; use status transitions instead.
         return False
 
-    readonly_fields = (
-        "reward",
-        "budget",
-        "max_workers",
-        "completed_workers",
-        "status",
-        "created_at",
-    )
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            # Owner may create a new promotion with its initial reward/budget
+            # and capacity. Runtime lifecycle counters remain protected.
+            return ("completed_workers", "status", "created_at")
+
+        return (
+            "reward",
+            "budget",
+            "max_workers",
+            "completed_workers",
+            "status",
+            "created_at",
+        )
 
     list_display = (
         "title",
