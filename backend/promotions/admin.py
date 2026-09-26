@@ -9,6 +9,10 @@ from wallet.models import WalletTransaction
 
 @admin.register(Promotion)
 class PromotionAdmin(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        # Promotions are financial/audit roots; use status transitions instead.
+        return False
+
     list_display = (
         "title",
         "advertiser_name",
