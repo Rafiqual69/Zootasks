@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 
+from accounts.models import AdvertiserProfile
+
 
 class Promotion(models.Model):
     STATUS_CHOICES = [
@@ -19,6 +21,15 @@ class Promotion(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     advertiser_name = models.CharField(max_length=150)
+    # Nullable for backward compatibility; existing promotions remain valid
+    # until a controlled ownership backfill is performed.
+    advertiser = models.ForeignKey(
+        AdvertiserProfile,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="promotions",
+    )
     reward = models.DecimalField(
         max_digits=10,
         decimal_places=2,
