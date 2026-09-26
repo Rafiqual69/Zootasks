@@ -108,13 +108,20 @@ def get_owner_social_profile(provider, access_token):
     if not profile_endpoint:
         raise ValueError("Owner social OAuth profile endpoint is not configured.")
 
-    query = {"access_token": access_token}
+    query = {}
     if profile_fields:
         query["fields"] = ",".join(profile_fields)
 
+    profile_url = profile_endpoint
+    if query:
+        profile_url = f"{profile_endpoint}?{urlencode(query)}"
+
     request = Request(
-        f"{profile_endpoint}?{urlencode(query)}",
-        headers={"Accept": "application/json"},
+        profile_url,
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {access_token}",
+        },
         method="GET",
     )
     try:
