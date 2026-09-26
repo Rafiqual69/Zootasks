@@ -43,7 +43,7 @@ jobs:
       - name: Django system check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: ""
         run: python manage.py check
@@ -51,7 +51,7 @@ jobs:
       - name: Django deployment security check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: ""
           PRODUCTION_MODE: "true"
@@ -66,17 +66,18 @@ jobs:
       - name: Configure and audit privileged RBAC
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: ""
         run: |
+          python manage.py migrate --noinput
           python manage.py setup_rbac
           python manage.py audit_security
 
       - name: Full regression tests
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: ""
         run: python manage.py test
