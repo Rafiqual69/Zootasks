@@ -1,10 +1,11 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import redirect, render
 
 from .forms import RegistrationForm
-from .models import WorkerProfile
+from .models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
 
 
@@ -16,8 +17,14 @@ def register(request):
         form = RegistrationForm(request.POST)
 
         if form.is_valid():
-            user = form.save()
-            WorkerProfile.objects.create(user=user)
+            with transaction.atomic():
+                user = form.save()
+                WorkerProfile.objects.create(user=user)
+                AccountEntity.objects.create(
+                    user=user,
+                    entity_type=AccountEntity.EntityType.WORKER,
+                    identity_email=user.email or None,
+                )
             login(request, user)
             return redirect("dashboard")
     else:
