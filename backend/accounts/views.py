@@ -1,5 +1,6 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import redirect, render
@@ -39,9 +40,21 @@ def register(request):
 
 @login_required
 def dashboard(request):
-    profile, _ = WorkerProfile.objects.get_or_create(
-        user=request.user
-    )
+    try:
+        entity = request.user.account_entity
+    except AccountEntity.DoesNotExist as exc:
+        raise PermissionDenied("A Worker account entity is required for this dashboard.") from exc
+
+    if (
+        not entity.is_active
+        or entity.entity_type != AccountEntity.EntityType.WORKER
+    ):
+        raise PermissionDenied("This dashboard is restricted to active Worker accounts.")
+
+    try:
+        profile = request.user.workerprofile
+    except WorkerProfile.DoesNotExist as exc:
+        raise PermissionDenied("Worker profile is not provisioned.") from exc
 
     transactions = WalletTransaction.objects.filter(
         user=request.user
