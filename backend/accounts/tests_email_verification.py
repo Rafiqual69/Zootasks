@@ -63,6 +63,39 @@ class OwnerEmailVerificationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         send_mail.assert_not_called()
 
+    def test_get_verification_page_does_not_consume_token(self):
+        token = "get-only-owner-email-token"
+        challenge = OwnerEmailVerificationChallenge.objects.create(
+            account_entity=self.entity,
+            token_hash=_hash_token(token),
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        response = self.client.get(
+            reverse("owner_email_verify", kwargs={"token": token})
+        )
+        self.assertEqual(response.status_code, 200)
+        challenge.refresh_from_db()
+        self.assertIsNone(challenge.used_at)
+        self.assertIsNone(self.entity.email_verified_at)
+        self.assertEqual(response["Referrer-Policy"], "no-referrer")
+        self.assertEqual(response["Cache-Control"], "no-store")
+
+    def test_post_verification_consumes_token(self):
+        token = "post-owner-email-token"
+        challenge = OwnerEmailVerificationChallenge.objects.create(
+            account_entity=self.entity,
+            token_hash=_hash_token(token),
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        response = self.client.post(
+            reverse("owner_email_verify", kwargs={"token": token})
+        )
+        self.assertEqual(response.status_code, 200)
+        challenge.refresh_from_db()
+        self.entity.refresh_from_db()
+        self.assertIsNotNone(challenge.used_at)
+        self.assertIsNotNone(self.entity.email_verified_at)
+
     def test_owner_email_token_is_single_use(self):
         token = "test-owner-email-token"
         challenge = OwnerEmailVerificationChallenge.objects.create(
