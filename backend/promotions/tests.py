@@ -377,6 +377,9 @@ class PromotionPayoutBudgetBoundaryTests(TestCase):
         self.client.force_login(self.reviewer)
         request = RequestFactory().post("/admin/promotions/promotionclaim/")
         request.user = self.reviewer
+        SessionMiddleware(lambda request: None).process_request(request)
+        request.session.save()
+        MessageMiddleware(lambda request: None).process_request(request)
         claim_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
         claim_admin.approve_claims(
             request,
