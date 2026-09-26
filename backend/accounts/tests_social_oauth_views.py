@@ -147,6 +147,141 @@ class OwnerSocialOAuthViewTests(TestCase):
             "owner",
         )
 
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="facebook-secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/accounts/owner/social/facebook/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.views.get_owner_social_profile")
+    @patch("accounts.views.exchange_owner_social_authorization_code")
+    def test_callback_exchange_failure_does_not_bind_identity(
+        self,
+        mock_exchange,
+        mock_profile,
+    ):
+        self.client.force_login(self.owner)
+        state = "exchange-failure-state"
+        OwnerSocialOAuthState.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.FACEBOOK,
+            state_hash=__import__("hashlib").sha256(
+                state.encode("utf-8")
+            ).hexdigest(),
+            expires_at=__import__("django.utils.timezone").utils.timezone.now()
+            + __import__("datetime").timedelta(minutes=10),
+        )
+        mock_exchange.side_effect = ValueError("exchange failed")
+
+        response = self.client.get(
+            reverse(
+                "owner_social_oauth_callback",
+                kwargs={"provider": OwnerSocialIdentity.Provider.FACEBOOK},
+            ),
+            {"state": state, "code": "provider-code"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        mock_exchange.assert_called_once_with(
+            OwnerSocialIdentity.Provider.FACEBOOK,
+            "provider-code",
+        )
+        mock_profile.assert_not_called()
+        self.assertFalse(
+            OwnerSocialIdentity.objects.filter(
+                account_entity=self.owner_entity,
+            ).exists()
+        )
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="facebook-secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/accounts/owner/social/facebook/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.views.bind_verified_owner_social_identity")
+    @patch("accounts.views.get_owner_social_profile")
+    @patch("accounts.views.exchange_owner_social_authorization_code")
+    def test_callback_profile_failure_does_not_bind_identity(
+        self,
+        mock_exchange,
+        mock_profile,
+        mock_bind,
+    ):
+        from accounts.social_oauth_exchange import OwnerSocialOAuthTokenResponse
+
+        self.client.force_login(self.owner)
+        state = "profile-failure-state"
+        OwnerSocialOAuthState.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.FACEBOOK,
+            state_hash=__import__("hashlib").sha256(
+                state.encode("utf-8")
+            ).hexdigest(),
+            expires_at=__import__("django.utils.timezone").utils.timezone.now()
+            + __import__("datetime").timedelta(minutes=10),
+        )
+        mock_exchange.return_value = OwnerSocialOAuthTokenResponse(
+            access_token="temporary-access-token",
+            token_type="Bearer",
+            expires_in=3600,
+        )
+        mock_profile.side_effect = ValueError("profile failed")
+
+        response = self.client.get(
+            reverse(
+                "owner_social_oauth_callback",
+                kwargs={"provider": OwnerSocialIdentity.Provider.FACEBOOK},
+            ),
+            {"state": state, "code": "provider-code"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        mock_bind.assert_not_called()
+        self.assertFalse(
+            OwnerSocialIdentity.objects.filter(
+                account_entity=self.owner_entity,
+            ).exists()
+        )
+
+    def test_callback_rejects_replayed_state(self):
+        self.client.force_login(self.owner)
+        state = "replayed-state"
+        challenge = OwnerSocialOAuthState.objects.create(
+            account_entity=self.owner_entity,
+            provider=OwnerSocialIdentity.Provider.FACEBOOK,
+            state_hash=__import__("hashlib").sha256(
+                state.encode("utf-8")
+            ).hexdigest(),
+            expires_at=__import__("django.utils.timezone").utils.timezone.now()
+            + __import__("datetime").timedelta(minutes=10),
+        )
+        challenge.used_at = __import__("django.utils.timezone").utils.timezone.now()
+        challenge.save(update_fields=["used_at"])
+
+        response = self.client.get(
+            reverse(
+                "owner_social_oauth_callback",
+                kwargs={"provider": OwnerSocialIdentity.Provider.FACEBOOK},
+            ),
+            {"state": state, "code": "provider-code"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            OwnerSocialIdentity.objects.filter(
+                account_entity=self.owner_entity,
+            ).exists()
+        )
+
     def test_callback_consumes_matching_state_but_does_not_store_provider_token(self):
         self.client.force_login(self.owner)
         state = "test-state"
