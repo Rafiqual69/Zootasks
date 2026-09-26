@@ -1,0 +1,26 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Advertiser Dashboard — ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
+</head>
+<body class="zt-auth-page">
+<header class="zt-auth-header">
+    <a class="zt-brand" href="/"><span class="zt-brand-mark">Z</span><span>ZooTasks</span></a>
+</header>
+<main class="zt-auth-main">
+    <section class="zt-auth-card zt-auth-card-wide">
+        <span class="zt-kicker">ADVERTISER</span>
+        <h1>Advertiser Dashboard</h1>
+        <p class="zt-auth-intro">Your organization workspace is ready. Promotion creation and funding controls will be enabled only after their dedicated authorization and financial safeguards are implemented.</p>
+        <p><strong>Organization:</strong> {{ profile.organization_name|default:"Not provided" }}</p>
+        <p><strong>Contact:</strong> {{ profile.contact_name|default:"Not provided" }}</p>
+        <p class="zt-auth-footer"><a href="{% url 'logout' %}">Sign out</a></p>
+    </section>
+</main>
+<footer class="zt-auth-bottom"><a href="/">ZooTasks</a><span>Secure advertiser workspace</span></footer>
+</body>
+</html>
