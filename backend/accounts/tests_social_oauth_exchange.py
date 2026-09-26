@@ -11,8 +11,8 @@ class OwnerSocialOAuthExchangeTests(TestCase):
     @override_settings(
         OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
         OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret-value",
-        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://provider.example/token",
-        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://provider.example/authorize",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
         OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
         OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
     )
@@ -40,8 +40,8 @@ class OwnerSocialOAuthExchangeTests(TestCase):
     @override_settings(
         OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
         OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="",
-        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://provider.example/token",
-        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://provider.example/authorize",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
         OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
         OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
     )
@@ -58,8 +58,8 @@ class OwnerSocialOAuthExchangeTests(TestCase):
     @override_settings(
         OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
         OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
-        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://provider.example/token",
-        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://provider.example/authorize",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
         OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
         OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
     )
