@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -41,6 +42,63 @@ class OwnerEmailVerificationTests(TestCase):
         )
         self.assertGreater(challenge.expires_at, timezone.now())
         self.assertEqual(challenge.attempts, 0)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="test@example.test",
+    )
+    def test_owner_email_verification_end_to_end_with_locmem_backend(self):
+        self.client.force_login(self.owner)
+
+        request_response = self.client.post(
+            reverse("owner_email_verification_request"),
+            HTTP_HOST="127.0.0.1",
+        )
+        self.assertEqual(request_response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+
+        message = mail.outbox[0]
+        self.assertEqual(message.to, [self.entity.identity_email])
+        self.assertIn("ZooTasks Owner email verification", message.subject)
+
+        import re
+
+        match = re.search(
+            r"/owner/email/verify/([^/\\s]+)",
+            message.body,
+        )
+        self.assertIsNotNone(match)
+        token = match.group(1)
+
+        challenge = OwnerEmailVerificationChallenge.objects.get(
+            account_entity=self.entity
+        )
+        self.assertEqual(challenge.attempts, 0)
+        self.assertIsNone(challenge.used_at)
+
+        get_response = self.client.get(
+            reverse("owner_email_verify", kwargs={"token": token})
+        )
+        self.assertEqual(get_response.status_code, 200)
+        challenge.refresh_from_db()
+        self.assertIsNone(challenge.used_at)
+
+        post_response = self.client.post(
+            reverse("owner_email_verify", kwargs={"token": token})
+        )
+        self.assertEqual(post_response.status_code, 200)
+
+        challenge.refresh_from_db()
+        self.entity.refresh_from_db()
+        self.assertEqual(challenge.attempts, 1)
+        self.assertIsNotNone(challenge.used_at)
+        self.assertIsNotNone(self.entity.email_verified_at)
+
+        reuse_response = self.client.post(
+            reverse("owner_email_verify", kwargs={"token": token})
+        )
+        self.assertEqual(reuse_response.status_code, 200)
+        self.assertIn("invalid", reuse_response.content.decode().lower())
 
     @patch("accounts.email_verification.send_mail")
     def test_non_owner_cannot_request_email_verification(self, send_mail):
