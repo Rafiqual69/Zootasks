@@ -221,3 +221,100 @@ class PromotionMarketplaceStateTests(TestCase):
         )
         response = self.client.get(reverse("promotion_marketplace"))
         self.assertNotContains(response, "Pending campaign")
+
+
+class AdvertiserPromotionWorkspaceBoundaryTests(TestCase):
+    def setUp(self):
+        from accounts.models import AccountEntity, AdvertiserProfile
+
+        User = get_user_model()
+        self.advertiser_a = User.objects.create_user(
+            username="workspace-advertiser-a",
+            password="testpass123",
+        )
+        self.advertiser_b = User.objects.create_user(
+            username="workspace-advertiser-b",
+            password="testpass123",
+        )
+        self.worker = User.objects.create_user(
+            username="workspace-worker",
+            password="testpass123",
+        )
+
+        AccountEntity.objects.create(
+            user=self.advertiser_a,
+            entity_type=AccountEntity.EntityType.ADVERTISER,
+            identity_email="workspace-a@example.com",
+        )
+        AccountEntity.objects.create(
+            user=self.advertiser_b,
+            entity_type=AccountEntity.EntityType.ADVERTISER,
+            identity_email="workspace-b@example.com",
+        )
+        AdvertiserProfile.objects.create(
+            user=self.advertiser_a,
+            organization_name="Workspace A",
+            contact_name="A",
+        )
+        AdvertiserProfile.objects.create(
+            user=self.advertiser_b,
+            organization_name="Workspace B",
+            contact_name="B",
+        )
+
+        Promotion.objects.create(
+            title="A private campaign",
+            description="Only advertiser A should see this.",
+            advertiser_name="Workspace A",
+            advertiser=self.advertiser_a.advertiser_profile,
+            reward="5.00",
+            budget="10.00",
+            max_workers=2,
+            status="pending",
+        )
+        Promotion.objects.create(
+            title="B private campaign",
+            description="Only advertiser B should see this.",
+            advertiser_name="Workspace B",
+            advertiser=self.advertiser_b.advertiser_profile,
+            reward="7.00",
+            budget="14.00",
+            max_workers=2,
+            status="pending",
+        )
+
+    def test_advertiser_sees_only_owned_promotions(self):
+        self.client.login(username="workspace-advertiser-a", password="testpass123")
+        response = self.client.get(reverse("advertiser_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A private campaign")
+        self.assertNotContains(response, "B private campaign")
+
+    def test_worker_cannot_access_advertiser_workspace(self):
+        self.client.login(username="workspace-worker", password="testpass123")
+        response = self.client.get(reverse("advertiser_dashboard"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_inactive_advertiser_cannot_access_workspace(self):
+        from accounts.models import AccountEntity
+
+        entity = self.advertiser_a.account_entity
+        entity.is_active = False
+        entity.save(update_fields=["is_active"])
+
+        self.client.login(username="workspace-advertiser-a", password="testpass123")
+        response = self.client.get(reverse("advertiser_dashboard"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_advertiser_without_entity_cannot_access_workspace(self):
+        orphan = get_user_model().objects.create_user(
+            username="workspace-orphan",
+            password="testpass123",
+        )
+        self.client.login(username="workspace-orphan", password="testpass123")
+        response = self.client.get(reverse("advertiser_dashboard"))
+
+        self.assertEqual(response.status_code, 403)
