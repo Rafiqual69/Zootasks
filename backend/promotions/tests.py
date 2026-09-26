@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
 
 from .admin import PromotionAdmin, PromotionClaimAdmin
 from .models import Promotion, PromotionClaim
+from wallet.models import WalletTransaction
 
 
 class PromotionAdminAuditProtectionTests(TestCase):
@@ -318,3 +320,76 @@ class AdvertiserPromotionWorkspaceBoundaryTests(TestCase):
         response = self.client.get(reverse("advertiser_dashboard"))
 
         self.assertEqual(response.status_code, 403)
+
+
+class PromotionPayoutBudgetBoundaryTests(TestCase):
+    def setUp(self):
+        from accounts.models import AccountEntity, AdvertiserProfile, WorkerProfile
+
+        User = get_user_model()
+        self.reviewer = User.objects.create_user(
+            username="payout-reviewer",
+            password="testpass123",
+            is_staff=True,
+        )
+        self.worker = User.objects.create_user(
+            username="payout-worker",
+            password="testpass123",
+        )
+        advertiser = User.objects.create_user(
+            username="payout-advertiser",
+            password="testpass123",
+        )
+        AccountEntity.objects.create(
+            user=advertiser,
+            entity_type=AccountEntity.EntityType.ADVERTISER,
+            identity_email="payout@example.com",
+        )
+        profile = AdvertiserProfile.objects.create(
+            user=advertiser,
+            organization_name="Payout Co",
+        )
+        WorkerProfile.objects.create(user=self.worker)
+        self.promotion = Promotion.objects.create(
+            title="Budget boundary",
+            description="Test",
+            advertiser_name="Payout Co",
+            advertiser=profile,
+            reward="10.00",
+            budget="10.00",
+            max_workers=2,
+            completed_workers=2,
+            status="approved",
+        )
+        self.claim = PromotionClaim.objects.create(
+            promotion=self.promotion,
+            worker=self.worker,
+            status="submitted",
+            proof="proof",
+        )
+        permission = Permission.objects.get(
+            codename="approve_promotion_claim",
+            content_type__app_label="promotions",
+        )
+        self.reviewer.user_permissions.add(permission)
+
+    def test_underfunded_declared_liability_is_not_paid(self):
+        from .admin import PromotionClaimAdmin
+
+        self.client.force_login(self.reviewer)
+        admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        admin.approve_claims(
+            self.reviewer,
+            PromotionClaim.objects.filter(id=self.claim.id),
+        )
+
+        self.worker.refresh_from_db()
+        self.claim.refresh_from_db()
+        self.assertEqual(self.worker.workerprofile.balance, 0)
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertFalse(
+            WalletTransaction.objects.filter(
+                promotion_claim=self.claim,
+                transaction_type="earning",
+            ).exists()
+        )
