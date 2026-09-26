@@ -126,12 +126,15 @@ SECURE_HSTS_PRELOAD = config(
     default=PRODUCTION_MODE,
     cast=bool,
 )
-WSGI_APPLICATION = "config.wsgi.application"
 
 ASGI_APPLICATION = "config.asgi.application"
 
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
 # High-assurance Owner access
-OWNER_USERNAME = config("OWNER_USERNAME", default="")\nOWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS = config(\n    "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS", default=5, cast=int\n)
+OWNER_USERNAME = config("OWNER_USERNAME", default="")
+OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS = config(
+    "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS", default=5, cast=int
+)
+
 LOGOUT_REDIRECT_URL = "/"
