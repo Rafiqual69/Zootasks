@@ -15,9 +15,32 @@
     <section class="zt-auth-card zt-auth-card-wide">
         <span class="zt-kicker">ADVERTISER</span>
         <h1>Advertiser Dashboard</h1>
-        <p class="zt-auth-intro">Your organization workspace is ready. Promotion creation and funding controls will be enabled only after their dedicated authorization and financial safeguards are implemented.</p>
+        <p class="zt-auth-intro">Your organization workspace keeps promotion ownership separated from worker activity and review controls.</p>
         <p><strong>Organization:</strong> {{ profile.organization_name|default:"Not provided" }}</p>
         <p><strong>Contact:</strong> {{ profile.contact_name|default:"Not provided" }}</p>
+
+        <div style="margin-top:24px">
+            <h2>Your Promotions</h2>
+            {% if promotions %}
+                <div style="display:grid;gap:12px;margin-top:12px">
+                    {% for promotion in promotions %}
+                        <article style="border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+                            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                                <strong>{{ promotion.title }}</strong>
+                                <span>{{ promotion.get_status_display }}</span>
+                            </div>
+                            <p style="margin:8px 0;color:#64748b">
+                                Reward: ৳{{ promotion.reward }} · Budget: ৳{{ promotion.budget }} · Workers: {{ promotion.completed_workers }}/{{ promotion.max_workers }}
+                            </p>
+                            <small>Submitted {{ promotion.created_at|date:"Y-m-d H:i" }}</small>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="margin-top:12px;color:#64748b">No promotion requests yet.</p>
+            {% endif %}
+        </div>
+
         <p class="zt-auth-footer"><a href="{% url 'advertiser_create_promotion' %}">Create a promotion request</a></p>
         <p class="zt-auth-footer"><a href="{% url 'logout' %}">Sign out</a></p>
     </section>
