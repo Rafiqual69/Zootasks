@@ -29,6 +29,10 @@ class PromotionAdmin(admin.ModelAdmin):
 
 @admin.register(PromotionClaim)
 class PromotionClaimAdmin(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        # Claims participate in payout/audit history and must not be deleted.
+        return False
+
     list_display = (
         "promotion",
         "worker",
