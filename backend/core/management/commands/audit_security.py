@@ -63,6 +63,9 @@ class Command(BaseCommand):
         promotion_admin = PromotionAdmin(Promotion, admin.site)
         offer_admin = OfferAdmin(Offer, admin.site)
 
+        existing_task = Task(id=1)
+        existing_promotion = Promotion(id=1)
+
         checks = {
             "Finance can approve": has(finance, "approve_withdrawal"),
             "Finance can reject": has(finance, "reject_withdrawal"),
@@ -125,8 +128,11 @@ class Command(BaseCommand):
                 and not task_admin.has_add_permission(staff_request)
                 and not task_admin.has_delete_permission(owner_request)
             ),
-            "Task financial fields are read-only": all(
-                field in task_admin.get_readonly_fields(owner_request)
+            "Task existing financial fields are read-only": all(
+                field in task_admin.get_readonly_fields(
+                    owner_request,
+                    existing_task,
+                )
                 for field in (
                     "reward",
                     "max_workers",
@@ -140,8 +146,11 @@ class Command(BaseCommand):
                 and not promotion_admin.has_add_permission(staff_request)
                 and not promotion_admin.has_delete_permission(owner_request)
             ),
-            "Promotion financial fields are read-only": all(
-                field in promotion_admin.readonly_fields
+            "Promotion existing financial fields are read-only": all(
+                field in promotion_admin.get_readonly_fields(
+                    owner_request,
+                    existing_promotion,
+                )
                 for field in (
                     "reward",
                     "budget",
