@@ -2,7 +2,12 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.models import Group, User
 
-from .models import AccountEntity, AdvertiserProfile, WorkerProfile
+from .models import (
+    AccountEntity,
+    AdvertiserProfile,
+    OwnerSocialIdentity,
+    WorkerProfile,
+)
 
 
 # Django's default User/Group admin can mutate privilege-bearing fields.
@@ -139,4 +144,36 @@ class WorkerProfileAdmin(admin.ModelAdmin):
         "total_earned",
         "completed_tasks",
         "created_at",
+    )
+
+
+@admin.register(OwnerSocialIdentity)
+class OwnerSocialIdentityAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "account_entity",
+        "provider",
+        "provider_user_id",
+        "username",
+        "verified_at",
+        "created_at",
+    )
+    list_filter = ("provider", "verified_at")
+    search_fields = ("account_entity__user__username", "provider_user_id", "username")
+    readonly_fields = (
+        "account_entity",
+        "provider",
+        "provider_user_id",
+        "username",
+        "verified_at",
+        "created_at",
+        "updated_at",
     )
