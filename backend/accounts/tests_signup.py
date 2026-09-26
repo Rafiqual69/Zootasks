@@ -98,3 +98,50 @@ class AdvertiserSignupEntityTests(TestCase):
         self.assertEqual(profile.organization_name, "Zoo Business")
         self.assertEqual(profile.contact_name, "Contact Person")
         self.assertFalse(self.client.session.get("_auth_user_id"))
+
+    def test_advertiser_signup_rejects_duplicate_email(self):
+        User = get_user_model()
+        User.objects.create_user(username="existing-email", email="advertiser@example.com")
+        response = self.client.post(reverse("advertiser_register"), {
+            "username": "another-advertiser", "email": "ADVERTISER@example.com",
+            "first_name": "Contact", "last_name": "Person",
+            "organization_name": "Zoo Business", "contact_name": "Contact Person",
+            "password": "Strong-Advertiser-Password-123!",
+            "password_confirm": "Strong-Advertiser-Password-123!",
+        }, HTTP_HOST="127.0.0.1")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Email is already registered.")
+        self.assertFalse(AccountEntity.objects.filter(identity_email__iexact="advertiser@example.com").exists())
+
+    def test_advertiser_cannot_access_worker_dashboard(self):
+        user = get_user_model().objects.create_user(
+            username="advertiser-boundary", password="Strong-Advertiser-Password-123!"
+        )
+        AccountEntity.objects.create(
+            user=user, entity_type=AccountEntity.EntityType.ADVERTISER,
+            identity_email="boundary@example.com",
+        )
+        AdvertiserProfile.objects.create(user=user, organization_name="Boundary Co")
+        self.client.force_login(user)
+        response = self.client.get(reverse("dashboard"), HTTP_HOST="127.0.0.1")
+        self.assertEqual(response.status_code, 403)
+
+    def test_only_advertiser_can_access_advertiser_dashboard(self):
+        user = get_user_model().objects.create_user(
+            username="advertiser-dashboard", password="Strong-Advertiser-Password-123!"
+        )
+        AccountEntity.objects.create(
+            user=user, entity_type=AccountEntity.EntityType.ADVERTISER,
+        )
+        AdvertiserProfile.objects.create(user=user, organization_name="Dashboard Co")
+        self.client.force_login(user)
+        response = self.client.get(reverse("advertiser_dashboard"), HTTP_HOST="127.0.0.1")
+        self.assertEqual(response.status_code, 200)
+
+    def test_worker_cannot_access_advertiser_dashboard(self):
+        self.client.force_login(get_user_model().objects.create_user(
+            username="worker-dashboard-boundary", password="Strong-Worker-Password-123!"
+        ))
+        response = self.client.get(reverse("advertiser_dashboard"), HTTP_HOST="127.0.0.1")
+        self.assertEqual(response.status_code, 403)
+
