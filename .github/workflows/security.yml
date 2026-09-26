@@ -45,7 +45,7 @@ jobs:
         env:
           SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
-          OWNER_USERNAME: ""
+          OWNER_USERNAME: "ci-owner"
         run: python manage.py check
 
       - name: Django deployment security check
@@ -53,7 +53,7 @@ jobs:
         env:
           SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
-          OWNER_USERNAME: ""
+          OWNER_USERNAME: "ci-owner"
           PRODUCTION_MODE: "true"
           SECURE_SSL_REDIRECT: "true"
           SECURE_COOKIES: "true"
@@ -68,7 +68,7 @@ jobs:
         env:
           SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
-          OWNER_USERNAME: ""
+          OWNER_USERNAME: "ci-owner"
         run: |
           python manage.py migrate --noinput
           python manage.py setup_rbac
@@ -79,7 +79,7 @@ jobs:
         env:
           SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
           ALLOWED_HOSTS: localhost,127.0.0.1
-          OWNER_USERNAME: ""
+          OWNER_USERNAME: "ci-owner"
         run: python manage.py test
 
       - name: Dependency vulnerability audit
