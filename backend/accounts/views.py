@@ -5,7 +5,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import redirect, render
 
-from .forms import RegistrationForm
+from .forms import AdvertiserRegistrationForm, RegistrationForm
 from .models import AccountEntity, AdvertiserProfile, WorkerProfile
 from wallet.models import WalletTransaction
 
@@ -29,7 +29,7 @@ def register(request):
             login(request, user)
             return redirect("dashboard")
     else:
-        form = RegistrationForm()
+        form = AdvertiserRegistrationForm()
 
     return render(
         request,
@@ -43,7 +43,7 @@ def advertiser_register(request):
         return redirect("dashboard")
 
     if request.method == "POST":
-        form = RegistrationForm(request.POST)
+        form = AdvertiserRegistrationForm(request.POST)
 
         if form.is_valid():
             with transaction.atomic():
@@ -55,11 +55,10 @@ def advertiser_register(request):
                 )
                 AdvertiserProfile.objects.create(
                     user=user,
-                    organization_name=form.cleaned_data["last_name"],
-                    contact_name=form.cleaned_data["first_name"],
+                    organization_name=form.cleaned_data["organization_name"],
+                    contact_name=form.cleaned_data["contact_name"],
                 )
-            login(request, user)
-            return redirect("dashboard")
+            return redirect("login")
     else:
         form = RegistrationForm()
 
