@@ -11,6 +11,7 @@ class OwnerSocialOAuthProviderConfigTests(SimpleTestCase):
     @override_settings(
         OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
         OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://provider.example/authorize",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://provider.example/token",
         OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/accounts/owner/social/facebook/callback/",
         OWNER_FACEBOOK_OAUTH_SCOPES="scope_a, scope_b",
     )
@@ -52,6 +53,7 @@ class OwnerSocialOAuthProviderConfigTests(SimpleTestCase):
     @override_settings(
         OWNER_INSTAGRAM_OAUTH_CLIENT_ID="instagram-client",
         OWNER_INSTAGRAM_OAUTH_AUTHORIZATION_ENDPOINT="https://provider.example/authorize",
+        OWNER_INSTAGRAM_OAUTH_TOKEN_ENDPOINT="https://provider.example/token",
         OWNER_INSTAGRAM_OAUTH_REDIRECT_URI="https://zootasks.example/accounts/owner/social/instagram/callback/",
         OWNER_INSTAGRAM_OAUTH_SCOPES="scope_a",
     )
