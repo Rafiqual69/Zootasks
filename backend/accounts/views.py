@@ -1,4 +1,5 @@
 from django.contrib.auth import login
+from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -221,7 +222,7 @@ def owner_social_oauth_callback(request, provider):
             profile.provider_user_id,
             profile.username,
         )
-    except (ValueError, PermissionError):
+    except (ValueError, PermissionError, ValidationError):
         return _no_store(HttpResponseBadRequest("Social identity verification failed."))
 
     return _no_store(HttpResponse("Owner social identity verified successfully."))
