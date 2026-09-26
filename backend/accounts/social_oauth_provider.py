@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from django.conf import settings
 
@@ -14,6 +14,27 @@ class OwnerSocialOAuthProviderConfig:
     token_endpoint: str
     redirect_uri: str
     scopes: tuple[str, ...]
+
+
+_ALLOWED_OAUTH_HOSTS = {
+    "facebook.com",
+    "www.facebook.com",
+    "graph.facebook.com",
+    "instagram.com",
+    "www.instagram.com",
+    "api.instagram.com",
+    "graph.instagram.com",
+}
+
+
+def _validate_provider_endpoint(value, setting_name):
+    parsed = urlparse(value)
+    if parsed.scheme != "https" or parsed.username or parsed.password:
+        raise ValueError(f"{setting_name} must use HTTPS without embedded credentials.")
+    hostname = (parsed.hostname or "").lower()
+    if hostname not in _ALLOWED_OAUTH_HOSTS:
+        raise ValueError(f"{setting_name} uses an unapproved OAuth host.")
+    return value
 
 
 def get_owner_social_oauth_provider_config(provider):
@@ -42,6 +63,12 @@ def get_owner_social_oauth_provider_config(provider):
         raise ValueError("Owner social OAuth authorization endpoint is not configured.")
     if not token_endpoint:
         raise ValueError("Owner social OAuth token endpoint is not configured.")
+    authorization_endpoint = _validate_provider_endpoint(
+        authorization_endpoint, f"{prefix}AUTHORIZATION_ENDPOINT"
+    )
+    token_endpoint = _validate_provider_endpoint(
+        token_endpoint, f"{prefix}TOKEN_ENDPOINT"
+    )
     if not redirect_uri:
         raise ValueError("Owner social OAuth redirect URI is not configured.")
     if not scopes:
