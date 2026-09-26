@@ -83,3 +83,11 @@ class AdvertiserRegistrationForm(RegistrationForm):
             "organization_name",
             "contact_name",
         ]
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if not email:
+            raise forms.ValidationError("Email is required for advertiser registration.")
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Email is already registered.")
+        return email
