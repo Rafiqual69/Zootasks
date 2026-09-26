@@ -1,7 +1,7 @@
 from django.contrib.auth.views import LoginView, LogoutView
 from .forms import OwnerOTPAuthenticationForm
 from django.urls import path
-from .views import register, dashboard
+from .views import advertiser_register, dashboard, register
 
 urlpatterns = [
     path("owner/login/", LoginView.as_view(
@@ -15,6 +15,7 @@ urlpatterns = [
         redirect_authenticated_user=True
     ), name="login"),
     path("register/", register, name="register"),
+    path("advertiser/register/", advertiser_register, name="advertiser_register"),
     path("dashboard/", dashboard, name="dashboard"),
     path("logout/", LogoutView.as_view(next_page="/"), name="logout"),
 ]
