@@ -18,6 +18,10 @@ class TaskAdmin(admin.ModelAdmin):
         return False
 
     def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            # Owner may create a new task with its initial reward/capacity.
+            return ("completed_workers", "created_at")
+
         # Existing task reward/capacity/lifecycle state must not be changed
         # through a generic admin form. Controlled application flows own these
         # state transitions.
