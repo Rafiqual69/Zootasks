@@ -64,7 +64,7 @@ class OwnerEmailVerificationTests(TestCase):
         import re
 
         match = re.search(
-            r"/owner/email/verify/([^/\\s]+)",
+            r"/owner/email/verify/([^/\s]+)",
             message.body,
         )
         self.assertIsNotNone(match)
