@@ -117,7 +117,7 @@ class OwnerEmailVerificationChallenge(models.Model):
         from django.utils import timezone
 
         now = now or timezone.now()
-        return self.used_at is None and self.expires_at > now and self.attempts < 5
+        max_attempts = getattr(settings, "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS", 5)\n        return (\n            self.used_at is None\n            and self.expires_at > now\n            and self.attempts < max_attempts\n        )
 
     def save(self, *args, **kwargs):
         self.full_clean()
