@@ -17,14 +17,17 @@ class OfferAdmin(admin.ModelAdmin):
         # Preserve offer history; do not delete financial records.
         return False
 
-    readonly_fields = (
-        "title",
-        "description",
-        "partner_name",
-        "reward",
-        "status",
-        "created_at",
-    )
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        return (
+            "title",
+            "description",
+            "partner_name",
+            "reward",
+            "status",
+            "created_at",
+        )
 
     list_display = (
         "title",
