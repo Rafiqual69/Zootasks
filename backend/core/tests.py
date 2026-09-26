@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 from django.test import RequestFactory, TestCase
+from django.test import override_settings
 from django.urls import reverse
 
 from wallet.models import WalletTransaction, WithdrawalRequest
@@ -160,13 +161,18 @@ class RootObjectAdminProtectionTests(TestCase):
             is_staff=True,
         )
 
+    @override_settings(OWNER_USERNAME="root_object_owner")
     def test_task_admin_creation_is_owner_controlled(self):
         model_admin = TaskAdmin(Task, admin.site)
 
         self.assertTrue(model_admin.has_add_permission(self.owner_request))
+        non_owner = RequestFactory().get("/admin/")
+        non_owner.user = User.objects.create_superuser(username="root_object_other_superuser", password="test-password-123")
+        self.assertFalse(model_admin.has_add_permission(non_owner))
         self.assertFalse(model_admin.has_add_permission(self.staff_request))
         self.assertFalse(model_admin.has_delete_permission(self.owner_request))
 
+    @override_settings(OWNER_USERNAME="root_object_owner")
     def test_task_add_form_keeps_initial_financial_fields_editable(self):
         model_admin = TaskAdmin(Task, admin.site)
 
@@ -177,6 +183,7 @@ class RootObjectAdminProtectionTests(TestCase):
         self.assertIn("completed_workers", readonly)
         self.assertIn("created_at", readonly)
 
+    @override_settings(OWNER_USERNAME="root_object_owner")
     def test_existing_task_financial_and_lifecycle_fields_are_read_only(self):
         model_admin = TaskAdmin(Task, admin.site)
         existing = Task(id=1)
@@ -195,13 +202,18 @@ class RootObjectAdminProtectionTests(TestCase):
         ):
             self.assertIn(field_name, readonly)
 
+    @override_settings(OWNER_USERNAME="root_object_owner")
     def test_promotion_admin_creation_is_owner_controlled(self):
         model_admin = PromotionAdmin(Promotion, admin.site)
 
         self.assertTrue(model_admin.has_add_permission(self.owner_request))
+        non_owner = RequestFactory().get("/admin/")
+        non_owner.user = User.objects.create_superuser(username="promotion_other_superuser", password="test-password-123")
+        self.assertFalse(model_admin.has_add_permission(non_owner))
         self.assertFalse(model_admin.has_add_permission(self.staff_request))
         self.assertFalse(model_admin.has_delete_permission(self.owner_request))
 
+    @override_settings(OWNER_USERNAME="root_object_owner")
     def test_promotion_add_form_keeps_initial_financial_fields_editable(self):
         model_admin = PromotionAdmin(Promotion, admin.site)
 
@@ -214,6 +226,7 @@ class RootObjectAdminProtectionTests(TestCase):
         self.assertIn("status", readonly)
         self.assertIn("created_at", readonly)
 
+    @override_settings(OWNER_USERNAME="root_object_owner")
     def test_existing_promotion_financial_and_lifecycle_fields_are_read_only(self):
         model_admin = PromotionAdmin(Promotion, admin.site)
         existing = Promotion(id=1)
