@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
             model_name="ownersocialoauthstate",
             index=models.Index(
                 fields=["account_entity", "provider", "created_at"],
-                name="accounts_social_oauth_state_idx",
+                name="accounts_social_oauth_idx",
             ),
         ),
     ]
