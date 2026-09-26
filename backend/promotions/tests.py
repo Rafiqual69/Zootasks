@@ -186,3 +186,38 @@ class AdvertiserPromotionCreationBoundaryTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Promotion.objects.count(), 0)
+
+
+class PromotionMarketplaceStateTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="market-worker",
+            password="testpass123",
+        )
+        self.client.login(username="market-worker", password="testpass123")
+
+    def test_paused_promotion_is_not_worker_visible(self):
+        Promotion.objects.create(
+            title="Paused campaign",
+            description="Not available.",
+            advertiser_name="Advertiser",
+            reward="5.00",
+            budget="10.00",
+            max_workers=2,
+            status="paused",
+        )
+        response = self.client.get(reverse("promotion_marketplace"))
+        self.assertNotContains(response, "Paused campaign")
+
+    def test_pending_promotion_is_not_worker_visible(self):
+        Promotion.objects.create(
+            title="Pending campaign",
+            description="Awaiting review.",
+            advertiser_name="Advertiser",
+            reward="5.00",
+            budget="10.00",
+            max_workers=2,
+            status="pending",
+        )
+        response = self.client.get(reverse("promotion_marketplace"))
+        self.assertNotContains(response, "Pending campaign")
