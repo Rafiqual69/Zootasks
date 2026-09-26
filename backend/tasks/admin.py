@@ -154,6 +154,10 @@ def reject_submissions(modeladmin, request, queryset):
 
 @admin.register(TaskClaim)
 class TaskClaimAdmin(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        # Claims participate in payout/audit history and must not be deleted.
+        return False
+
     list_display = (
         "task",
         "worker",
