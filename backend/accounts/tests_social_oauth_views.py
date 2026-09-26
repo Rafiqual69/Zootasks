@@ -168,7 +168,7 @@ class OwnerSocialOAuthViewTests(TestCase):
             {"state": state, "code": "provider-code"},
         )
 
-        self.assertEqual(response.status_code, 501)
+        self.assertEqual(response.status_code, 400)
         challenge.refresh_from_db()
         self.assertIsNotNone(challenge.used_at)
         self.assertFalse(hasattr(OwnerSocialIdentity, "access_token"))
