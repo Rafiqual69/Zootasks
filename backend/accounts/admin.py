@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.models import Group, User
 
-from .models import WorkerProfile
+from .models import AccountEntity, WorkerProfile
 
 
 # Django's default User/Group admin can mutate privilege-bearing fields.
@@ -12,14 +12,47 @@ admin.site.unregister(User)
 admin.site.unregister(Group)
 
 
-@admin.register(User)
-class UserAdmin(DjangoUserAdmin):
+@admin.register(AccountEntity)
+class AccountEntityAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
-        # Accounts are created through controlled application/identity flows.
+        # Entity provisioning will use a dedicated Owner-controlled flow.
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Entity type and identity binding are security-sensitive.
         return False
 
     def has_delete_permission(self, request, obj=None):
-        # User deletion can cascade into financial/audit records.
+        # Identity records must remain available for audit/recovery history.
+        return False
+
+    list_display = (
+        "user",
+        "entity_type",
+        "identity_email",
+        "email_verified_at",
+        "is_active",
+        "created_at",
+    )
+    list_filter = ("entity_type", "is_active")
+    search_fields = ("user__username", "identity_email")
+    readonly_fields = (
+        "user",
+        "entity_type",
+        "identity_email",
+        "email_verified_at",
+        "is_active",
+        "created_at",
+        "updated_at",
+    )
+
+
+@admin.register(User)
+class UserAdmin(DjangoUserAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False
 
     readonly_fields = (
@@ -51,11 +84,9 @@ class GroupAdmin(admin.ModelAdmin):
 @admin.register(WorkerProfile)
 class WorkerProfileAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
-        # Worker profiles are created by the account/application flow.
         return False
 
     def has_delete_permission(self, request, obj=None):
-        # Profiles contain financial state and must not be deleted from admin.
         return False
 
     list_display = (
