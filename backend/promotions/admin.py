@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin, messages
 from django.db import transaction
 from django.utils import timezone
@@ -10,9 +11,13 @@ from wallet.models import WalletTransaction
 @admin.register(Promotion)
 class PromotionAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
-        # Promotion creation controls reward/budget/capacity and is
-        # Owner-controlled until a dedicated advertiser workflow exists.
-        return request.user.is_superuser
+        # Only the configured Owner may create financial root objects.
+        owner_username = getattr(settings, "OWNER_USERNAME", "")
+        return (
+            bool(owner_username)
+            and request.user.is_superuser
+            and request.user.get_username() == owner_username
+        )
 
     def has_delete_permission(self, request, obj=None):
         # Promotions are financial/audit roots; use status transitions instead.
