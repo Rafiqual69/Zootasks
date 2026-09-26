@@ -40,6 +40,25 @@ class AccountEntity(models.Model):
         return f"{self.get_entity_type_display()}: {self.user.username}"
 
 
+class AdvertiserProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.PROTECT,
+        related_name="advertiser_profile",
+    )
+    organization_name = models.CharField(max_length=200, blank=True)
+    contact_name = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Advertiser Profile"
+        verbose_name_plural = "Advertiser Profiles"
+
+    def __str__(self):
+        return self.organization_name or self.contact_name or self.user.username
+
+
 class WorkerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.TextField(blank=True)
