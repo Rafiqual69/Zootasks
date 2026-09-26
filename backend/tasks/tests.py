@@ -7,6 +7,16 @@ from .admin import TaskAdmin
 from .models import Task, TaskClaim
 
 
+class TaskAdminAuditProtectionTests(TestCase):
+    def test_task_and_claim_deletion_is_disabled(self):
+        task_admin = TaskAdmin(Task, admin.site)
+        from .admin import TaskClaimAdmin
+        claim_admin = TaskClaimAdmin(TaskClaim, admin.site)
+
+        self.assertFalse(task_admin.has_delete_permission(None))
+        self.assertFalse(claim_admin.has_delete_permission(None))
+
+
 class TaskMarketplaceTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
