@@ -62,6 +62,34 @@ class OwnerSocialOAuthExchangeTests(TestCase):
         OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
         OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
         OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_profile_without_provider_id_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.read.return_value = b'{"name":"Owner"}'
+
+        from accounts.social_oauth_exchange import get_owner_social_profile
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth profile response is invalid.",
+        ):
+            get_owner_social_profile(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "temporary-access-token",
+            )
+
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
     )
     @patch("accounts.social_oauth_exchange.urlopen")
     def test_invalid_token_response_is_rejected(self, mock_urlopen):
