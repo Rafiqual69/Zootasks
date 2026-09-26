@@ -16,7 +16,6 @@ urlpatterns = [
     ), name="login"),
     path("register/", register, name="register"),
     path("advertiser/register/", advertiser_register, name="advertiser_register"),
-    path("advertiser/register/", advertiser_register, name="advertiser_register"),
     path("dashboard/", dashboard, name="dashboard"),
     path("logout/", LogoutView.as_view(next_page="/"), name="logout"),
 ]
