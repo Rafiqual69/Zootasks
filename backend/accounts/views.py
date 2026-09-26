@@ -40,6 +40,12 @@ def register(request):
 
 def advertiser_register(request):
     if request.user.is_authenticated:
+        try:
+            entity_type = request.user.account_entity.entity_type
+        except AccountEntity.DoesNotExist:
+            raise PermissionDenied("Authenticated accounts cannot create a second account entity.")
+        if entity_type == AccountEntity.EntityType.ADVERTISER:
+            return redirect("advertiser_dashboard")
         return redirect("dashboard")
 
     if request.method == "POST":
@@ -127,4 +133,29 @@ def dashboard(request):
             "total_withdrawn": total_withdrawn,
             "completed_tasks": completed_tasks,
         },
+    )
+
+
+@login_required
+def advertiser_dashboard(request):
+    try:
+        entity = request.user.account_entity
+    except AccountEntity.DoesNotExist as exc:
+        raise PermissionDenied("An Advertiser account entity is required for this dashboard.") from exc
+
+    if (
+        not entity.is_active
+        or entity.entity_type != AccountEntity.EntityType.ADVERTISER
+    ):
+        raise PermissionDenied("This dashboard is restricted to active Advertiser accounts.")
+
+    try:
+        profile = request.user.advertiser_profile
+    except AdvertiserProfile.DoesNotExist as exc:
+        raise PermissionDenied("Advertiser profile is not provisioned.") from exc
+
+    return render(
+        request,
+        "accounts/advertiser_dashboard.html",
+        {"profile": profile},
     )
