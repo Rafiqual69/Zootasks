@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.shortcuts import redirect, render
 
 from .forms import RegistrationForm
-from .models import AccountEntity, WorkerProfile
+from .models import AccountEntity, AdvertiserProfile, WorkerProfile
 from wallet.models import WalletTransaction
 
 
@@ -35,6 +35,38 @@ def register(request):
         request,
         "accounts/register.html",
         {"form": form},
+    )
+
+
+def advertiser_register(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        form = RegistrationForm(request.POST)
+
+        if form.is_valid():
+            with transaction.atomic():
+                user = form.save()
+                AccountEntity.objects.create(
+                    user=user,
+                    entity_type=AccountEntity.EntityType.ADVERTISER,
+                    identity_email=user.email or None,
+                )
+                AdvertiserProfile.objects.create(
+                    user=user,
+                    organization_name=form.cleaned_data["last_name"],
+                    contact_name=form.cleaned_data["first_name"],
+                )
+            login(request, user)
+            return redirect("dashboard")
+    else:
+        form = RegistrationForm()
+
+    return render(
+        request,
+        "accounts/register.html",
+        {"form": form, "account_type": "advertiser"},
     )
 
 
