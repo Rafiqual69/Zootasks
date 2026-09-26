@@ -375,8 +375,8 @@ class PromotionPayoutBudgetBoundaryTests(TestCase):
 
     def test_underfunded_declared_liability_is_not_paid(self):
         self.client.force_login(self.reviewer)
-        admin = PromotionClaimAdmin(PromotionClaim, admin.site)
-        admin.approve_claims(
+        claim_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        claim_admin.approve_claims(
             self.reviewer,
             PromotionClaim.objects.filter(id=self.claim.id),
         )
