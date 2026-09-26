@@ -14,7 +14,7 @@ class OwnerSocialIdentityBindingSecurityTests(TestCase):
         )
         self.owner_entity = AccountEntity.objects.create(
             user=self.owner,
-            entity_type=AccountEntity.EntityType.WORKER,
+            entity_type=AccountEntity.EntityType.OWNER,
             identity_email="social-owner@example.test",
         )
 
@@ -57,7 +57,7 @@ class OwnerSocialIdentityBindingSecurityTests(TestCase):
         )
         other_entity = AccountEntity.objects.create(
             user=other_user,
-            entity_type=AccountEntity.EntityType.OWNER,
+            entity_type=AccountEntity.EntityType.WORKER,
             identity_email="other@example.test",
         )
         OwnerSocialIdentity.objects.bulk_create(
