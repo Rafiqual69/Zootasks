@@ -149,3 +149,70 @@ def advertiser_dashboard(request):
         raise PermissionDenied("Advertiser profile is not provisioned.") from exc
     promotions = Promotion.objects.filter(advertiser=profile).order_by("-created_at")
     return render(request, "accounts/advertiser_dashboard.html", {"profile": profile, "promotions": promotions})
+
+
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.views.decorators.http import require_GET
+
+from .models import OwnerSocialIdentity
+from .policies import is_owner
+from .social_oauth import consume_owner_social_oauth_state, issue_owner_social_oauth_state
+from .social_oauth_provider import build_owner_social_authorization_url
+
+
+def _no_store(response):
+    response["Cache-Control"] = "no-store"
+    response["Pragma"] = "no-cache"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@login_required
+@require_GET
+def owner_social_oauth_start(request, provider):
+    if not is_owner(request.user):
+        return _no_store(HttpResponse(status=403))
+
+    if provider not in OwnerSocialIdentity.Provider.values:
+        return _no_store(HttpResponseBadRequest("Unsupported social provider."))
+
+    try:
+        state = issue_owner_social_oauth_state(request.user, provider)
+        authorization_url = build_owner_social_authorization_url(provider, state)
+    except (PermissionError, ValueError):
+        return _no_store(HttpResponseBadRequest("Social OAuth is not configured."))
+
+    return _no_store(HttpResponseRedirect(authorization_url))
+
+
+@login_required
+@require_GET
+def owner_social_oauth_callback(request, provider):
+    if not is_owner(request.user):
+        return _no_store(HttpResponse(status=403))
+
+    if provider not in OwnerSocialIdentity.Provider.values:
+        return _no_store(HttpResponseBadRequest("Unsupported social provider."))
+
+    if request.GET.get("error"):
+        return _no_store(HttpResponseBadRequest("Social authorization was not completed."))
+
+    code = request.GET.get("code", "")
+    state = request.GET.get("state", "")
+    if not code or not state:
+        return _no_store(HttpResponseBadRequest("Missing OAuth callback parameters."))
+
+    owner_entity = consume_owner_social_oauth_state(state, provider)
+    if owner_entity is None or owner_entity.user_id != request.user.id:
+        return _no_store(HttpResponseBadRequest("Invalid or expired OAuth state."))
+
+    # Provider-specific authorization-code exchange and identity verification
+    # are intentionally not implemented in this foundation step. No provider
+    # access token is accepted or stored here.
+    return _no_store(
+        HttpResponse(
+            "OAuth state verified. Provider identity exchange is not enabled yet.",
+            status=501,
+        )
+    )
