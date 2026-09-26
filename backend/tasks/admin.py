@@ -124,11 +124,22 @@ def reject_submissions(modeladmin, request, queryset):
         )
         return
 
-    updated = queryset.filter(
-        status="submitted"
-    ).update(
-        status="rejected"
-    )
+    updated = 0
+
+    for claim_id in queryset.values_list("id", flat=True):
+        with transaction.atomic():
+            claim = (
+                TaskClaim.objects
+                .select_for_update()
+                .get(id=claim_id)
+            )
+
+            if claim.status != "submitted":
+                continue
+
+            claim.status = "rejected"
+            claim.save(update_fields=["status"])
+            updated += 1
 
     modeladmin.message_user(
         request,
