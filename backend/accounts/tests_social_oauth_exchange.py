@@ -76,3 +76,31 @@ class OwnerSocialOAuthExchangeTests(TestCase):
                 OwnerSocialIdentity.Provider.FACEBOOK,
                 "code",
             )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_profile_returns_verified_provider_id_without_persisting_token(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.read.return_value = b'{"id":"123456","name":"Owner"}'
+
+        from accounts.social_oauth_exchange import get_owner_social_profile
+
+        profile = get_owner_social_profile(
+            OwnerSocialIdentity.Provider.FACEBOOK,
+            "temporary-access-token",
+        )
+
+        self.assertEqual(profile.provider_user_id, "123456")
+        self.assertEqual(profile.username, "")
+        request = mock_urlopen.call_args.args[0]
+        self.assertIn("access_token=temporary-access-token", request.full_url)
