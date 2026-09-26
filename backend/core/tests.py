@@ -169,8 +169,24 @@ class RootObjectAdminProtectionTests(TestCase):
         self.assertFalse(model_admin.has_add_permission(self.staff_request))
         self.assertFalse(model_admin.has_delete_permission(self.owner_request))
 
-    def test_task_financial_and_lifecycle_fields_are_read_only(self):
+    def test_task_add_form_keeps_initial_financial_fields_editable(self):
         model_admin = TaskAdmin(Task, admin.site)
+
+        readonly = model_admin.get_readonly_fields(self.owner_request)
+
+        self.assertNotIn("reward", readonly)
+        self.assertNotIn("max_workers", readonly)
+        self.assertIn("completed_workers", readonly)
+        self.assertIn("created_at", readonly)
+
+    def test_existing_task_financial_and_lifecycle_fields_are_read_only(self):
+        model_admin = TaskAdmin(Task, admin.site)
+        existing = Task(id=1)
+
+        readonly = model_admin.get_readonly_fields(
+            self.owner_request,
+            existing,
+        )
 
         for field_name in (
             "reward",
@@ -179,17 +195,30 @@ class RootObjectAdminProtectionTests(TestCase):
             "status",
             "created_at",
         ):
-            self.assertIn(
-                field_name,
-                model_admin.get_readonly_fields(self.owner_request),
-            )
+            self.assertIn(field_name, readonly)
 
-    def test_promotion_admin_creation_and_financial_fields_are_protected(self):
+    def test_promotion_admin_creation_is_owner_controlled(self):
         model_admin = PromotionAdmin(Promotion, admin.site)
 
         self.assertTrue(model_admin.has_add_permission(self.owner_request))
         self.assertFalse(model_admin.has_add_permission(self.staff_request))
         self.assertFalse(model_admin.has_delete_permission(self.owner_request))
+
+    def test_promotion_add_form_keeps_initial_financial_fields_editable(self):
+        model_admin = PromotionAdmin(Promotion, admin.site)
+
+        readonly = model_admin.get_readonly_fields(self.owner_request)
+
+        self.assertNotIn("reward", readonly)
+        self.assertNotIn("budget", readonly)
+        self.assertNotIn("max_workers", readonly)
+        self.assertIn("completed_workers", readonly)
+        self.assertIn("status", readonly)
+        self.assertIn("created_at", readonly)
+
+    def test_existing_promotion_financial_and_lifecycle_fields_are_read_only(self):
+        model_admin = PromotionAdmin(Promotion, admin.site)
+        existing = Promotion(id=1)
 
         for field_name in (
             "reward",
@@ -199,15 +228,31 @@ class RootObjectAdminProtectionTests(TestCase):
             "status",
             "created_at",
         ):
-            self.assertIn(field_name, model_admin.readonly_fields)
+            self.assertIn(
+                field_name,
+                model_admin.get_readonly_fields(
+                    self.owner_request,
+                    existing,
+                ),
+            )
 
-    def test_offer_admin_is_read_only_after_creation(self):
+    def test_offer_admin_is_owner_create_only(self):
         model_admin = OfferAdmin(Offer, admin.site)
 
         self.assertTrue(model_admin.has_add_permission(self.owner_request))
         self.assertFalse(model_admin.has_add_permission(self.staff_request))
         self.assertFalse(model_admin.has_change_permission(self.owner_request))
         self.assertFalse(model_admin.has_delete_permission(self.owner_request))
+        self.assertEqual(
+            model_admin.get_readonly_fields(self.owner_request),
+            (),
+        )
+
+        existing = Offer(id=1)
+        self.assertTrue(model_admin.get_readonly_fields(
+            self.owner_request,
+            existing,
+        ))
 
 
 class UserAdminPrivilegeProtectionTests(TestCase):
