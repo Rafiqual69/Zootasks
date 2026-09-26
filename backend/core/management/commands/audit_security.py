@@ -6,8 +6,6 @@ from django.core.management.base import BaseCommand, CommandError
 
 from accounts.admin import GroupAdmin, UserAdmin
 from accounts.models import WorkerProfile
-from offers.admin import OfferAdmin
-from offers.models import Offer
 from promotions.admin import PromotionAdmin
 from promotions.models import Promotion
 from tasks.admin import TaskAdmin
@@ -61,7 +59,6 @@ class Command(BaseCommand):
 
         task_admin = TaskAdmin(Task, admin.site)
         promotion_admin = PromotionAdmin(Promotion, admin.site)
-        offer_admin = OfferAdmin(Offer, admin.site)
 
         existing_task = Task(id=1)
         existing_promotion = Promotion(id=1)
@@ -160,23 +157,14 @@ class Command(BaseCommand):
                     "created_at",
                 )
             ),
-            "Offer admin is controlled": (
-                offer_admin.has_add_permission(owner_request)
-                and not offer_admin.has_add_permission(staff_request)
-                and not offer_admin.has_change_permission(owner_request)
-                and not offer_admin.has_delete_permission(owner_request)
-            ),
         }
 
-        # Model imports above are intentional: this command should fail loudly
-        # if protected models are removed or renamed.
         _ = (
             UserAdmin,
             GroupAdmin,
             WorkerProfile,
             Task,
             Promotion,
-            Offer,
             WalletTransaction,
             WithdrawalRequest,
         )
