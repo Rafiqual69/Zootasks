@@ -2,6 +2,44 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class AccountEntity(models.Model):
+    class EntityType(models.TextChoices):
+        OWNER = "owner", "Owner"
+        SUPER_ADMIN = "super_admin", "Super Admin"
+        ADMIN = "admin", "Admin"
+        WORKER = "worker", "Worker"
+        ADVERTISER = "advertiser", "Advertiser"
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.PROTECT,
+        related_name="account_entity",
+    )
+    entity_type = models.CharField(
+        max_length=32,
+        choices=EntityType.choices,
+    )
+    identity_email = models.EmailField(
+        unique=True,
+        null=True,
+        blank=True,
+    )
+    email_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Account Entity"
+        verbose_name_plural = "Account Entities"
+
+    def __str__(self):
+        return f"{self.get_entity_type_display()}: {self.user.username}"
+
+
 class WorkerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.TextField(blank=True)
