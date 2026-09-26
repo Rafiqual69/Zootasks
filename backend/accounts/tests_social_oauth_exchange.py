@@ -131,4 +131,8 @@ class OwnerSocialOAuthExchangeTests(TestCase):
         self.assertEqual(profile.provider_user_id, "123456")
         self.assertEqual(profile.username, "")
         request = mock_urlopen.call_args.args[0]
-        self.assertIn("access_token=temporary-access-token", request.full_url)
+        self.assertNotIn("access_token=", request.full_url)
+        self.assertEqual(
+            request.get_header("Authorization"),
+            "Bearer temporary-access-token",
+        )
