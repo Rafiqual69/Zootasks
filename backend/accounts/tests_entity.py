@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from accounts.admin import AccountEntityAdmin
-from accounts.models import AccountEntity
+from accounts.models import AccountEntity, AdvertiserProfile
 
 
 class AccountEntitySecurityTests(TestCase):
@@ -36,6 +36,33 @@ class AccountEntitySecurityTests(TestCase):
                 entity_type=AccountEntity.EntityType.WORKER,
                 identity_email="worker@example.test",
             )
+
+    def test_advertiser_profile_is_one_to_one_and_protected(self):
+        advertiser = User.objects.create_user(
+            username="entity-advertiser",
+            password="test-password-123",
+        )
+        profile = AdvertiserProfile.objects.create(
+            user=advertiser,
+            organization_name="Test Advertiser",
+            contact_name="Owner",
+        )
+
+        self.assertEqual(profile.user_id, advertiser.id)
+        self.assertEqual(
+            AdvertiserProfile.objects.get(user=advertiser).pk,
+            profile.pk,
+        )
+
+        from accounts.admin import AdvertiserProfileAdmin
+
+        request = type("Request", (), {})()
+        request.user = self.user
+        model_admin = AdvertiserProfileAdmin(AdvertiserProfile, admin.site)
+
+        self.assertFalse(model_admin.has_add_permission(request))
+        self.assertFalse(model_admin.has_change_permission(request, profile))
+        self.assertFalse(model_admin.has_delete_permission(request, profile))
 
     def test_account_entity_admin_is_read_only(self):
         request = type("Request", (), {})()
