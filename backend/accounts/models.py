@@ -178,6 +178,48 @@ class OwnerEmailVerificationChallenge(models.Model):
         return f"Owner email verification: {self.account_entity.user.username}"
 
 
+class OwnerSocialOAuthState(models.Model):
+    account_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="owner_social_oauth_states",
+    )
+    provider = models.CharField(
+        max_length=32,
+        choices=OwnerSocialIdentity.Provider.choices,
+    )
+    state_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("account_entity", "provider", "created_at"),
+                name="accounts_social_oauth_state_idx",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+            raise ValidationError(
+                "Owner social OAuth state requires the canonical Owner entity."
+            )
+
+    def is_valid(self, now=None):
+        from django.utils import timezone
+
+        now = now or timezone.now()
+        return self.used_at is None and self.expires_at > now
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class AdvertiserProfile(models.Model):
     user = models.OneToOneField(
         User,
