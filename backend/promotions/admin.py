@@ -41,6 +41,7 @@ class PromotionAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "advertiser_name",
+        "advertiser",
         "reward",
         "budget",
         "max_workers",
@@ -49,7 +50,12 @@ class PromotionAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("status",)
-    search_fields = ("title", "advertiser_name")
+    search_fields = (
+        "title",
+        "advertiser_name",
+        "advertiser__organization_name",
+        "advertiser__user__username",
+    )
 
 
 @admin.register(PromotionClaim)
