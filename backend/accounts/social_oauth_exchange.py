@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -40,12 +41,12 @@ def exchange_owner_social_authorization_code(provider, code):
     if not client_secret:
         raise ValueError("Owner social OAuth client secret is not configured.")
 
-    body = (
-        f"client_id={config.client_id}&"
-        f"client_secret={client_secret}&"
-        f"redirect_uri={config.redirect_uri}&"
-        f"code={code}"
-    ).encode("utf-8")
+    body = urlencode({
+        "client_id": config.client_id,
+        "client_secret": client_secret,
+        "redirect_uri": config.redirect_uri,
+        "code": code,
+    }).encode("utf-8")
 
     request = Request(
         config.token_endpoint,
