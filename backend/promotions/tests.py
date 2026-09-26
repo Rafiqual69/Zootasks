@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from .admin import PromotionAdmin, PromotionClaimAdmin
@@ -375,9 +375,11 @@ class PromotionPayoutBudgetBoundaryTests(TestCase):
 
     def test_underfunded_declared_liability_is_not_paid(self):
         self.client.force_login(self.reviewer)
+        request = RequestFactory().post("/admin/promotions/promotionclaim/")
+        request.user = self.reviewer
         claim_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
         claim_admin.approve_claims(
-            self.reviewer,
+            request,
             PromotionClaim.objects.filter(id=self.claim.id),
         )
 
