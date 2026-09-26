@@ -46,7 +46,7 @@ def advertiser_create_promotion(request):
 
 @login_required
 def marketplace(request):
-    promotions = Promotion.objects.filter(status__in=["active", "approved", "paused"]).order_by("-created_at")
+    promotions = Promotion.objects.filter(status__in=["active", "approved"]).order_by("-created_at")
     search = request.GET.get("search", "").strip()
     if search:
         promotions = promotions.filter(title__icontains=search)
