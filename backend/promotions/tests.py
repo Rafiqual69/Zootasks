@@ -123,3 +123,66 @@ class PromotionAdvertiserOwnershipTests(TestCase):
         self.assertEqual(promotion.advertiser_id, profile.id)
         self.assertEqual(promotion.advertiser.user_id, advertiser.id)
         self.assertEqual(promotion.advertiser_name, "Legacy Display Name")
+
+
+class AdvertiserPromotionCreationBoundaryTests(TestCase):
+    def setUp(self):
+        from accounts.models import AccountEntity, AdvertiserProfile
+
+        self.worker = get_user_model().objects.create_user(
+            username="creation-worker",
+            password="testpass123",
+        )
+        self.advertiser = get_user_model().objects.create_user(
+            username="creation-advertiser",
+            password="testpass123",
+        )
+        AccountEntity.objects.create(
+            user=self.advertiser,
+            entity_type=AccountEntity.EntityType.ADVERTISER,
+            identity_email="creation@example.com",
+        )
+        AdvertiserProfile.objects.create(
+            user=self.advertiser,
+            organization_name="Creation Co",
+            contact_name="Owner",
+        )
+
+    def test_worker_cannot_create_advertiser_promotion(self):
+        self.client.login(username="creation-worker", password="testpass123")
+        response = self.client.get(reverse("advertiser_create_promotion"))
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Promotion.objects.count(), 0)
+
+    def test_advertiser_creates_pending_owned_promotion(self):
+        self.client.login(username="creation-advertiser", password="testpass123")
+        response = self.client.post(
+            reverse("advertiser_create_promotion"),
+            {
+                "title": "Safe promotion",
+                "description": "A reviewed campaign.",
+                "reward": "5.00",
+                "budget": "10.00",
+                "max_workers": 2,
+            },
+        )
+        self.assertRedirects(response, reverse("advertiser_dashboard"))
+        promotion = Promotion.objects.get()
+        self.assertEqual(promotion.advertiser.user_id, self.advertiser.id)
+        self.assertEqual(promotion.advertiser_name, "Creation Co")
+        self.assertEqual(promotion.status, "pending")
+
+    def test_advertiser_cannot_submit_underfunded_promotion(self):
+        self.client.login(username="creation-advertiser", password="testpass123")
+        response = self.client.post(
+            reverse("advertiser_create_promotion"),
+            {
+                "title": "Underfunded",
+                "description": "Insufficient declared budget.",
+                "reward": "6.00",
+                "budget": "10.00",
+                "max_workers": 2,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Promotion.objects.count(), 0)
