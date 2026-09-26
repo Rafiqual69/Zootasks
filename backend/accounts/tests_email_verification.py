@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -77,6 +77,21 @@ class OwnerEmailVerificationTests(TestCase):
         self.assertIsNotNone(challenge.used_at)
         self.assertEqual(challenge.attempts, 1)
         self.assertFalse(verify_owner_email_token(token))
+
+    @override_settings(OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS=2)
+    def test_owner_email_token_attempt_limit_is_enforced(self):
+        token = "limited-owner-email-token"
+        challenge = OwnerEmailVerificationChallenge.objects.create(
+            account_entity=self.entity,
+            token_hash=_hash_token(token),
+            expires_at=timezone.now() + timedelta(minutes=15),
+            attempts=2,
+        )
+        self.assertFalse(verify_owner_email_token(token))
+        self.entity.refresh_from_db()
+        challenge.refresh_from_db()
+        self.assertIsNone(self.entity.email_verified_at)
+        self.assertEqual(challenge.attempts, 2)
 
     def test_owner_email_token_expiry_is_rejected(self):
         token = "expired-owner-email-token"
