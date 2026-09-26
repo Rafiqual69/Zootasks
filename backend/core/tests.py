@@ -111,3 +111,31 @@ class PrivilegedFinanceSecurityAuditTests(TestCase):
             self.assertFalse(model_admin.has_add_permission(request))
             self.assertFalse(model_admin.has_change_permission(request))
             self.assertFalse(model_admin.has_delete_permission(request))
+
+
+class WorkerProfileAdminProtectionTests(TestCase):
+    def test_worker_profile_financial_state_is_read_only_and_not_deletable(self):
+        from accounts.admin import WorkerProfileAdmin
+        from accounts.models import WorkerProfile
+
+        request = RequestFactory().get("/admin/")
+        request.user = User.objects.create_superuser(
+            username="profile_admin",
+            password="test-password-123",
+        )
+
+        model_admin = WorkerProfileAdmin(WorkerProfile, admin.site)
+
+        self.assertFalse(model_admin.has_add_permission(request))
+        self.assertFalse(model_admin.has_delete_permission(request))
+
+        for field_name in (
+            "user",
+            "balance",
+            "reserved_balance",
+            "total_earned",
+            "completed_tasks",
+            "created_at",
+        ):
+            self.assertIn(field_name, model_admin.readonly_fields)
+
