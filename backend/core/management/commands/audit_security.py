@@ -1,8 +1,17 @@
+from types import SimpleNamespace
+
+from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
 from accounts.admin import GroupAdmin, UserAdmin
 from accounts.models import WorkerProfile
+from offers.admin import OfferAdmin
+from offers.models import Offer
+from promotions.admin import PromotionAdmin
+from promotions.models import Promotion
+from tasks.admin import TaskAdmin
+from tasks.models import Task
 from wallet.admin import WalletTransactionAdmin, WithdrawalRequestAdmin
 from wallet.models import WalletTransaction, WithdrawalRequest
 
@@ -43,6 +52,17 @@ class Command(BaseCommand):
                 pk=permissions[codename].pk
             ).exists()
 
+        owner_request = SimpleNamespace(
+            user=SimpleNamespace(is_superuser=True)
+        )
+        staff_request = SimpleNamespace(
+            user=SimpleNamespace(is_superuser=False)
+        )
+
+        task_admin = TaskAdmin(Task, admin.site)
+        promotion_admin = PromotionAdmin(Promotion, admin.site)
+        offer_admin = OfferAdmin(Offer, admin.site)
+
         checks = {
             "Finance can approve": has(finance, "approve_withdrawal"),
             "Finance can reject": has(finance, "reject_withdrawal"),
@@ -56,7 +76,8 @@ class Command(BaseCommand):
             "Finance Payer cannot reject": not has(payer, "reject_withdrawal"),
             "Wallet ledger admin is immutable": all(
                 not getattr(WalletTransactionAdmin, method, lambda *a: True)(
-                    object.__new__(WalletTransactionAdmin), None
+                    WalletTransactionAdmin(WalletTransaction, admin.site),
+                    owner_request,
                 )
                 for method in (
                     "has_add_permission",
@@ -65,10 +86,10 @@ class Command(BaseCommand):
                 )
             ),
             "User admin cannot add": not UserAdmin.has_add_permission(
-                object.__new__(UserAdmin), None
+                UserAdmin.__new__(UserAdmin), owner_request
             ),
             "User admin cannot delete": not UserAdmin.has_delete_permission(
-                object.__new__(UserAdmin), None
+                UserAdmin.__new__(UserAdmin), owner_request
             ),
             "User privilege fields are read-only": all(
                 field in UserAdmin.readonly_fields
@@ -80,17 +101,18 @@ class Command(BaseCommand):
                 )
             ),
             "Group admin cannot add": not GroupAdmin.has_add_permission(
-                object.__new__(GroupAdmin), None
+                GroupAdmin.__new__(GroupAdmin), owner_request
             ),
             "Group admin cannot change": not GroupAdmin.has_change_permission(
-                object.__new__(GroupAdmin), None
+                GroupAdmin.__new__(GroupAdmin), owner_request
             ),
             "Group admin cannot delete": not GroupAdmin.has_delete_permission(
-                object.__new__(GroupAdmin), None
+                GroupAdmin.__new__(GroupAdmin), owner_request
             ),
             "Withdrawal records are action-controlled": all(
                 not getattr(WithdrawalRequestAdmin, method, lambda *a: True)(
-                    object.__new__(WithdrawalRequestAdmin), None
+                    WithdrawalRequestAdmin(WithdrawalRequest, admin.site),
+                    owner_request,
                 )
                 for method in (
                     "has_add_permission",
@@ -98,11 +120,57 @@ class Command(BaseCommand):
                     "has_delete_permission",
                 )
             ),
+            "Task creation is Owner-controlled": (
+                task_admin.has_add_permission(owner_request)
+                and not task_admin.has_add_permission(staff_request)
+                and not task_admin.has_delete_permission(owner_request)
+            ),
+            "Task financial fields are read-only": all(
+                field in task_admin.get_readonly_fields(owner_request)
+                for field in (
+                    "reward",
+                    "max_workers",
+                    "completed_workers",
+                    "status",
+                    "created_at",
+                )
+            ),
+            "Promotion creation is Owner-controlled": (
+                promotion_admin.has_add_permission(owner_request)
+                and not promotion_admin.has_add_permission(staff_request)
+                and not promotion_admin.has_delete_permission(owner_request)
+            ),
+            "Promotion financial fields are read-only": all(
+                field in promotion_admin.readonly_fields
+                for field in (
+                    "reward",
+                    "budget",
+                    "max_workers",
+                    "completed_workers",
+                    "status",
+                    "created_at",
+                )
+            ),
+            "Offer admin is controlled": (
+                offer_admin.has_add_permission(owner_request)
+                and not offer_admin.has_add_permission(staff_request)
+                and not offer_admin.has_change_permission(owner_request)
+                and not offer_admin.has_delete_permission(owner_request)
+            ),
         }
 
         # Model imports above are intentional: this command should fail loudly
-        # if finance models are removed or renamed.
-        _ = (UserAdmin, GroupAdmin, WorkerProfile, WalletTransaction, WithdrawalRequest)
+        # if protected models are removed or renamed.
+        _ = (
+            UserAdmin,
+            GroupAdmin,
+            WorkerProfile,
+            Task,
+            Promotion,
+            Offer,
+            WalletTransaction,
+            WithdrawalRequest,
+        )
 
         failed = [name for name, passed in checks.items() if not passed]
 
