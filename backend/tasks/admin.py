@@ -8,9 +8,26 @@ from wallet.models import WalletTransaction
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        # Task creation controls reward/capacity and is Owner-controlled
+        # until a dedicated advertiser/task-authoring workflow exists.
+        return request.user.is_superuser
+
     def has_delete_permission(self, request, obj=None):
         # Tasks are financial/audit roots; archive via status instead of deleting.
         return False
+
+    def get_readonly_fields(self, request, obj=None):
+        # Existing task reward/capacity/lifecycle state must not be changed
+        # through a generic admin form. Controlled application flows own these
+        # state transitions.
+        return (
+            "reward",
+            "max_workers",
+            "completed_workers",
+            "status",
+            "created_at",
+        )
 
     list_display = (
         "title",
