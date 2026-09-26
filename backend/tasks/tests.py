@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from .admin import TaskAdmin
 from .models import Task, TaskClaim
 
 
