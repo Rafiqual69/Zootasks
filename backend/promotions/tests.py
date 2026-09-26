@@ -7,6 +7,15 @@ from .admin import PromotionAdmin, PromotionClaimAdmin
 from .models import Promotion, PromotionClaim
 
 
+class PromotionAdminAuditProtectionTests(TestCase):
+    def test_promotion_and_claim_deletion_is_disabled(self):
+        promotion_admin = PromotionAdmin(Promotion, admin.site)
+        claim_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+
+        self.assertFalse(promotion_admin.has_delete_permission(None))
+        self.assertFalse(claim_admin.has_delete_permission(None))
+
+
 class PromotionXSSTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
