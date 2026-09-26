@@ -1,22 +1,17 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import render
-from accounts.models import AccountEntity, AdvertiserProfile
-from django.middleware.csrf import get_token
-from django.utils.html import escape
 from django.db import transaction
 from django.http import HttpResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .models import Promotion, PromotionClaim
-from .forms import AdvertiserPromotionForm
+from django.utils.html import escape
+
 from accounts.models import AccountEntity, AdvertiserProfile
 from wallet.models import WalletTransaction
 
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import render
-from accounts.models import AccountEntity, AdvertiserProfile
 from .forms import AdvertiserPromotionForm
+from .models import Promotion, PromotionClaim
 
 @login_required
 def advertiser_create_promotion(request):
