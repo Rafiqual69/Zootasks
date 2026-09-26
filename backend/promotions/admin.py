@@ -145,6 +145,22 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     )
 
                     reward = locked.promotion.reward
+                    promotion = locked.promotion
+
+                    if promotion.status not in {"approved", "active"}:
+                        failed += 1
+                        continue
+
+                    declared_liability = reward * promotion.completed_workers
+                    if declared_liability > promotion.budget:
+                        failed += 1
+                        self.message_user(
+                            request,
+                            f"Promotion #{promotion.id} skipped: declared "
+                            f"worker liability exceeds budget. Manual reconciliation required.",
+                            messages.ERROR,
+                        )
+                        continue
 
                     profile.balance += reward
                     profile.total_earned += reward
