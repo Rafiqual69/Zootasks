@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Verify Owner Email</title>
+</head>
+<body>
+    <main>
+        <h1>Verify Owner Email</h1>
+        <p>Continue only if you requested this ZooTasks Owner email verification.</p>
+        <form method="post" action="{% url 'owner_email_verify' token=token %}">
+            {% csrf_token %}
+            <button type="submit">Confirm Email Verification</button>
+        </form>
+    </main>
+</body>
+</html>
