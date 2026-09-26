@@ -97,7 +97,7 @@ class OwnerEmailVerificationTests(TestCase):
         reuse_response = self.client.post(
             reverse("owner_email_verify", kwargs={"token": token})
         )
-        self.assertEqual(reuse_response.status_code, 200)
+        self.assertEqual(reuse_response.status_code, 400)
         self.assertIn("invalid", reuse_response.content.decode().lower())
 
     @patch("accounts.email_verification.send_mail")
