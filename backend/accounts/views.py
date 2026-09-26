@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Sum
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 
 from .forms import AdvertiserRegistrationForm, RegistrationForm
 from .models import AccountEntity, AdvertiserProfile, WorkerProfile
