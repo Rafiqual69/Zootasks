@@ -3,6 +3,7 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import transaction
 from django.urls import reverse
@@ -12,7 +13,7 @@ from .models import AccountEntity, OwnerEmailVerificationChallenge
 
 
 TOKEN_TTL = timedelta(minutes=15)
-MAX_ATTEMPTS = 5
+RESEND_COOLDOWN = timedelta(seconds=60)
 
 
 def _hash_token(token):
@@ -31,16 +32,28 @@ def issue_owner_email_verification(request, user):
     if entity.email_verified_at:
         raise ValueError("Owner identity email is already verified.")
 
+    now = timezone.now()
+    recent_challenge = (
+        OwnerEmailVerificationChallenge.objects
+        .filter(account_entity=entity, created_at__gte=now - RESEND_COOLDOWN)
+        .order_by("-created_at")
+        .first()
+    )
+    if recent_challenge:
+        raise ValidationError(
+            "Owner email verification was requested too recently."
+        )
+
     OwnerEmailVerificationChallenge.objects.filter(
         account_entity=entity,
         used_at__isnull=True,
-    ).update(used_at=timezone.now())
+    ).update(used_at=now)
 
     token = secrets.token_urlsafe(32)
     challenge = OwnerEmailVerificationChallenge.objects.create(
         account_entity=entity,
         token_hash=_hash_token(token),
-        expires_at=timezone.now() + TOKEN_TTL,
+        expires_at=now + TOKEN_TTL,
     )
     verify_url = request.build_absolute_uri(
         reverse("owner_email_verify", kwargs={"token": token})
