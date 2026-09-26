@@ -94,3 +94,32 @@ class PromotionRewardValidationTests(TestCase):
 
         with self.assertRaises(ValidationError):
             promotion.full_clean()
+
+
+class PromotionAdvertiserOwnershipTests(TestCase):
+    def test_promotion_can_reference_advertiser_profile_without_breaking_legacy_field(self):
+        from accounts.models import AdvertiserProfile
+
+        advertiser = get_user_model().objects.create_user(
+            username="promotion-advertiser",
+            password="testpass123",
+        )
+        profile = AdvertiserProfile.objects.create(
+            user=advertiser,
+            organization_name="Ownership Co",
+            contact_name="Contact",
+        )
+        promotion = Promotion.objects.create(
+            title="Owned Promotion",
+            description="Test",
+            advertiser_name="Legacy Display Name",
+            advertiser=profile,
+            reward="10.00",
+            budget="20.00",
+            max_workers=2,
+            status="pending",
+        )
+
+        self.assertEqual(promotion.advertiser_id, profile.id)
+        self.assertEqual(promotion.advertiser.user_id, advertiser.id)
+        self.assertEqual(promotion.advertiser_name, "Legacy Display Name")
