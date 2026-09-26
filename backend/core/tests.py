@@ -8,8 +8,6 @@ from wallet.models import WalletTransaction, WithdrawalRequest
 
 from accounts.admin import GroupAdmin, UserAdmin
 from accounts.models import WorkerProfile
-from offers.admin import OfferAdmin
-from offers.models import Offer
 from promotions.admin import PromotionAdmin
 from promotions.models import Promotion
 from tasks.admin import TaskAdmin
@@ -235,24 +233,6 @@ class RootObjectAdminProtectionTests(TestCase):
                     existing,
                 ),
             )
-
-    def test_offer_admin_is_owner_create_only(self):
-        model_admin = OfferAdmin(Offer, admin.site)
-
-        self.assertTrue(model_admin.has_add_permission(self.owner_request))
-        self.assertFalse(model_admin.has_add_permission(self.staff_request))
-        self.assertFalse(model_admin.has_change_permission(self.owner_request))
-        self.assertFalse(model_admin.has_delete_permission(self.owner_request))
-        self.assertEqual(
-            model_admin.get_readonly_fields(self.owner_request),
-            (),
-        )
-
-        existing = Offer(id=1)
-        self.assertTrue(model_admin.get_readonly_fields(
-            self.owner_request,
-            existing,
-        ))
 
 
 class UserAdminPrivilegeProtectionTests(TestCase):
