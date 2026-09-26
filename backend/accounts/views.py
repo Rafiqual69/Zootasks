@@ -29,7 +29,7 @@ def register(request):
             login(request, user)
             return redirect("dashboard")
     else:
-        form = AdvertiserRegistrationForm()
+        form = RegistrationForm()
 
     return render(
         request,
@@ -60,7 +60,7 @@ def advertiser_register(request):
                 )
             return redirect("login")
     else:
-        form = RegistrationForm()
+        form = AdvertiserRegistrationForm()
 
     return render(
         request,
