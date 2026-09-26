@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+from django.conf import settings
+
 from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
@@ -51,7 +53,16 @@ class Command(BaseCommand):
             ).exists()
 
         owner_request = SimpleNamespace(
-            user=SimpleNamespace(is_superuser=True)
+            user=SimpleNamespace(
+                is_superuser=True,
+                get_username=lambda: settings.OWNER_USERNAME,
+            )
+        )
+        non_owner_superuser_request = SimpleNamespace(
+            user=SimpleNamespace(
+                is_superuser=True,
+                get_username=lambda: "not-the-owner",
+            )
         )
         staff_request = SimpleNamespace(
             user=SimpleNamespace(is_superuser=False)
@@ -122,6 +133,7 @@ class Command(BaseCommand):
             ),
             "Task creation is Owner-controlled": (
                 task_admin.has_add_permission(owner_request)
+                and not task_admin.has_add_permission(non_owner_superuser_request)
                 and not task_admin.has_add_permission(staff_request)
                 and not task_admin.has_delete_permission(owner_request)
             ),
@@ -140,6 +152,7 @@ class Command(BaseCommand):
             ),
             "Promotion creation is Owner-controlled": (
                 promotion_admin.has_add_permission(owner_request)
+                and not promotion_admin.has_add_permission(non_owner_superuser_request)
                 and not promotion_admin.has_add_permission(staff_request)
                 and not promotion_admin.has_delete_permission(owner_request)
             ),
