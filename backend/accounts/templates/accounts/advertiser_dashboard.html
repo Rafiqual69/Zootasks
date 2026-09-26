@@ -18,6 +18,7 @@
         <p class="zt-auth-intro">Your organization workspace is ready. Promotion creation and funding controls will be enabled only after their dedicated authorization and financial safeguards are implemented.</p>
         <p><strong>Organization:</strong> {{ profile.organization_name|default:"Not provided" }}</p>
         <p><strong>Contact:</strong> {{ profile.contact_name|default:"Not provided" }}</p>
+        <p class="zt-auth-footer"><a href="{% url 'advertiser_create_promotion' %}">Create a promotion request</a></p>
         <p class="zt-auth-footer"><a href="{% url 'logout' %}">Sign out</a></p>
     </section>
 </main>
