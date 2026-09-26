@@ -374,8 +374,6 @@ class PromotionPayoutBudgetBoundaryTests(TestCase):
         self.reviewer.user_permissions.add(permission)
 
     def test_underfunded_declared_liability_is_not_paid(self):
-        from .admin import PromotionClaimAdmin
-
         self.client.force_login(self.reviewer)
         admin = PromotionClaimAdmin(PromotionClaim, admin.site)
         admin.approve_claims(
