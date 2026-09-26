@@ -6,6 +6,9 @@ from django.urls import reverse
 
 from wallet.models import WalletTransaction, WithdrawalRequest
 
+from accounts.admin import GroupAdmin, UserAdmin
+from accounts.models import WorkerProfile
+
 
 class LiveWalletDashboardPermissionTests(TestCase):
     def setUp(self):
@@ -139,3 +142,47 @@ class WorkerProfileAdminProtectionTests(TestCase):
         ):
             self.assertIn(field_name, model_admin.readonly_fields)
 
+
+
+class UserAdminPrivilegeProtectionTests(TestCase):
+    def setUp(self):
+        self.request = RequestFactory().get("/admin/")
+        self.request.user = User.objects.create_superuser(
+            username="user_admin_audit",
+            password="test-password-123",
+        )
+
+    def test_user_creation_and_deletion_are_disabled(self):
+        model_admin = UserAdmin(User, admin.site)
+
+        self.assertFalse(model_admin.has_add_permission(self.request))
+        self.assertFalse(model_admin.has_delete_permission(self.request))
+
+    def test_user_privilege_fields_are_read_only(self):
+        model_admin = UserAdmin(User, admin.site)
+
+        for field_name in (
+            "is_staff",
+            "is_superuser",
+            "groups",
+            "user_permissions",
+            "last_login",
+            "date_joined",
+        ):
+            self.assertIn(field_name, model_admin.readonly_fields)
+
+
+class GroupAdminPrivilegeProtectionTests(TestCase):
+    def setUp(self):
+        self.request = RequestFactory().get("/admin/")
+        self.request.user = User.objects.create_superuser(
+            username="group_admin_audit",
+            password="test-password-123",
+        )
+
+    def test_group_creation_change_and_deletion_are_disabled(self):
+        model_admin = GroupAdmin(Group, admin.site)
+
+        self.assertFalse(model_admin.has_add_permission(self.request))
+        self.assertFalse(model_admin.has_change_permission(self.request))
+        self.assertFalse(model_admin.has_delete_permission(self.request))
