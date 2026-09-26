@@ -41,9 +41,16 @@ def exchange_owner_social_authorization_code(provider, code):
     if not client_secret:
         raise ValueError("Owner social OAuth client secret is not configured.")
 
+    grant_type = str(
+        getattr(settings, f"{prefix}GRANT_TYPE", "authorization_code") or ""
+    ).strip()
+    if not grant_type:
+        raise ValueError("Owner social OAuth grant type is not configured.")
+
     body = urlencode({
         "client_id": config.client_id,
         "client_secret": client_secret,
+        "grant_type": grant_type,
         "redirect_uri": config.redirect_uri,
         "code": code,
     }).encode("utf-8")
