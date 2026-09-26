@@ -57,18 +57,22 @@ class OwnerSocialIdentityBindingSecurityTests(TestCase):
         )
         other_entity = AccountEntity.objects.create(
             user=other_user,
-            entity_type=AccountEntity.EntityType.SUPER_ADMIN,
+            entity_type=AccountEntity.EntityType.OWNER,
             identity_email="other@example.test",
         )
-        OwnerSocialIdentity.objects.create(
-            account_entity=self.owner_entity,
-            provider=OwnerSocialIdentity.Provider.FACEBOOK,
-            provider_user_id="fb-duplicate",
+        OwnerSocialIdentity.objects.bulk_create(
+            [
+                OwnerSocialIdentity(
+                    account_entity=other_entity,
+                    provider=OwnerSocialIdentity.Provider.FACEBOOK,
+                    provider_user_id="fb-duplicate",
+                )
+            ]
         )
 
         with self.assertRaises(ValidationError):
             bind_verified_owner_social_identity(
-                other_entity,
+                self.owner_entity,
                 OwnerSocialIdentity.Provider.FACEBOOK,
                 "fb-duplicate",
             )
