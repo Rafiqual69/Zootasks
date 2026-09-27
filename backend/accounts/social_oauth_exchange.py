@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from django.conf import settings
 
@@ -11,6 +11,18 @@ from .social_oauth_provider import get_owner_social_oauth_provider_config
 
 
 MAX_OAUTH_RESPONSE_BYTES = 64 * 1024
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("Owner social OAuth redirects are not allowed.")
+
+
+_NO_REDIRECT_OPENER = build_opener(_NoRedirectHandler)
+
+
+def urlopen(request, timeout=10):
+    return _NO_REDIRECT_OPENER.open(request, timeout=timeout)
 
 
 @dataclass(frozen=True)
