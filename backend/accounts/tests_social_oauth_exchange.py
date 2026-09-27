@@ -90,6 +90,29 @@ class OwnerSocialOAuthExchangeTests(TestCase):
         OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
         OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
         OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://evil.example/profile",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    def test_unapproved_profile_endpoint_is_rejected(self):
+        from accounts.social_oauth_exchange import get_owner_social_profile
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth profile endpoint uses an unapproved host.",
+        ):
+            get_owner_social_profile(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "temporary-access-token",
+            )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
     )
     @patch("accounts.social_oauth_exchange.urlopen")
     def test_invalid_token_response_is_rejected(self, mock_urlopen):
