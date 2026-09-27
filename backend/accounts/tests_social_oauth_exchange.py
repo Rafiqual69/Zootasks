@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch
 
+from urllib.request import Request
+
 from django.test import TestCase, override_settings
 
 from accounts.models import OwnerSocialIdentity
@@ -8,6 +10,24 @@ from accounts.social_oauth_exchange import exchange_owner_social_authorization_c
 
 
 class OwnerSocialOAuthExchangeTests(TestCase):
+    def test_oauth_redirects_are_rejected(self):
+        from accounts.social_oauth_exchange import _NoRedirectHandler
+
+        handler = _NoRedirectHandler()
+        request = Request("https://graph.facebook.com/oauth/access_token")
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth redirects are not allowed.",
+        ):
+            handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {},
+                "https://evil.example/steal",
+            )
+
     @override_settings(
         OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
         OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
