@@ -16,23 +16,27 @@ class OwnerSocialOAuthProviderConfig:
     scopes: tuple[str, ...]
 
 
-_ALLOWED_OAUTH_HOSTS = {
-    "facebook.com",
-    "www.facebook.com",
-    "graph.facebook.com",
-    "instagram.com",
-    "www.instagram.com",
-    "api.instagram.com",
-    "graph.instagram.com",
+_PROVIDER_OAUTH_HOSTS = {
+    OwnerSocialIdentity.Provider.FACEBOOK: {
+        "facebook.com",
+        "www.facebook.com",
+        "graph.facebook.com",
+    },
+    OwnerSocialIdentity.Provider.INSTAGRAM: {
+        "instagram.com",
+        "www.instagram.com",
+        "api.instagram.com",
+        "graph.instagram.com",
+    },
 }
 
 
-def _validate_provider_endpoint(value, setting_name):
+def _validate_provider_endpoint(value, setting_name, provider):
     parsed = urlparse(value)
     if parsed.scheme != "https" or parsed.username or parsed.password:
         raise ValueError(f"{setting_name} must use HTTPS without embedded credentials.")
     hostname = (parsed.hostname or "").lower()
-    if hostname not in _ALLOWED_OAUTH_HOSTS:
+    if hostname not in _PROVIDER_OAUTH_HOSTS[provider]:
         raise ValueError(f"{setting_name} uses an unapproved OAuth host.")
     return value
 
@@ -62,6 +66,7 @@ def _validate_redirect_uri(value, setting_name):
             )
     return value
 
+
 def get_owner_social_oauth_provider_config(provider):
     if provider == OwnerSocialIdentity.Provider.FACEBOOK:
         prefix = "OWNER_FACEBOOK_OAUTH_"
@@ -89,10 +94,10 @@ def get_owner_social_oauth_provider_config(provider):
     if not token_endpoint:
         raise ValueError("Owner social OAuth token endpoint is not configured.")
     authorization_endpoint = _validate_provider_endpoint(
-        authorization_endpoint, f"{prefix}AUTHORIZATION_ENDPOINT"
+        authorization_endpoint, f"{prefix}AUTHORIZATION_ENDPOINT", provider
     )
     token_endpoint = _validate_provider_endpoint(
-        token_endpoint, f"{prefix}TOKEN_ENDPOINT"
+        token_endpoint, f"{prefix}TOKEN_ENDPOINT", provider
     )
     if not redirect_uri:
         raise ValueError("Owner social OAuth redirect URI is not configured.")
