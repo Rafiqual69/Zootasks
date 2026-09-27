@@ -90,8 +90,8 @@ def exchange_owner_social_authorization_code(provider, code):
             if len(raw_body) > MAX_OAUTH_RESPONSE_BYTES:
                 raise ValueError("Owner social OAuth response is too large.")
             payload = json.loads(raw_body.decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("Owner social OAuth token exchange failed.") from exc
+    except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError("Owner social OAuth token exchange failed.") from None
 
     if not isinstance(payload, dict):
         raise ValueError("Owner social OAuth token response is invalid.")
@@ -101,7 +101,7 @@ def exchange_owner_social_authorization_code(provider, code):
         raise ValueError("Owner social OAuth token response is invalid.")
 
     token_type = str(payload.get("token_type", "Bearer") or "Bearer").strip()
-    if not token_type:
+    if token_type.lower() != "bearer":
         raise ValueError("Owner social OAuth token response is invalid.")
 
     expires_in = payload.get("expires_in")
@@ -180,8 +180,8 @@ def get_owner_social_profile(provider, access_token):
             if len(raw_body) > MAX_OAUTH_RESPONSE_BYTES:
                 raise ValueError("Owner social OAuth response is too large.")
             payload = json.loads(raw_body.decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("Owner social OAuth profile request failed.") from exc
+    except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError("Owner social OAuth profile request failed.") from None
 
     if not isinstance(payload, dict):
         raise ValueError("Owner social OAuth profile response is invalid.")
