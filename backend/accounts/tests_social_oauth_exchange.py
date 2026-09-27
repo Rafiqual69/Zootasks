@@ -10,6 +10,31 @@ from accounts.social_oauth_exchange import exchange_owner_social_authorization_c
 
 
 class OwnerSocialOAuthExchangeTests(TestCase):
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_non_bearer_token_type_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.read.return_value = json.dumps({
+            "access_token": "provider-access-token",
+            "token_type": "Basic",
+        }).encode("utf-8")
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth token response is invalid.",
+        ):
+            exchange_owner_social_authorization_code(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "code",
+            )
+
     def test_oauth_redirects_are_rejected(self):
         from accounts.social_oauth_exchange import _NoRedirectHandler
 
