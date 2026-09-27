@@ -23,7 +23,7 @@ class OwnerSocialOAuthExchangeTests(TestCase):
 
         with self.assertRaisesMessage(
             ValueError,
-            "Owner social OAuth response is too large.",
+            "Owner social OAuth token exchange failed.",
         ):
             exchange_owner_social_authorization_code(
                 OwnerSocialIdentity.Provider.FACEBOOK,
@@ -49,7 +49,7 @@ class OwnerSocialOAuthExchangeTests(TestCase):
 
         with self.assertRaisesMessage(
             ValueError,
-            "Owner social OAuth response is too large.",
+            "Owner social OAuth profile request failed.",
         ):
             get_owner_social_profile(
                 OwnerSocialIdentity.Provider.FACEBOOK,
