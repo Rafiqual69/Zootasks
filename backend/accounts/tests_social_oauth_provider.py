@@ -95,3 +95,70 @@ class OwnerSocialOAuthProviderConfigTests(SimpleTestCase):
             OwnerSocialIdentity.Provider.INSTAGRAM,
         )
         self.assertEqual(config.token_endpoint, "https://api.instagram.com/oauth/access_token")
+
+    @override_settings(
+        PRODUCTION_MODE=True,
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="http://zootasks.example/accounts/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    def test_production_rejects_http_redirect_uri(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "must use HTTPS outside localhost development.",
+        ):
+            get_owner_social_oauth_provider_config(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+            )
+
+    @override_settings(
+        PRODUCTION_MODE=False,
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="http://evil.example/accounts/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    def test_development_rejects_non_loopback_http_redirect_uri(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "must use HTTPS outside localhost development.",
+        ):
+            get_owner_social_oauth_provider_config(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+            )
+
+    @override_settings(
+        PRODUCTION_MODE=False,
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="http://127.0.0.1:8000/accounts/callback/",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    def test_development_allows_loopback_http_redirect_uri(self):
+        config = get_owner_social_oauth_provider_config(
+            OwnerSocialIdentity.Provider.FACEBOOK,
+        )
+        self.assertEqual(
+            config.redirect_uri,
+            "http://127.0.0.1:8000/accounts/callback/",
+        )
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="facebook-client",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/accounts/callback/#fragment",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    def test_redirect_uri_fragment_is_rejected(self):
+        with self.assertRaisesMessage(
+            ValueError,
+            "absolute HTTPS redirect URI",
+        ):
+            get_owner_social_oauth_provider_config(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+            )
