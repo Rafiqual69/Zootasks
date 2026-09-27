@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -107,6 +107,22 @@ def get_owner_social_profile(provider, access_token):
     )
     if not profile_endpoint:
         raise ValueError("Owner social OAuth profile endpoint is not configured.")
+    parsed_profile_endpoint = urlparse(profile_endpoint)
+    if (
+        parsed_profile_endpoint.scheme != "https"
+        or parsed_profile_endpoint.username
+        or parsed_profile_endpoint.password
+        or (parsed_profile_endpoint.hostname or "").lower() not in {
+            "facebook.com",
+            "www.facebook.com",
+            "graph.facebook.com",
+            "instagram.com",
+            "www.instagram.com",
+            "api.instagram.com",
+            "graph.instagram.com",
+        }
+    ):
+        raise ValueError("Owner social OAuth profile endpoint uses an unapproved host.")
 
     query = {}
     if profile_fields:
