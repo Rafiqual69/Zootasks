@@ -37,6 +37,31 @@ def _validate_provider_endpoint(value, setting_name):
     return value
 
 
+def _validate_redirect_uri(value, setting_name):
+    parsed = urlparse(value)
+    if (
+        parsed.scheme not in {"https", "http"}
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+        or not parsed.hostname
+    ):
+        raise ValueError(
+            f"{setting_name} must be an absolute HTTPS redirect URI without "
+            "embedded credentials or fragments."
+        )
+    if parsed.scheme == "http":
+        hostname = (parsed.hostname or "").lower()
+        if getattr(settings, "PRODUCTION_MODE", False) or hostname not in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+        }:
+            raise ValueError(
+                f"{setting_name} must use HTTPS outside localhost development."
+            )
+    return value
+
 def get_owner_social_oauth_provider_config(provider):
     if provider == OwnerSocialIdentity.Provider.FACEBOOK:
         prefix = "OWNER_FACEBOOK_OAUTH_"
@@ -71,6 +96,9 @@ def get_owner_social_oauth_provider_config(provider):
     )
     if not redirect_uri:
         raise ValueError("Owner social OAuth redirect URI is not configured.")
+    redirect_uri = _validate_redirect_uri(
+        redirect_uri, f"{prefix}REDIRECT_URI"
+    )
     if not scopes:
         raise ValueError("Owner social OAuth scopes are not configured.")
 
