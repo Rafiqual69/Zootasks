@@ -45,7 +45,7 @@ class OwnerMFATests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/accounts/dashboard/")
+        self.assertEqual(response["Location"], "/admin/live-wallet/")
         self.assertEqual(
             self.client.session.get("_auth_user_id"),
             str(self.owner.pk),

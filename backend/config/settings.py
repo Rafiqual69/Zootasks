@@ -168,3 +168,5 @@ OWNER_INSTAGRAM_OAUTH_REDIRECT_URI = config(
 OWNER_INSTAGRAM_OAUTH_SCOPES = config("OWNER_INSTAGRAM_OAUTH_SCOPES", default="")
 
 LOGOUT_REDIRECT_URL = "/"
+
+CSRF_FAILURE_VIEW = "accounts.views.csrf_diagnostic_failure"

@@ -226,3 +226,19 @@ def owner_social_oauth_callback(request, provider):
         return _no_store(HttpResponseBadRequest("Social identity verification failed."))
 
     return _no_store(HttpResponse("Owner social identity verified successfully."))
+
+
+def csrf_diagnostic_failure(request, reason=''):
+    import logging
+    logging.getLogger('django.security.csrf').warning(
+        'ZOOTASKS_CSRF_DIAGNOSTIC reason=%r method=%r host=%r origin=%r referer=%r cookie=%s token=%s',
+        reason,
+        request.method,
+        request.get_host(),
+        request.META.get('HTTP_ORIGIN'),
+        request.META.get('HTTP_REFERER'),
+        bool(request.COOKIES.get('csrftoken')),
+        bool(request.POST.get('csrfmiddlewaretoken')),
+    )
+    from django.views.csrf import csrf_failure
+    return csrf_failure(request, reason)

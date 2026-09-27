@@ -17,6 +17,7 @@ urlpatterns = [
     path("owner/login/", LoginView.as_view(
         template_name="accounts/owner_login.html",
         authentication_form=OwnerOTPAuthenticationForm,
+        next_page="/admin/live-wallet/",
         redirect_authenticated_user=False,
     ), name="owner_login"),
     path("owner/email/verify/request/", owner_email_verification_request, name="owner_email_verification_request"),
