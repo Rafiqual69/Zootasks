@@ -10,6 +10,9 @@ from .models import OwnerSocialIdentity
 from .social_oauth_provider import get_owner_social_oauth_provider_config
 
 
+MAX_OAUTH_RESPONSE_BYTES = 64 * 1024
+
+
 @dataclass(frozen=True)
 class OwnerSocialOAuthTokenResponse:
     access_token: str
@@ -71,7 +74,10 @@ def exchange_owner_social_authorization_code(provider, code):
             status = getattr(response, "status", None)
             if isinstance(status, int) and not 200 <= status < 300:
                 raise ValueError("Owner social OAuth token exchange failed.")
-            payload = json.loads(response.read().decode("utf-8"))
+            raw_body = response.read(MAX_OAUTH_RESPONSE_BYTES + 1)
+            if len(raw_body) > MAX_OAUTH_RESPONSE_BYTES:
+                raise ValueError("Owner social OAuth response is too large.")
+            payload = json.loads(raw_body.decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("Owner social OAuth token exchange failed.") from exc
 
@@ -158,7 +164,10 @@ def get_owner_social_profile(provider, access_token):
             status = getattr(response, "status", None)
             if isinstance(status, int) and not 200 <= status < 300:
                 raise ValueError("Owner social OAuth profile request failed.")
-            payload = json.loads(response.read().decode("utf-8"))
+            raw_body = response.read(MAX_OAUTH_RESPONSE_BYTES + 1)
+            if len(raw_body) > MAX_OAUTH_RESPONSE_BYTES:
+                raise ValueError("Owner social OAuth response is too large.")
+            payload = json.loads(raw_body.decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("Owner social OAuth profile request failed.") from exc
 
