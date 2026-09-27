@@ -68,21 +68,34 @@ def exchange_owner_social_authorization_code(provider, code):
 
     try:
         with urlopen(request, timeout=10) as response:
+            status = getattr(response, "status", None)
+            if isinstance(status, int) and not 200 <= status < 300:
+                raise ValueError("Owner social OAuth token exchange failed.")
             payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+    except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("Owner social OAuth token exchange failed.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Owner social OAuth token response is invalid.")
 
     access_token = str(payload.get("access_token", "") or "").strip()
     if not access_token:
         raise ValueError("Owner social OAuth token response is invalid.")
 
     token_type = str(payload.get("token_type", "Bearer") or "Bearer").strip()
+    if not token_type:
+        raise ValueError("Owner social OAuth token response is invalid.")
+
     expires_in = payload.get("expires_in")
     if expires_in is not None:
+        if isinstance(expires_in, bool):
+            raise ValueError("Owner social OAuth token expiry is invalid.")
         try:
             expires_in = int(expires_in)
         except (TypeError, ValueError) as exc:
             raise ValueError("Owner social OAuth token expiry is invalid.") from exc
+        if expires_in < 0:
+            raise ValueError("Owner social OAuth token expiry is invalid.")
 
     return OwnerSocialOAuthTokenResponse(
         access_token=access_token,
@@ -142,9 +155,15 @@ def get_owner_social_profile(provider, access_token):
     )
     try:
         with urlopen(request, timeout=10) as response:
+            status = getattr(response, "status", None)
+            if isinstance(status, int) and not 200 <= status < 300:
+                raise ValueError("Owner social OAuth profile request failed.")
             payload = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+    except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("Owner social OAuth profile request failed.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Owner social OAuth profile response is invalid.")
 
     provider_user_id = str(payload.get("id", "") or "").strip()
     username = str(payload.get("username", "") or "").strip()
