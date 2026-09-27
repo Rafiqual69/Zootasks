@@ -10,6 +10,135 @@ from accounts.social_oauth_exchange import exchange_owner_social_authorization_c
 class OwnerSocialOAuthExchangeTests(TestCase):
     @override_settings(
         OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_non_object_token_response_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.read.return_value = b'["unexpected"]'
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth token response is invalid.",
+        ):
+            exchange_owner_social_authorization_code(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "code",
+            )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_negative_token_expiry_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.read.return_value = json.dumps({
+            "access_token": "provider-access-token",
+            "token_type": "Bearer",
+            "expires_in": -1,
+        }).encode("utf-8")
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth token expiry is invalid.",
+        ):
+            exchange_owner_social_authorization_code(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "code",
+            )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_non_success_token_http_status_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.status = 500
+        response.read.return_value = b'{"access_token":"should-not-be-used"}'
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth token exchange failed.",
+        ):
+            exchange_owner_social_authorization_code(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "code",
+            )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_non_object_profile_response_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.read.return_value = b'["unexpected"]'
+
+        from accounts.social_oauth_exchange import get_owner_social_profile
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth profile response is invalid.",
+        ):
+            get_owner_social_profile(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "temporary-access-token",
+            )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
+        OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret",
+        OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
+        OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
+        OWNER_FACEBOOK_OAUTH_REDIRECT_URI="https://zootasks.example/callback",
+        OWNER_FACEBOOK_OAUTH_SCOPES="scope_a",
+        OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT="https://graph.facebook.com/me",
+        OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS="id,name",
+    )
+    @patch("accounts.social_oauth_exchange.urlopen")
+    def test_non_success_profile_http_status_is_rejected(self, mock_urlopen):
+        response = mock_urlopen.return_value.__enter__.return_value
+        response.status = 503
+        response.read.return_value = b'{"id":"should-not-be-used"}'
+
+        from accounts.social_oauth_exchange import get_owner_social_profile
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Owner social OAuth profile request failed.",
+        ):
+            get_owner_social_profile(
+                OwnerSocialIdentity.Provider.FACEBOOK,
+                "temporary-access-token",
+            )
+
+
+    @override_settings(
+        OWNER_FACEBOOK_OAUTH_CLIENT_ID="client-id",
         OWNER_FACEBOOK_OAUTH_CLIENT_SECRET="secret-value",
         OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT="https://graph.facebook.com/oauth/access_token",
         OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT="https://www.facebook.com/dialog/oauth",
