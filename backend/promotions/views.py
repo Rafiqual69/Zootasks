@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.utils.html import escape
 
 from accounts.models import AccountEntity, AdvertiserProfile
+from accounts.policies import is_worker
 from wallet.models import WalletTransaction
 
 from .forms import AdvertiserPromotionForm
@@ -46,6 +47,8 @@ def advertiser_create_promotion(request):
 
 @login_required
 def marketplace(request):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     promotions = Promotion.objects.filter(status__in=["active", "approved"]).order_by("-created_at")
     search = request.GET.get("search", "").strip()
     if search:
@@ -94,6 +97,8 @@ def marketplace(request):
 @login_required
 @transaction.atomic
 def start_promotion(request, promotion_id):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     if request.method != "POST":
         return redirect("promotion_marketplace")
     promotion = get_object_or_404(Promotion.objects.select_for_update(), id=promotion_id, status__in=["active", "approved"])
@@ -109,6 +114,8 @@ def start_promotion(request, promotion_id):
 
 @login_required
 def submit_promotion(request, promotion_id):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     claim = get_object_or_404(PromotionClaim, promotion_id=promotion_id, worker=request.user)
     if claim.status != "claimed":
         return redirect("promotion_marketplace")
