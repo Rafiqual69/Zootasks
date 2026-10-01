@@ -1,9 +1,12 @@
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
+from django.shortcuts import redirect, render
 
 from .models import Task, TaskClaim
+from .services import (
+    TaskServiceError,
+    claim_task_for_worker,
+    submit_claim_proof,
+)
 
 
 @login_required
@@ -53,48 +56,14 @@ def marketplace(request):
 
 
 @login_required
-@transaction.atomic
 def claim_task(request, task_id):
     if request.method != "POST":
         return redirect("task_marketplace")
 
-    task = get_object_or_404(
-        Task.objects.select_for_update(),
-        id=task_id,
-        status="active",
-    )
-    existing = TaskClaim.objects.filter(
-        task=task,
-        worker=request.user,
-    ).first()
-
-    if task.claimed_workers >= task.max_workers:
-        return redirect("task_marketplace")
-
-    if existing and existing.status != "rejected":
-        return redirect("task_marketplace")
-
-    if existing:
-        existing.status = "claimed"
-        existing.proof = ""
-        existing.submitted_at = None
-        existing.claimed_at = timezone.now()
-        existing.save(
-            update_fields=[
-                "status",
-                "proof",
-                "submitted_at",
-                "claimed_at",
-            ]
-        )
-    else:
-        TaskClaim.objects.create(
-            task=task,
-            worker=request.user,
-        )
-
-    task.claimed_workers += 1
-    task.save(update_fields=["claimed_workers"])
+    try:
+        claim_task_for_worker(user=request.user, task_id=task_id)
+    except TaskServiceError:
+        pass
 
     return redirect("task_marketplace")
 
@@ -106,28 +75,30 @@ def task_detail(request, task_id):
 
 @login_required
 def submit_task(request, task_id):
-    claim = get_object_or_404(
-        TaskClaim,
+    claim = TaskClaim.objects.filter(
         task_id=task_id,
         worker=request.user,
-    )
-    if claim.status != "claimed":
-        return redirect("task_marketplace")
+    ).first()
+
+    if claim is None:
+        from django.http import Http404
+        raise Http404
 
     if request.method == "POST":
-        proof = request.POST.get("proof", "").strip()
-        if proof:
-            claim.proof = proof
-            claim.status = "submitted"
-            claim.submitted_at = timezone.now()
-            claim.save(
-                update_fields=[
-                    "proof",
-                    "status",
-                    "submitted_at",
-                ]
+        try:
+            submit_claim_proof(
+                user=request.user,
+                task_id=task_id,
+                proof=request.POST.get("proof", ""),
             )
+        except TaskServiceError:
+            pass
+        else:
             return redirect("task_marketplace")
+
+    claim.refresh_from_db()
+    if claim.status != "claimed":
+        return redirect("task_marketplace")
 
     return render(
         request,
