@@ -72,6 +72,21 @@ jobs:
         run: |
           python manage.py migrate --noinput
           python manage.py setup_rbac
+          python manage.py shell -c '
+          from django.contrib.auth import get_user_model
+          from accounts.models import AccountEntity
+          User = get_user_model()
+          username = "ci-owner"
+          user, _ = User.objects.get_or_create(username=username)
+          user.is_staff = True
+          user.is_superuser = True
+          user.set_unusable_password()
+          user.save(update_fields=["is_staff", "is_superuser", "password"])
+          AccountEntity.objects.get_or_create(
+              entity_type=AccountEntity.EntityType.OWNER,
+              defaults={"user": user, "is_active": True},
+          )
+          '
           python manage.py audit_security
 
       - name: Full regression tests
