@@ -26,6 +26,8 @@ class PromotionXSSTests(TestCase):
             username="xssworker",
             password="testpass123",
         )
+        from accounts.models import WorkerProfile
+        WorkerProfile.objects.create(user=self.user)
         self.client.login(username="xssworker", password="testpass123")
 
     def test_marketplace_escapes_untrusted_promotion_content(self):
@@ -198,6 +200,8 @@ class PromotionMarketplaceStateTests(TestCase):
             username="market-worker",
             password="testpass123",
         )
+        from accounts.models import WorkerProfile
+        WorkerProfile.objects.create(user=self.user)
         self.client.login(username="market-worker", password="testpass123")
 
     def test_paused_promotion_is_not_worker_visible(self):
