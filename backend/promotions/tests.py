@@ -19,6 +19,14 @@ class PromotionAdminAuditProtectionTests(TestCase):
         self.assertFalse(promotion_admin.has_delete_permission(None))
         self.assertFalse(claim_admin.has_delete_permission(None))
 
+    def test_existing_promotion_ownership_fields_are_read_only(self):
+        promotion_admin = PromotionAdmin(Promotion, admin.site)
+
+        readonly = promotion_admin.get_readonly_fields(None, object())
+
+        self.assertIn("advertiser", readonly)
+        self.assertIn("advertiser_name", readonly)
+
 
 class PromotionXSSTests(TestCase):
     def setUp(self):
