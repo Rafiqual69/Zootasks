@@ -102,6 +102,17 @@ SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cas
 SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
 SESSION_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = config(
+    "SECURE_REFERRER_POLICY", default="same-origin"
+)
+SECURE_CROSS_ORIGIN_OPENER_POLICY = config(
+    "SECURE_CROSS_ORIGIN_OPENER_POLICY", default="same-origin"
+)
+X_FRAME_OPTIONS = "DENY"
 
 # Only enable this when a trusted reverse proxy terminates TLS and sets
 # X-Forwarded-Proto after stripping any client-supplied copy.
