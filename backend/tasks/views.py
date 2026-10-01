@@ -2,7 +2,9 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
 from .models import Task, TaskClaim
+
 
 @login_required
 def marketplace(request):
@@ -33,11 +35,11 @@ def marketplace(request):
     for task in task_list:
         task.worker_claim = claims_by_task.get(task.id)
         task.remaining_workers = max(
-            task.max_workers - task.completed_workers,
+            task.max_workers - task.claimed_workers,
             0,
         )
         task.progress_percent = min(
-            (task.completed_workers / max(task.max_workers, 1)) * 100,
+            (task.claimed_workers / max(task.max_workers, 1)) * 100,
             100,
         )
 
@@ -49,37 +51,86 @@ def marketplace(request):
 
     return render(request, "tasks/marketplace.html", context)
 
+
 @login_required
 @transaction.atomic
 def claim_task(request, task_id):
     if request.method != "POST":
         return redirect("task_marketplace")
-    task = get_object_or_404(Task.objects.select_for_update(), id=task_id, status="active")
-    existing = TaskClaim.objects.filter(task=task, worker=request.user).first()
-    if existing or task.completed_workers >= task.max_workers:
+
+    task = get_object_or_404(
+        Task.objects.select_for_update(),
+        id=task_id,
+        status="active",
+    )
+    existing = TaskClaim.objects.filter(
+        task=task,
+        worker=request.user,
+    ).first()
+
+    if task.claimed_workers >= task.max_workers:
         return redirect("task_marketplace")
-    TaskClaim.objects.create(task=task, worker=request.user)
-    task.completed_workers += 1
-    if task.completed_workers >= task.max_workers:
-        task.status = "completed"
-    task.save(update_fields=["completed_workers", "status"])
+
+    if existing and existing.status != "rejected":
+        return redirect("task_marketplace")
+
+    if existing:
+        existing.status = "claimed"
+        existing.proof = ""
+        existing.submitted_at = None
+        existing.claimed_at = timezone.now()
+        existing.save(
+            update_fields=[
+                "status",
+                "proof",
+                "submitted_at",
+                "claimed_at",
+            ]
+        )
+    else:
+        TaskClaim.objects.create(
+            task=task,
+            worker=request.user,
+        )
+
+    task.claimed_workers += 1
+    task.save(update_fields=["claimed_workers"])
+
     return redirect("task_marketplace")
+
 
 @login_required
 def task_detail(request, task_id):
     return redirect("task_marketplace")
 
+
 @login_required
 def submit_task(request, task_id):
-    claim = get_object_or_404(TaskClaim, task_id=task_id, worker=request.user)
+    claim = get_object_or_404(
+        TaskClaim,
+        task_id=task_id,
+        worker=request.user,
+    )
     if claim.status != "claimed":
         return redirect("task_marketplace")
+
     if request.method == "POST":
         proof = request.POST.get("proof", "").strip()
         if proof:
             claim.proof = proof
             claim.status = "submitted"
             claim.submitted_at = timezone.now()
-            claim.save(update_fields=["proof", "status", "submitted_at"])
+            claim.save(
+                update_fields=[
+                    "proof",
+                    "status",
+                    "submitted_at",
+                ]
+            )
             return redirect("task_marketplace")
-    return render(request, "tasks/submit_task.html", {"claim": claim})
+
+    return render(
+        request,
+        "tasks/submit_task.html",
+        {"claim": claim},
+    )

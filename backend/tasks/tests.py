@@ -1,10 +1,12 @@
 from django.contrib import admin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Permission
 from django.test import TestCase
 from django.urls import reverse
 
-from .admin import TaskAdmin
+from .admin import TaskAdmin, approve_submissions, reject_submissions
 from .models import Task, TaskClaim
+from accounts.models import WorkerProfile
+from wallet.models import WalletTransaction
 
 
 class TaskAdminAuditProtectionTests(TestCase):
@@ -77,9 +79,10 @@ class TaskMarketplaceTests(TestCase):
             0,
         )
         self.active_task.refresh_from_db()
+        self.assertEqual(self.active_task.claimed_workers, 0)
         self.assertEqual(self.active_task.completed_workers, 0)
 
-    def test_worker_can_claim_active_task(self):
+    def test_worker_can_claim_active_task_without_marking_completion(self):
         self.login()
 
         response = self.client.post(
@@ -97,7 +100,8 @@ class TaskMarketplaceTests(TestCase):
         )
 
         self.active_task.refresh_from_db()
-        self.assertEqual(self.active_task.completed_workers, 1)
+        self.assertEqual(self.active_task.claimed_workers, 1)
+        self.assertEqual(self.active_task.completed_workers, 0)
         self.assertEqual(self.active_task.status, "active")
 
     def test_worker_cannot_claim_same_task_twice(self):
@@ -119,15 +123,33 @@ class TaskMarketplaceTests(TestCase):
         )
 
         self.active_task.refresh_from_db()
-        self.assertEqual(self.active_task.completed_workers, 1)
+        self.assertEqual(self.active_task.claimed_workers, 1)
+        self.assertEqual(self.active_task.completed_workers, 0)
+
+    def test_rejected_claim_can_reclaim_an_available_slot(self):
+        claim = TaskClaim.objects.create(
+            task=self.active_task,
+            worker=self.user,
+            status="rejected",
+        )
+
+        self.login()
+
+        response = self.client.post(
+            reverse("claim_task", args=[self.active_task.id])
+        )
+
+        self.assertRedirects(response, reverse("task_marketplace"))
+
+        claim.refresh_from_db()
+        self.active_task.refresh_from_db()
+        self.assertEqual(claim.status, "claimed")
+        self.assertEqual(self.active_task.claimed_workers, 1)
 
     def test_full_task_cannot_be_claimed(self):
         self.active_task.max_workers = 1
-        self.active_task.completed_workers = 1
-        self.active_task.status = "active"
-        self.active_task.save(
-            update_fields=["max_workers", "completed_workers", "status"]
-        )
+        self.active_task.claimed_workers = 1
+        self.active_task.save(update_fields=["max_workers", "claimed_workers"])
 
         self.login()
 
@@ -143,21 +165,20 @@ class TaskMarketplaceTests(TestCase):
             ).exists()
         )
 
-    def test_last_available_slot_completes_task(self):
+    def test_last_available_slot_stays_active_until_work_is_approved(self):
         self.active_task.max_workers = 1
         self.active_task.save(update_fields=["max_workers"])
 
         self.login()
 
-        response = self.client.post(
+        self.client.post(
             reverse("claim_task", args=[self.active_task.id])
         )
 
-        self.assertRedirects(response, reverse("task_marketplace"))
-
         self.active_task.refresh_from_db()
-        self.assertEqual(self.active_task.completed_workers, 1)
-        self.assertEqual(self.active_task.status, "completed")
+        self.assertEqual(self.active_task.claimed_workers, 1)
+        self.assertEqual(self.active_task.completed_workers, 0)
+        self.assertEqual(self.active_task.status, "active")
 
     def test_submit_requires_existing_claim(self):
         self.login()
@@ -174,6 +195,8 @@ class TaskMarketplaceTests(TestCase):
             worker=self.user,
             status="claimed",
         )
+        self.active_task.claimed_workers = 1
+        self.active_task.save(update_fields=["claimed_workers"])
 
         self.login()
 
@@ -198,6 +221,8 @@ class TaskMarketplaceTests(TestCase):
             worker=self.user,
             status="claimed",
         )
+        self.active_task.claimed_workers = 1
+        self.active_task.save(update_fields=["claimed_workers"])
         self.active_task.title = "<script>alert('x')</script>"
         self.active_task.description = "<img src=x onerror=alert('x')>"
         self.active_task.save(update_fields=["title", "description"])
@@ -209,8 +234,16 @@ class TaskMarketplaceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;", html=False)
-        self.assertContains(response, "&lt;img src=x onerror=alert(&#x27;x&#x27;)&gt;", html=False)
+        self.assertContains(
+            response,
+            "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;",
+            html=False,
+        )
+        self.assertContains(
+            response,
+            "&lt;img src=x onerror=alert(&#x27;x&#x27;)&gt;",
+            html=False,
+        )
 
     def test_empty_proof_does_not_submit(self):
         claim = TaskClaim.objects.create(
@@ -218,6 +251,8 @@ class TaskMarketplaceTests(TestCase):
             worker=self.user,
             status="claimed",
         )
+        self.active_task.claimed_workers = 1
+        self.active_task.save(update_fields=["claimed_workers"])
 
         self.login()
 
@@ -232,3 +267,96 @@ class TaskMarketplaceTests(TestCase):
         self.assertEqual(claim.status, "claimed")
         self.assertEqual(claim.proof, "")
         self.assertIsNone(claim.submitted_at)
+
+
+class TaskSubmissionLifecycleTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="task_reviewer",
+            password="StrongTestPass123!",
+        )
+        self.worker = User.objects.create_user(
+            username="task_worker",
+            password="StrongTestPass123!",
+        )
+        self.task = Task.objects.create(
+            title="Reviewable Task",
+            description="Review this task.",
+            reward="25.00",
+            max_workers=1,
+        )
+        self.claim = TaskClaim.objects.create(
+            task=self.task,
+            worker=self.worker,
+            status="submitted",
+            proof="proof",
+        )
+        self.task.claimed_workers = 1
+        self.task.save(update_fields=["claimed_workers"])
+
+    def test_approval_moves_worker_from_claimed_to_completed(self):
+        permission = Permission.objects.get(
+            content_type__app_label="tasks",
+            codename="approve_task_submission",
+        )
+        self.owner.user_permissions.add(permission)
+        request = type("Request", (), {"user": self.owner})()
+
+        messages = []
+        modeladmin = type(
+            "ModelAdmin",
+            (),
+            {
+                "message_user": lambda self, request, message, level=None:
+                    messages.append(message)
+            },
+        )()
+
+        approve_submissions(
+            modeladmin,
+            request,
+            TaskClaim.objects.filter(pk=self.claim.pk),
+        )
+
+        self.claim.refresh_from_db()
+        self.task.refresh_from_db()
+        self.assertEqual(self.claim.status, "approved")
+        self.assertEqual(self.task.claimed_workers, 1)
+        self.assertEqual(self.task.completed_workers, 1)
+        self.assertEqual(self.task.status, "completed")
+        self.assertTrue(
+            WalletTransaction.objects.filter(
+                task_claim=self.claim
+            ).exists()
+        )
+
+    def test_rejection_releases_claimed_slot(self):
+        permission = Permission.objects.get(
+            content_type__app_label="tasks",
+            codename="reject_task_submission",
+        )
+        self.owner.user_permissions.add(permission)
+        request = type("Request", (), {"user": self.owner})()
+
+        messages = []
+        modeladmin = type(
+            "ModelAdmin",
+            (),
+            {
+                "message_user": lambda self, request, message, level=None:
+                    messages.append(message)
+            },
+        )()
+
+        reject_submissions(
+            modeladmin,
+            request,
+            TaskClaim.objects.filter(pk=self.claim.pk),
+        )
+
+        self.claim.refresh_from_db()
+        self.task.refresh_from_db()
+        self.assertEqual(self.claim.status, "rejected")
+        self.assertEqual(self.task.claimed_workers, 0)
+        self.assertEqual(self.task.completed_workers, 0)
+        self.assertEqual(self.task.status, "active")

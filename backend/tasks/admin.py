@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from accounts.policies import is_owner
 from django.db import transaction
+from django.db.models import F
 
 from .models import Task, TaskClaim
 from accounts.models import WorkerProfile
@@ -20,7 +21,7 @@ class TaskAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             # Owner may create a new task with its initial reward/capacity.
-            return ("completed_workers", "created_at")
+            return ("claimed_workers", "completed_workers", "created_at")
 
         # Existing task reward/capacity/lifecycle state must not be changed
         # through a generic admin form. Controlled application flows own these
@@ -28,6 +29,7 @@ class TaskAdmin(admin.ModelAdmin):
         return (
             "reward",
             "max_workers",
+            "claimed_workers",
             "completed_workers",
             "status",
             "created_at",
@@ -37,6 +39,7 @@ class TaskAdmin(admin.ModelAdmin):
         "title",
         "category",
         "reward",
+        "claimed_workers",
         "completed_workers",
         "max_workers",
         "status",
@@ -80,6 +83,16 @@ def approve_submissions(modeladmin, request, queryset):
             if existing_payment:
                 claim.status = "approved"
                 claim.save(update_fields=["status"])
+                Task.objects.filter(
+                    pk=claim.task_id,
+                    completed_workers__lt=F("max_workers"),
+                ).update(
+                    completed_workers=F("completed_workers") + 1,
+                )
+                task = Task.objects.get(pk=claim.task_id)
+                if task.completed_workers >= task.max_workers:
+                    task.status = "completed"
+                    task.save(update_fields=["status"])
                 already_paid += 1
                 continue
 
@@ -113,6 +126,18 @@ def approve_submissions(modeladmin, request, queryset):
 
             claim.status = "approved"
             claim.save(update_fields=["status"])
+
+            Task.objects.filter(
+                pk=claim.task_id,
+                completed_workers__lt=F("max_workers"),
+            ).update(
+                completed_workers=F("completed_workers") + 1,
+            )
+
+            task = Task.objects.get(pk=claim.task_id)
+            if task.completed_workers >= task.max_workers:
+                task.status = "completed"
+                task.save(update_fields=["status"])
 
             approved += 1
 
@@ -156,6 +181,7 @@ def reject_submissions(modeladmin, request, queryset):
             claim = (
                 TaskClaim.objects
                 .select_for_update()
+                .select_related("task")
                 .get(id=claim_id)
             )
 
@@ -164,6 +190,22 @@ def reject_submissions(modeladmin, request, queryset):
 
             claim.status = "rejected"
             claim.save(update_fields=["status"])
+
+            Task.objects.filter(
+                pk=claim.task_id,
+                claimed_workers__gt=0,
+            ).update(
+                claimed_workers=F("claimed_workers") - 1,
+            )
+
+            task = Task.objects.get(pk=claim.task_id)
+            if (
+                task.status == "completed"
+                and task.completed_workers < task.max_workers
+            ):
+                task.status = "active"
+                task.save(update_fields=["status"])
+
             updated += 1
 
     modeladmin.message_user(
