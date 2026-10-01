@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User, Permission
 from django.test import TestCase
 from django.urls import reverse
+from decimal import Decimal
 
 from .admin import TaskAdmin, approve_submissions, reject_submissions
 from .models import Task, TaskClaim
@@ -416,6 +417,6 @@ class TaskServiceLifecycleTests(TestCase):
         )
 
         profile = WorkerProfile.objects.get(user=self.worker)
-        self.assertEqual(profile.balance, "30.00")
-        self.assertEqual(profile.total_earned, "30.00")
+        self.assertEqual(profile.balance, Decimal("30.00"))
+        self.assertEqual(profile.total_earned, Decimal("30.00"))
         self.assertEqual(profile.completed_tasks, 1)
