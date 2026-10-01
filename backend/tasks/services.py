@@ -3,6 +3,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from accounts.models import WorkerProfile
+from accounts.policies import is_worker
 from wallet.models import WalletTransaction
 
 from .models import Task, TaskClaim
@@ -14,6 +15,9 @@ class TaskServiceError(Exception):
 
 @transaction.atomic
 def claim_task_for_worker(*, user, task_id):
+    if not is_worker(user):
+        raise TaskServiceError("worker_access_required")
+
     task = (
         Task.objects
         .select_for_update()
@@ -107,11 +111,17 @@ def approve_claim(*, claim_id):
         raise TaskServiceError("claim_not_submittable")
 
     task = Task.objects.select_for_update().get(pk=claim.task_id)
-    profile, _ = (
+    if not is_worker(claim.worker):
+        raise TaskServiceError("worker_access_required")
+
+    profile = (
         WorkerProfile.objects
         .select_for_update()
-        .get_or_create(user=claim.worker)
+        .filter(user=claim.worker)
+        .first()
     )
+    if profile is None:
+        raise TaskServiceError("worker_profile_missing")
 
     existing_payment = WalletTransaction.objects.filter(
         task_claim=claim,
