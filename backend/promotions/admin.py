@@ -25,6 +25,8 @@ class PromotionAdmin(admin.ModelAdmin):
             return ("completed_workers", "status", "created_at")
 
         return (
+            "advertiser",
+            "advertiser_name",
             "reward",
             "budget",
             "max_workers",
