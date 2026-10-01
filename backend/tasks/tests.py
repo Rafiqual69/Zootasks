@@ -37,6 +37,8 @@ class TaskMarketplaceTests(TestCase):
             username="worker2",
             password="StrongTestPass123!",
         )
+        WorkerProfile.objects.create(user=self.user)
+        WorkerProfile.objects.create(user=self.other_user)
 
         self.active_task = Task.objects.create(
             title="Test Active Task",
@@ -268,6 +270,7 @@ class TaskSubmissionLifecycleTests(TestCase):
             username="task_worker",
             password="StrongTestPass123!",
         )
+        WorkerProfile.objects.create(user=self.worker)
         self.task = Task.objects.create(
             title="Reviewable Task",
             description="Review this task.",
@@ -339,6 +342,7 @@ class TaskServiceLifecycleTests(TestCase):
             username="service_worker",
             password="StrongTestPass123!",
         )
+        WorkerProfile.objects.create(user=self.worker)
         self.task = Task.objects.create(
             title="Service Task",
             description="Use the shared task service.",
