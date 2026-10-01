@@ -1,5 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.core.exceptions import PermissionDenied
+
+from accounts.policies import is_worker
 
 from .models import Task, TaskClaim
 from .services import (
@@ -11,6 +14,8 @@ from .services import (
 
 @login_required
 def marketplace(request):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     category = request.GET.get("category", "").strip()
 
     tasks = Task.objects.filter(status="active").order_by("-created_at")
@@ -75,6 +80,8 @@ def task_detail(request, task_id):
 
 @login_required
 def submit_task(request, task_id):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     claim = TaskClaim.objects.filter(
         task_id=task_id,
         worker=request.user,
