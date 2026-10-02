@@ -80,6 +80,8 @@ def run_evaluation() -> dict:
                         AI_ALLOWED_CAPABILITIES="AI-SYS-001",
                         AI_ALLOWED_PROVIDERS="test-provider",
                         AI_ALLOWED_MODELS="test-model-v1",
+                        AI_PRODUCTION_APPROVED=True,
+                        AI_APPROVAL_REFERENCE="AI-EVAL-REL-001",
                     ):
                         request_ai(request=request, provider="test-provider", model="test-model-v1")
                 except AIGatewayError as exc:
