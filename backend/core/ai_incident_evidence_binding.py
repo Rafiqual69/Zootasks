@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import re
 
 from core.ai_incident_response import IncidentEvidence, IncidentResponseError, incident_digest
 from core.ai_policy_evidence_bundle import PolicyEvidenceBundle, bundle_digest
@@ -49,7 +50,8 @@ def bind_incident_evidence(
         raise IncidentEvidenceBindingError("release_digest_mismatch")
     if incident.system_id != release.system_id or incident.release_id != release.release_id:
         raise IncidentEvidenceBindingError("incident_release_identity_mismatch")
-    if incident.runtime_decision_digest != incident.runtime_decision_digest.strip():
+    runtime_digest = incident.runtime_decision_digest
+    if not re.fullmatch(r"[0-9a-f]{64}", runtime_digest):
         raise IncidentEvidenceBindingError("runtime_decision_digest_invalid")
     if policy_bundle.decision == "allow":
         raise IncidentEvidenceBindingError("incident_binding_allow_bundle_forbidden")
