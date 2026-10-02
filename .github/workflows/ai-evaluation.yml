@@ -28,9 +28,10 @@ jobs:
           AI_PRODUCTION_APPROVED: "false"
           AI_APPROVAL_REFERENCE: ""
         run: |
-          python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
+          python -m core.ai_evaluation_runner artifacts/ai/AI-SYS-001-evidence.json
           python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests
       - name: Validate evidence JSON
+        working-directory: backend
         run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
       - name: Verify evidence integrity
         working-directory: backend
@@ -53,5 +54,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AI-SYS-001-evidence-${{ github.sha }}
-          path: artifacts/ai/AI-SYS-001-evidence.json
+          path: backend/artifacts/ai/AI-SYS-001-evidence.json
           if-no-files-found: error
