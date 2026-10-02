@@ -66,6 +66,27 @@ def runtime_decision(policy: RuntimePolicy, observation: RuntimeObservation) -> 
     digest=sha256(json.dumps(payload,sort_keys=True,separators=(",",":")).encode()).hexdigest()
     return RuntimeDecision(state,tuple(reasons),bool(reasons),digest)
 
+def verify_runtime_decision_context(system_id: str, release_id: str, decision: RuntimeDecision) -> bool:
+    if not system_id.strip() or not release_id.strip():
+        raise RuntimeMonitorError("identity_required")
+    if decision.state not in {"healthy", "rollback_required"}:
+        raise RuntimeMonitorError("decision_state_invalid")
+    expected = sha256(json.dumps(
+        {
+            "system_id": system_id,
+            "release_id": release_id,
+            "state": decision.state,
+            "reasons": list(decision.reasons),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()).hexdigest()
+    if decision.decision_digest != expected:
+        raise RuntimeMonitorError("decision_digest_mismatch")
+    if decision.rollback_required != (decision.state == "rollback_required"):
+        raise RuntimeMonitorError("decision_state_mismatch")
+    return True
+
 def enforce_runtime_gate(policy: RuntimePolicy, observation: RuntimeObservation) -> str:
     decision=runtime_decision(policy,observation)
     return "quarantined" if decision.rollback_required else "healthy"
