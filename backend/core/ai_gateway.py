@@ -11,6 +11,8 @@ from typing import Any, Mapping
 
 from django.conf import settings
 
+from .ai_safety_firewall import validate_action_class, validate_autonomy
+
 
 class AIGatewayError(Exception):
     """Expected failure at the AI trust boundary."""
@@ -56,6 +58,11 @@ def validate_task_quality_output(output: Any) -> Mapping[str, Any]:
     """Validate a bounded, non-executable suggestion object."""
     if not isinstance(output, Mapping):
         raise AIGatewayError("ai_output_invalid")
+    try:
+        validate_action_class(capability_id="AI-SYS-001", action_class="suggestion")
+        validate_autonomy(capability_id="AI-SYS-001", autonomy="suggestion_only")
+    except Exception as exc:
+        raise AIGatewayError("ai_safety_policy_rejected") from exc
     allowed = {"category_suggestion", "missing_information", "quality_checks", "confidence", "rationale"}
     if set(output) - allowed:
         raise AIGatewayError("ai_output_fields_not_allowed")
