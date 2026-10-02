@@ -8,6 +8,12 @@ class AIGatewayBoundaryTests(SimpleTestCase):
     def request(self):
         return build_task_quality_request(task_title="Test task", task_description="A safe task", category="Testing", correlation_id="case")
 
+    def test_tool_execution_is_fail_closed(self):
+        request = self.request()
+        with self.assertRaisesMessage(AIGatewayError, "ai_tool_not_allowed"):
+            from .ai_gateway import validate_tool_execution
+            validate_tool_execution(request=request, tool_class="database_read")
+
     def test_registered_agent_is_bound_to_request(self):
         request = self.request()
         self.assertEqual(request.agent_id, "ZT-AGENT-001")
