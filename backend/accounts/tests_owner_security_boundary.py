@@ -14,6 +14,7 @@ from accounts.models import (
 )
 from accounts.policies import is_owner
 from accounts.email_verification import _hash_token, verify_owner_email_token
+from accounts.owner_verification import get_owner_verification_snapshot
 
 
 class OwnerSecurityBoundaryTests(TestCase):
@@ -83,3 +84,25 @@ class OwnerSecurityBoundaryTests(TestCase):
         challenge.refresh_from_db()
         self.assertIsNone(self.entity.email_verified_at)
         self.assertIsNone(challenge.used_at)
+
+
+    def test_owner_verification_snapshot_is_read_only_and_fail_closed(self):
+        snapshot = get_owner_verification_snapshot(self.owner)
+        self.assertTrue(snapshot.owner_active)
+        self.assertFalse(snapshot.email_verified)
+        self.assertFalse(snapshot.mobile_verified)
+        self.assertFalse(snapshot.whatsapp_verified)
+        self.assertFalse(snapshot.telegram_verified)
+        self.assertFalse(snapshot.facebook_verified)
+        self.assertFalse(snapshot.instagram_verified)
+        self.assertFalse(snapshot.totp_verified)
+
+    def test_owner_verification_snapshot_rejects_non_owner(self):
+        User = get_user_model()
+        worker = User.objects.create_user(
+            username="verification-worker",
+            password="Strong-Test-Password-123!",
+            is_active=True,
+        )
+        with self.assertRaises(PermissionError):
+            get_owner_verification_snapshot(worker)
