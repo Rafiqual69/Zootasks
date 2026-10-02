@@ -376,12 +376,5 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
             "INC-B3","AI-SYS-001","R1","high",
             "policy_violation_detected","not-a-sha256"
         )
-        policy=self._policy()
-        release=self._release()
-        with self.assertRaisesRegex(IncidentEvidenceBindingError, "runtime_decision_digest_invalid"):
-            bind_incident_evidence(
-                incident,policy,release,self._runtime(),
-                expected_incident_digest=incident_digest(incident),
-                expected_policy_bundle_digest=bundle_digest(policy),
-                expected_release_digest=release_digest(release),
-            )
+        with self.assertRaisesRegex(IncidentResponseError, "runtime_decision_digest_invalid"):
+            incident_digest(incident)
