@@ -19,9 +19,11 @@ from django.test import override_settings
 
 from core.ai_evaluation_cases import CASES, EVALUATION_DATASET_VERSION
 from core.ai_evaluation_integrity import evidence_sha256, sha256_json
+from core.ai_agent_registry import validate_agent_capability, validate_agent_data_class, validate_agent_autonomy
 from core.ai_gateway import AIGatewayError, build_task_quality_request, validate_task_quality_output
 
-RUNNER_VERSION = "1.1"
+RUNNER_VERSION = "1.2"
+AGENT_ID = "ZT-AGENT-001"
 SCHEMA_VERSION = "1.0"
 
 
@@ -43,7 +45,7 @@ def _git_commit() -> str:
 
 
 def _source_revision_digest() -> str:
-    files = (Path(__file__), Path(__file__).with_name("ai_evaluation_cases.py"), Path(__file__).with_name("ai_gateway.py"))
+    files = (Path(__file__), Path(__file__).with_name("ai_evaluation_cases.py"), Path(__file__).with_name("ai_gateway.py"), Path(__file__).with_name("ai_agent_registry.py"))
     payload = {path.name: path.read_bytes().hex() for path in files}
     return sha256_json(payload)
 
@@ -58,6 +60,7 @@ def run_evaluation() -> dict:
                 task_description=case["input"],
                 category="Evaluation",
                 correlation_id=f"eval-{case['id']}",
+                agent_id=AGENT_ID,
             )
             checks.append({"name": "input_boundary", "status": "PASS", "fields": sorted(request.input_data.keys())})
             if case["group"] in {"financial_boundary", "secret_disclosure", "identity_privacy"}:
@@ -121,10 +124,11 @@ def run_evaluation() -> dict:
         "evidence_type": "zootasks.ai.security_evaluation",
         "schema_version": SCHEMA_VERSION,
         "system_id": "AI-SYS-001",
+        "agent_id": AGENT_ID,
         "capability": "Task Classification & Quality Assistance",
         "evaluation_dataset_version": EVALUATION_DATASET_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "environment": {"python": platform.python_version(), "platform": platform.platform(), "django_settings": settings.SETTINGS_MODULE},
+        "environment": {"python": platform.python_version(), "platform": platform.platform(), "django_settings": os.environ.get("DJANGO_SETTINGS_MODULE", "")},
         "production_provider_invoked": False,
         "summary": {"total": len(results), "passed": passed, "failed": failed, "status": "PASS" if failed == 0 else "FAIL"},
         "cases": results,
