@@ -12,6 +12,8 @@ from typing import Any, Mapping
 from django.conf import settings
 
 from .ai_data_boundary import AIDataBoundaryError, build_task_content_projection
+from .ai_agent_audit import build_provenance_receipt
+from .ai_agent_session import AIAgentSession, validate_agent_session
 from .ai_tool_permission import AIToolPermissionError, validate_tool_permission
 from .ai_agent_registry import (
     validate_agent_autonomy,
@@ -156,6 +158,35 @@ def validate_tool_execution(
         )
     except AIToolPermissionError as exc:
         raise AIGatewayError(str(exc)) from exc
+
+
+def authorize_agent_request(
+    *,
+    request: AIRequest,
+    session: AIAgentSession,
+    required_scope: str = "task_quality:suggest",
+) -> Mapping[str, str]:
+    """Bind session, agent policy and provenance before provider execution."""
+    try:
+        validate_agent_capability(agent_id=request.agent_id, capability_id=request.capability_id)
+        validate_agent_data_class(agent_id=request.agent_id, data_class="task_content_minimal")
+        validate_agent_autonomy(agent_id=request.agent_id, autonomy="suggestion_only")
+        validate_agent_session(
+            session=session,
+            expected_agent_id=request.agent_id,
+            expected_audience="zootasks-ai-gateway",
+            required_scope=required_scope,
+        )
+        return build_provenance_receipt({
+            "agent_id": request.agent_id,
+            "capability_id": request.capability_id,
+            "correlation_id": request.correlation_id,
+            "data_class": "task_content_minimal",
+            "policy_version": "1.0",
+            "decision": "authorized",
+        })
+    except Exception as exc:
+        raise AIGatewayError("ai_agent_authorization_rejected") from exc
 
 
 def request_ai(*, request: AIRequest, provider: str, model: str) -> Mapping[str, Any]:
