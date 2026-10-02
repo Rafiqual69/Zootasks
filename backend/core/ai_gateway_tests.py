@@ -1,5 +1,6 @@
 from django.test import SimpleTestCase, override_settings
 
+from .ai_agent_session import issue_agent_session
 from .ai_gateway import AIGatewayError, build_task_quality_request, request_ai, validate_task_quality_output
 
 
@@ -7,6 +8,33 @@ from .ai_gateway import AIGatewayError, build_task_quality_request, request_ai, 
 class AIGatewayBoundaryTests(SimpleTestCase):
     def request(self):
         return build_task_quality_request(task_title="Test task", task_description="A safe task", category="Testing", correlation_id="case")
+
+    def test_agent_authorization_binds_session_and_provenance(self):
+        from .ai_gateway import authorize_agent_request
+        request = self.request()
+        session = issue_agent_session(
+            session_id="sess-test",
+            agent_id="ZT-AGENT-001",
+            audience="zootasks-ai-gateway",
+            scopes=frozenset({"task_quality:suggest"}),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        )
+        receipt = authorize_agent_request(request=request, session=session)
+        self.assertEqual(receipt["decision"], "authorized")
+        self.assertEqual(receipt["agent_id"], "ZT-AGENT-001")
+
+    def test_wrong_session_is_rejected(self):
+        from .ai_gateway import authorize_agent_request, AIGatewayError
+        request = self.request()
+        session = issue_agent_session(
+            session_id="sess-test",
+            agent_id="ZT-AGENT-999",
+            audience="zootasks-ai-gateway",
+            scopes=frozenset({"task_quality:suggest"}),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        )
+        with self.assertRaisesMessage(AIGatewayError, "ai_agent_authorization_rejected"):
+            authorize_agent_request(request=request, session=session)
 
     def test_tool_execution_is_fail_closed(self):
         request = self.request()
