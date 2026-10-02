@@ -148,7 +148,6 @@ class OwnerEmailVerificationChallenge(models.Model):
         related_name="owner_email_verification_challenges",
     )
     token_hash = models.CharField(max_length=64, unique=True)
-    pending_email = models.EmailField(null=True, blank=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
     attempts = models.PositiveSmallIntegerField(default=0)
