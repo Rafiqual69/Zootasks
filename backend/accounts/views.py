@@ -109,10 +109,20 @@ def owner_email_verify(request, token):
 @user_passes_test(is_owner)
 def owner_verification_center(request):
     snapshot = get_owner_verification_snapshot(request.user)
+    verification_items = (
+        ("Canonical Owner", snapshot.owner_active),
+        ("Owner email", snapshot.email_verified),
+        ("Mobile", snapshot.mobile_verified),
+        ("WhatsApp", snapshot.whatsapp_verified),
+        ("Telegram", snapshot.telegram_verified),
+        ("Facebook", snapshot.facebook_verified),
+        ("Instagram", snapshot.instagram_verified),
+        ("TOTP", snapshot.totp_verified),
+    )
     response = render(
         request,
         "accounts/owner_verification_center.html",
-        {"snapshot": snapshot},
+        {"snapshot": snapshot, "verification_items": verification_items},
     )
     return _no_store(response)
 
