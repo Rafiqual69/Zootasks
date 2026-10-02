@@ -39,6 +39,7 @@ This index is the audit trail for AI governance evidence.
 - Incident response + safe rollback state machine: backend/core/ai_incident_response.py + docs/ai/AI_INCIDENT_RESPONSE_AND_SAFE_ROLLBACK.md
 - Incident evidence binding: backend/core/ai_incident_evidence_binding.py
 - Incident evidence binding hardening: SHA-256-format validation for runtime decision digests + regression test
+- Runtime decision context binding: incident evidence now verifies the decision digest against the exact system/release context before recovery evidence can be trusted
 
 ## Evidence classes
 
