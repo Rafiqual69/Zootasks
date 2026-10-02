@@ -142,6 +142,12 @@ ASGI_APPLICATION = "config.asgi.application"
 
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
+# =============== AI SAFETY BOUNDARY ===============
+# Empty by default: production AI cannot activate accidentally.
+AI_ALLOWED_CAPABILITIES = config("AI_ALLOWED_CAPABILITIES", default="")
+AI_ALLOWED_PROVIDERS = config("AI_ALLOWED_PROVIDERS", default="")
+AI_ALLOWED_MODELS = config("AI_ALLOWED_MODELS", default="")
+AI_MAX_INPUT_CHARS = config("AI_MAX_INPUT_CHARS", default=12000, cast=int)
 # High-assurance Owner access
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
 OWNER_IDENTITY_EMAIL = config("OWNER_IDENTITY_EMAIL", default="")
