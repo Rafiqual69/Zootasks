@@ -11,6 +11,7 @@ from typing import Any, Mapping
 
 from django.conf import settings
 
+from .ai_capability_budget import validate_execution_budget, validate_input_budget, validate_output_budget
 from .ai_safety_firewall import validate_action_class, validate_autonomy
 
 
@@ -49,6 +50,10 @@ def build_task_quality_request(*, task_title: str, task_description: str, catego
     values = {"title": (task_title or "").strip(), "description": (task_description or "").strip(), "category": (category or "").strip()}
     if sum(len(value) for value in values.values()) > int(getattr(settings, "AI_MAX_INPUT_CHARS", 12000)):
         raise AIGatewayError("ai_input_too_large")
+    try:
+        validate_input_budget(capability_id="AI-SYS-001", input_data=values)
+    except Exception as exc:
+        raise AIGatewayError("ai_input_budget_exceeded") from exc
     if not values["title"] or not values["description"]:
         raise AIGatewayError("ai_task_content_required")
     return AIRequest("AI-SYS-001", values, correlation_id)
@@ -81,7 +86,13 @@ def validate_task_quality_output(output: Any) -> Mapping[str, Any]:
         raise AIGatewayError("ai_output_confidence_invalid")
     if not isinstance(rationale, str) or len(rationale) > 1000:
         raise AIGatewayError("ai_output_rationale_invalid")
-    return {"category_suggestion": category, "missing_information": missing, "quality_checks": checks, "confidence": confidence, "rationale": rationale}
+    result = {"category_suggestion": category, "missing_information": missing, "quality_checks": checks, "confidence": confidence, "rationale": rationale}
+    try:
+        validate_output_budget(capability_id="AI-SYS-001", output=result)
+        validate_execution_budget(capability_id="AI-SYS-001", tool_calls=0, external_side_effects=False)
+    except Exception as exc:
+        raise AIGatewayError("ai_output_budget_exceeded") from exc
+    return result
 
 
 def validate_production_approval() -> None:
@@ -96,5 +107,9 @@ def request_ai(*, request: AIRequest, provider: str, model: str) -> Mapping[str,
     """Fail closed until an approved provider adapter exists."""
     validate_capability(request.capability_id)
     validate_provider_model(provider, model)
+    try:
+        validate_execution_budget(capability_id=request.capability_id, tool_calls=0, external_side_effects=False)
+    except Exception as exc:
+        raise AIGatewayError("ai_execution_budget_rejected") from exc
     validate_production_approval()
     raise AIGatewayError("ai_provider_adapter_not_enabled")
