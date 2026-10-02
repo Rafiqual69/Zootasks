@@ -84,3 +84,32 @@ class SourcePrivacyGateTests(SimpleTestCase):
     def test_unapproved_region_is_quarantined(self):
         p=PrivacyPolicy("public","evaluation","7 days",(),("US",),True)
         self.assertEqual(evaluate_privacy(p,region="BD").state,"quarantined")
+
+
+from core.ai_delegation_chain import ChainLink, DelegationChainError, verify_chain
+
+class DelegationChainTests(SimpleTestCase):
+    def test_valid_chain_is_deterministically_verified(self):
+        root=ChainLink("D1","owner","exec",("research",),("approved_research",),("internal",),10)
+        child=ChainLink("D2","exec","researcher",("research",),("approved_research",),("internal",),5,verify_chain((root,)))
+        digest=verify_chain((root,child))
+        self.assertTrue(digest)
+        self.assertEqual(digest,verify_chain((root,child)))
+
+    def test_parent_digest_mismatch_rejected(self):
+        root=ChainLink("D1","owner","exec",("research",),("approved_research",),("internal",),10)
+        child=ChainLink("D2","exec","researcher",("research",),("approved_research",),("internal",),5,"bad")
+        with self.assertRaisesRegex(DelegationChainError,"delegation_parent_mismatch"):
+            verify_chain((root,child))
+
+    def test_action_escalation_rejected(self):
+        root=ChainLink("D1","owner","exec",("research",),("approved_research",),("internal",),10)
+        child=ChainLink("D2","exec","researcher",("external_side_effect",),("approved_research",),("internal",),5,verify_chain((root,)))
+        with self.assertRaisesRegex(DelegationChainError,"delegation_action_escalation"):
+            verify_chain((root,child))
+
+    def test_budget_escalation_rejected(self):
+        root=ChainLink("D1","owner","exec",("research",),("approved_research",),("internal",),5)
+        child=ChainLink("D2","exec","researcher",("research",),("approved_research",),("internal",),6,verify_chain((root,)))
+        with self.assertRaisesRegex(DelegationChainError,"delegation_budget_escalation"):
+            verify_chain((root,child))
