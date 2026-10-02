@@ -11,6 +11,7 @@ from typing import Any, Mapping
 
 from django.conf import settings
 
+from .ai_data_boundary import AIDataBoundaryError, build_task_content_projection
 from .ai_agent_registry import (
     validate_agent_autonomy,
     validate_agent_capability,
@@ -67,19 +68,22 @@ def build_task_quality_request(
     except Exception as exc:
         raise AIGatewayError("ai_agent_policy_rejected") from exc
 
-    values = {
-        "title": (task_title or "").strip(),
-        "description": (task_description or "").strip(),
-        "category": (category or "").strip(),
-    }
+    try:
+        values = dict(
+            build_task_content_projection(
+                title=task_title,
+                description=task_description,
+                category=category,
+            )
+        )
+    except AIDataBoundaryError as exc:
+        raise AIGatewayError(str(exc)) from exc
     if sum(len(value) for value in values.values()) > int(getattr(settings, "AI_MAX_INPUT_CHARS", 12000)):
         raise AIGatewayError("ai_input_too_large")
     try:
         validate_input_budget(capability_id="AI-SYS-001", input_data=values)
     except Exception as exc:
         raise AIGatewayError("ai_input_budget_exceeded") from exc
-    if not values["title"] or not values["description"]:
-        raise AIGatewayError("ai_task_content_required")
     return AIRequest(agent_id, "AI-SYS-001", values, correlation_id)
 
 
