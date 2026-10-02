@@ -163,3 +163,28 @@ class PolicyEvidenceBundleTests(SimpleTestCase):
     def test_approved_bundle_verifies(self):
         b=self._bundle("allow","OWNER-APPROVAL-1")
         self.assertTrue(verify_bundle(b,bundle_digest(b)))
+
+
+from core.ai_release_tevv_gate import ReleaseEvidence, ReleaseGateError, evaluate_release, release_digest
+
+class ReleaseTEVVGateTests(SimpleTestCase):
+    def _release(self, state="candidate", approval=None):
+        return ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","rollback-1","monitor-1",approval,state)
+
+    def test_candidate_is_quarantined(self):
+        state,digest=evaluate_release(self._release())
+        self.assertEqual(state,"quarantined")
+        self.assertEqual(digest,release_digest(self._release()))
+
+    def test_approved_release_requires_approval(self):
+        with self.assertRaisesRegex(ReleaseGateError,"release_approval_required"):
+            release_digest(self._release("approved"))
+
+    def test_approved_release_reaches_controlled_rollout(self):
+        state,_=evaluate_release(self._release("approved","OWNER-APPROVAL-1"))
+        self.assertEqual(state,"approved_for_controlled_rollout")
+
+    def test_missing_monitoring_evidence_rejected(self):
+        bad=ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","rollback-1","","OWNER-APPROVAL-1","approved")
+        with self.assertRaisesRegex(ReleaseGateError,"release_evidence_required"):
+            release_digest(bad)
