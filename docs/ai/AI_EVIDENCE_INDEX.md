@@ -36,6 +36,7 @@ This index is the audit trail for AI governance evidence.
 - Policy decision evidence bundle: backend/core/ai_policy_evidence_bundle.py + docs/ai/AI_POLICY_DECISION_EVIDENCE_BUNDLE.md
 - Release TEVV gate: backend/core/ai_release_tevv_gate.py + docs/ai/AI_RELEASE_TEVV_GATE.md
 - Runtime Trust Sentinel: backend/core/ai_runtime_monitor.py + docs/ai/AI_RUNTIME_MONITORING_AND_ROLLBACK_GATE.md
+- Incident response + safe rollback state machine: backend/core/ai_incident_response.py + docs/ai/AI_INCIDENT_RESPONSE_AND_SAFE_ROLLBACK.md
 
 ## Evidence classes
 
