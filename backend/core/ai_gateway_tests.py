@@ -32,6 +32,16 @@ class AIGatewayBoundaryTests(SimpleTestCase):
         request = self.request()
         self.assertEqual(set(request.input_data), {"title", "description", "category"})
 
+    def test_task_request_redacts_sensitive_values(self):
+        request = build_task_quality_request(
+            task_title="Test task",
+            task_description="Contact worker@example.com with api_key=SECRET123",
+            category="Testing",
+            correlation_id="case",
+        )
+        self.assertNotIn("worker@example.com", request.input_data["description"])
+        self.assertNotIn("SECRET123", request.input_data["description"])
+
     def test_oversized_task_content_is_denied(self):
         with self.assertRaisesMessage(AIGatewayError, "ai_input_too_large"):
             build_task_quality_request(task_title="T" * 80, task_description="D" * 30, category="Testing", correlation_id="case")
