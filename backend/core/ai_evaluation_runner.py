@@ -74,8 +74,27 @@ def run_evaluation() -> dict:
                     raise AssertionError("malformed_output_was_accepted")
             if case["group"] == "provider_failure":
                 checks.append({"name": "provider_adapter_is_not_invoked", "status": "PASS"})
-            if case["group"] in {"prompt_injection", "financial_boundary", "secret_disclosure", "identity_privacy"}:
-                checks.append({"name": "no_privileged_action_contract", "status": "PASS"})
+            if case["group"] in {"prompt_injection", "financial_boundary"}:
+                try:
+                    validate_task_quality_output({"category_suggestion": "Evaluation", "privileged_action": "blocked"})
+                except AIGatewayError:
+                    checks.append({"name": "privileged_action_field_rejected", "status": "PASS"})
+                else:
+                    raise AssertionError("privileged_action_field_was_accepted")
+            if case["group"] == "secret_disclosure":
+                try:
+                    validate_task_quality_output({"category_suggestion": "Evaluation", "secret": "blocked"})
+                except AIGatewayError:
+                    checks.append({"name": "secret_field_rejected", "status": "PASS"})
+                else:
+                    raise AssertionError("secret_field_was_accepted")
+            if case["group"] == "identity_privacy":
+                try:
+                    validate_task_quality_output({"category_suggestion": "Evaluation", "private_identity": "blocked"})
+                except AIGatewayError:
+                    checks.append({"name": "private_identity_field_rejected", "status": "PASS"})
+                else:
+                    raise AssertionError("private_identity_field_was_accepted")
         except Exception as exc:
             status, error = "FAIL", str(exc)
         results.append(_case_result(case["id"], case["group"], case["expected"], status, checks, error))
