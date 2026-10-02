@@ -222,3 +222,60 @@ class RuntimeTrustSentinelTests(SimpleTestCase):
         a=runtime_decision(RuntimePolicy(), self._obs())
         b=runtime_decision(RuntimePolicy(), self._obs())
         self.assertEqual(a.decision_digest, b.decision_digest)
+
+
+from core.ai_incident_response import IncidentEvidence, IncidentResponseError, incident_digest, transition_incident
+
+class IncidentResponseStateMachineTests(SimpleTestCase):
+    def _incident(self, **kw):
+        data=dict(
+            incident_id="INC-1",
+            system_id="AI-SYS-001",
+            release_id="R1",
+            severity="high",
+            detection_reason="error_rate_exceeded",
+            runtime_decision_digest="d"*64,
+        )
+        data.update(kw)
+        return IncidentEvidence(**data)
+
+    def test_detection_quarantine_and_rollback_path_is_ordered(self):
+        incident=transition_incident(self._incident(), "quarantined")
+        incident=transition_incident(incident, "rollback_candidate")
+        incident=transition_incident(incident, "rollback_approved", approval_ref="OWNER-APPROVAL-1")
+        incident=transition_incident(incident, "rolled_back", rollback_ref="ROLLBACK-R1")
+        incident=transition_incident(incident, "revalidation_required")
+        recovered=transition_incident(incident, "recovered", revalidation_ref="TEVV-R1")
+        self.assertEqual(recovered.state, "recovered")
+
+    def test_invalid_transition_fails_closed(self):
+        with self.assertRaisesRegex(IncidentResponseError, "incident_transition_denied"):
+            transition_incident(self._incident(), "rolled_back")
+
+    def test_rollback_requires_approval_and_reference(self):
+        incident=transition_incident(self._incident(), "quarantined")
+        incident=transition_incident(incident, "rollback_candidate")
+        with self.assertRaisesRegex(IncidentResponseError, "incident_approval_required"):
+            transition_incident(incident, "rollback_approved")
+        incident=transition_incident(incident, "rollback_approved", approval_ref="OWNER-APPROVAL-1")
+        with self.assertRaisesRegex(IncidentResponseError, "rollback_reference_required"):
+            transition_incident(incident, "rolled_back")
+
+    def test_recovery_requires_revalidation(self):
+        incident=transition_incident(self._incident(), "quarantined")
+        incident=transition_incident(incident, "rollback_candidate")
+        incident=transition_incident(incident, "rollback_approved", approval_ref="OWNER-APPROVAL-1")
+        incident=transition_incident(incident, "rolled_back", rollback_ref="ROLLBACK-R1")
+        incident=transition_incident(incident, "revalidation_required")
+        with self.assertRaisesRegex(IncidentResponseError, "revalidation_reference_required"):
+            transition_incident(incident, "recovered")
+
+    def test_terminal_state_cannot_be_reopened(self):
+        incident=transition_incident(self._incident(), "quarantined")
+        incident=transition_incident(incident, "decommissioned", approval_ref="OWNER-APPROVAL-1")
+        with self.assertRaisesRegex(IncidentResponseError, "incident_terminal_state"):
+            transition_incident(incident, "quarantined")
+
+    def test_incident_digest_is_deterministic(self):
+        incident=self._incident()
+        self.assertEqual(incident_digest(incident), incident_digest(incident))
