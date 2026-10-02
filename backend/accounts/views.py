@@ -6,11 +6,13 @@ from django.db import transaction
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from urllib.parse import urlsplit
 
 from .email_verification import issue_owner_email_verification, verify_owner_email_token
 from .forms import AdvertiserRegistrationForm, RegistrationForm
 from .models import AccountEntity, AdvertiserProfile, WorkerProfile
 from .policies import is_owner
+from .owner_verification import get_owner_verification_snapshot
 from promotions.models import Promotion
 from wallet.models import WalletTransaction
 
@@ -82,7 +84,6 @@ def owner_email_verify(request, token):
             "accounts/owner_email_verify.html",
             {"token": token},
         )
-        response["Referrer-Policy"] = "no-referrer"
         response["Cache-Control"] = "no-store"
         return response
 
@@ -102,6 +103,28 @@ def owner_email_verify(request, token):
     response["Referrer-Policy"] = "no-referrer"
     response["Cache-Control"] = "no-store"
     return response
+
+
+@login_required
+@user_passes_test(is_owner)
+def owner_verification_center(request):
+    snapshot = get_owner_verification_snapshot(request.user)
+    verification_items = (
+        ("Canonical Owner", snapshot.owner_active),
+        ("Owner email", snapshot.email_verified),
+        ("Mobile", snapshot.mobile_verified),
+        ("WhatsApp", snapshot.whatsapp_verified),
+        ("Telegram", snapshot.telegram_verified),
+        ("Facebook", snapshot.facebook_verified),
+        ("Instagram", snapshot.instagram_verified),
+        ("TOTP", snapshot.totp_verified),
+    )
+    response = render(
+        request,
+        "accounts/owner_verification_center.html",
+        {"snapshot": snapshot, "verification_items": verification_items},
+    )
+    return _no_store(response)
 
 
 @login_required
@@ -231,12 +254,12 @@ def owner_social_oauth_callback(request, provider):
 def csrf_diagnostic_failure(request, reason=''):
     import logging
     logging.getLogger('django.security.csrf').warning(
-        'ZOOTASKS_CSRF_DIAGNOSTIC reason=%r method=%r host=%r origin=%r referer=%r cookie=%s token=%s',
+        'ZOOTASKS_CSRF_DIAGNOSTIC reason=%r method=%r host=%r origin=%r referer_origin=%r cookie=%s token=%s',
         reason,
         request.method,
         request.get_host(),
         request.META.get('HTTP_ORIGIN'),
-        request.META.get('HTTP_REFERER'),
+        (urlsplit(request.META.get('HTTP_REFERER', '')).scheme + '://' + urlsplit(request.META.get('HTTP_REFERER', '')).netloc) if request.META.get('HTTP_REFERER') else '',
         bool(request.COOKIES.get('csrftoken')),
         bool(request.POST.get('csrfmiddlewaretoken')),
     )

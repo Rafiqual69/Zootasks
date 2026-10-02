@@ -81,9 +81,12 @@ class OwnerIdentityBinding(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+        if (
+            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
+            or not self.account_entity.is_active
+        ):
             raise ValidationError(
-                "Owner identity binding requires the canonical Owner entity."
+                "Owner identity binding requires the canonical active Owner entity."
             )
 
     def save(self, *args, **kwargs):
@@ -122,9 +125,12 @@ class OwnerSocialIdentity(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+        if (
+            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
+            or not self.account_entity.is_active
+        ):
             raise ValidationError(
-                "Owner social identity requires the canonical Owner entity."
+                "Owner social identity requires the canonical active Owner entity."
             )
 
     def save(self, *args, **kwargs):
@@ -150,9 +156,12 @@ class OwnerEmailVerificationChallenge(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+        if (
+            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
+            or not self.account_entity.is_active
+        ):
             raise ValidationError(
-                "Owner email verification requires the canonical Owner entity."
+                "Owner email verification requires the canonical active Owner entity."
             )
 
     def is_valid(self, now=None):
@@ -204,9 +213,12 @@ class OwnerSocialOAuthState(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER:
+        if (
+            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
+            or not self.account_entity.is_active
+        ):
             raise ValidationError(
-                "Owner social OAuth state requires the canonical Owner entity."
+                "Owner social OAuth state requires the canonical active Owner entity."
             )
 
     def is_valid(self, now=None):
