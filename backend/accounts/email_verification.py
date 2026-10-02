@@ -79,7 +79,11 @@ def verify_owner_email_token(token):
         OwnerEmailVerificationChallenge.objects
         .select_for_update()
         .select_related("account_entity")
-        .filter(token_hash=token_hash)
+        .filter(
+            token_hash=token_hash,
+            account_entity__entity_type=AccountEntity.EntityType.OWNER,
+            account_entity__is_active=True,
+        )
         .first()
     )
     if not challenge or not challenge.is_valid():
