@@ -49,3 +49,20 @@ class MechanismCatalogAndProvenanceTests(SimpleTestCase):
         a=enqueue_observation(observation_id="OBS-2",source_kind="api",source_identifier="p",observed_at="2026-10-02T18:00:00+00:00",payload={"x":1})
         b=enqueue_observation(observation_id="OBS-2",source_kind="api",source_identifier="p",observed_at="2026-10-02T18:00:00+00:00",payload={"x":1},previous_digest="a"*64)
         self.assertNotEqual(observation_digest(a.record),observation_digest(b.record))
+
+
+from core.ai_agent_card import parse_agent_card, card_digest, is_signed
+from core.ai_delegation_token import Delegation, delegation_digest, authorize_delegated_call
+
+class AgentCardDelegationTests(SimpleTestCase):
+    def test_card_normalization_and_digest_are_deterministic(self):
+        payload={"agent_id":"A1","provider_id":"P1","version":"1","protocols":["a2a"],"capabilities":["research"],"destinations":["research"]}
+        a=parse_agent_card(payload); b=parse_agent_card(payload)
+        self.assertEqual(card_digest(a),card_digest(b)); self.assertFalse(is_signed(a))
+    def test_delegation_is_scoped_and_bounded(self):
+        d=Delegation("D1","A1","A2",("research",),("approved_research",),("research",),3,"2026-10-03T00:00:00+00:00")
+        self.assertTrue(authorize_delegated_call(d,action="research",tool="approved_research",destination="research",calls_used=0))
+        self.assertEqual(len(delegation_digest(d)),64)
+    def test_delegation_cannot_include_financial_authority(self):
+        d=Delegation("D2","A1","A2",("wallet_mutation",),("approved",),(),1,"2026-10-03T00:00:00+00:00")
+        with self.assertRaises(ValueError): delegation_digest(d)
