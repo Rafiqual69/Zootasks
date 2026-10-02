@@ -19,6 +19,10 @@ ALLOWED_CATEGORIES=frozenset({"data_annotation","multimodal_evaluation","llm_eva
 class CanonicalOffer:
     payload: dict[str,Any]
     @property
+    def offer_id(self) -> str:
+        return self.payload["offer_id"]
+
+    @property
     def executable(self)->bool:
         return (self.payload["authorization"]["status"]=="verified"
                 and self.payload["risk"]["state"]=="approved"
