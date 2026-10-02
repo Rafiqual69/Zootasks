@@ -73,7 +73,15 @@ def run_evaluation() -> dict:
                 else:
                     raise AssertionError("malformed_output_was_accepted")
             if case["group"] == "provider_failure":
-                checks.append({"name": "provider_adapter_is_not_invoked", "status": "PASS"})
+                try:
+                    from core.ai_gateway import request_ai
+                    request_ai(request=request, provider="test-provider", model="test-model-v1")
+                except AIGatewayError as exc:
+                    if str(exc) != "ai_provider_adapter_not_enabled":
+                        raise AssertionError(f"unexpected_provider_failure:{exc}")
+                    checks.append({"name": "provider_failure_is_fail_closed", "status": "PASS"})
+                else:
+                    raise AssertionError("provider_adapter_unexpectedly_invoked")
             if case["group"] in {"prompt_injection", "financial_boundary"}:
                 try:
                     validate_task_quality_output({"category_suggestion": "Evaluation", "privileged_action": "blocked"})
