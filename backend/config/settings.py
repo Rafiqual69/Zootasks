@@ -144,6 +144,8 @@ LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
 # =============== AI SAFETY BOUNDARY ===============
 # Empty by default: production AI cannot activate accidentally.
+AI_PRODUCTION_APPROVED = config("AI_PRODUCTION_APPROVED", default=False, cast=bool)
+AI_APPROVAL_REFERENCE = config("AI_APPROVAL_REFERENCE", default="")
 AI_ALLOWED_CAPABILITIES = config("AI_ALLOWED_CAPABILITIES", default="")
 AI_ALLOWED_PROVIDERS = config("AI_ALLOWED_PROVIDERS", default="")
 AI_ALLOWED_MODELS = config("AI_ALLOWED_MODELS", default="")
