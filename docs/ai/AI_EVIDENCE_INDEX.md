@@ -9,6 +9,7 @@ This index is the audit trail for AI governance evidence.
 - System inventory: `docs/ai/AI_SYSTEM_INVENTORY.md`
 - AI threat model: `docs/ai/AI_THREAT_MODEL.md`
 - Capability lifecycle gate: `docs/ai/AI_CAPABILITY_GATE.md`
+- Executive/agent architecture: `docs/ai/AI_EXECUTIVE_AGENT_ARCHITECTURE.md`
 
 ## Evidence classes
 
@@ -22,9 +23,9 @@ AI risk assessments, treatment plans, residual-risk decisions and review dates.
 
 - E1 Governance: AI governance policy + capability lifecycle gate
 - E2 Risk: AI risk register + AI threat model
-- E3 Technical: threat-model trust boundaries + later implementation architecture/data-flow evidence
+- E3 Technical: threat-model trust boundaries + Executive/agent architecture + later implementation/data-flow evidence
 - E4 Evaluation: not yet complete; required before production approval
-- E5 Operations: not yet complete; monitoring/rollback evidence required before production approval
+- E5 Operations: not yet complete; monitoring/rollback evidence required before production approval; agent resource budgets/circuit-breakers and disable evidence required for agentic production capabilities
 - E6 Privacy: not yet complete; provider/data-retention review required before production approval
 
 ### E3 — Technical
