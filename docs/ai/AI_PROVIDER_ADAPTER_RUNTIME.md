@@ -17,4 +17,4 @@ CI adapter; there is no production network adapter.
 - provider or offer failures must fail closed into stale/failed/quarantined state.
 
 This separation supports the NIST AI RMF emphasis on continuous monitoring and
-third-party resource risk controls. citeturn0search6turn0search0
+third-party resource risk controls.
