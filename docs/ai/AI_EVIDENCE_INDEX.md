@@ -38,6 +38,7 @@ This index is the audit trail for AI governance evidence.
 - Runtime Trust Sentinel: backend/core/ai_runtime_monitor.py + docs/ai/AI_RUNTIME_MONITORING_AND_ROLLBACK_GATE.md
 - Incident response + safe rollback state machine: backend/core/ai_incident_response.py + docs/ai/AI_INCIDENT_RESPONSE_AND_SAFE_ROLLBACK.md
 - Incident evidence binding: backend/core/ai_incident_evidence_binding.py
+- Incident evidence binding hardening: SHA-256-format validation for runtime decision digests + regression test
 
 ## Evidence classes
 
