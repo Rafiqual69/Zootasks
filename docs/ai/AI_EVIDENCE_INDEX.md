@@ -24,6 +24,8 @@ This index is the audit trail for AI governance evidence.
 - Provider ingress security tests: backend/core/ai_provider_ingress_tests.py
 - Deterministic worker eligibility gate: backend/core/ai_worker_eligibility.py
 - Worker eligibility security tests: backend/core/ai_worker_eligibility_tests.py
+- Autonomous innovation model: docs/ai/AI_AUTONOMOUS_INNOVATION_MODEL.md
+- Deterministic innovation gate/tests: backend/core/ai_innovation_loop.py + backend/core/ai_innovation_loop_tests.py
 
 ## Evidence classes
 
@@ -37,8 +39,8 @@ AI risk assessments, treatment plans, residual-risk decisions and review dates.
 
 - E1 Governance: AI governance policy + capability lifecycle gate
 - E2 Risk: AI risk register + AI threat model
-- E3 Technical: threat-model trust boundaries + Executive/agent architecture + provider/offer pipeline + ingress quarantine + worker eligibility boundary
-- E4 Evaluation: AI-SYS-001 deterministic evaluation + agent capability security tests + provider offer normalization/security tests + provider change-detection tests + provider ingress tests + worker eligibility tests are implemented; production evaluation/approval remains pending
+- E3 Technical: threat-model trust boundaries + Executive/agent architecture + provider/offer pipeline + ingress quarantine + worker eligibility boundary + autonomous innovation boundary
+- E4 Evaluation: AI-SYS-001 deterministic evaluation + agent capability security tests + provider offer normalization/security tests + provider change-detection tests + provider ingress tests + worker eligibility tests + innovation gate tests are implemented; production evaluation/approval remains pending
 - E5 Operations: not yet complete; monitoring/rollback evidence required before production approval; agent resource budgets/circuit-breakers, provider sync/disable, material-offer-change quarantine, ingress evidence, and safe worker matching controls are required for agentic/provider capabilities
 - E6 Privacy: not yet complete; provider/data-retention review required before production approval
 
