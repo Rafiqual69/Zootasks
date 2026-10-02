@@ -21,9 +21,19 @@ class AIGatewayBoundaryTests(SimpleTestCase):
         with self.assertRaisesMessage(AIGatewayError, "ai_input_too_large"):
             build_task_quality_request(task_title="T" * 80, task_description="D" * 30, category="Testing", correlation_id="case")
 
-    def test_provider_adapter_is_fail_closed(self):
-        with self.assertRaisesMessage(AIGatewayError, "ai_provider_adapter_not_enabled"):
+    def test_production_approval_is_required(self):
+        with self.assertRaisesMessage(AIGatewayError, "ai_production_not_approved"):
             request_ai(request=self.request(), provider="test-provider", model="test-model-v1")
+
+    def test_approval_reference_is_required(self):
+        with self.assertRaisesMessage(AIGatewayError, "ai_approval_reference_required"):
+            with override_settings(AI_PRODUCTION_APPROVED=True, AI_APPROVAL_REFERENCE=""):
+                request_ai(request=self.request(), provider="test-provider", model="test-model-v1")
+
+    def test_provider_adapter_remains_fail_closed_after_approval(self):
+        with self.assertRaisesMessage(AIGatewayError, "ai_provider_adapter_not_enabled"):
+            with override_settings(AI_PRODUCTION_APPROVED=True, AI_APPROVAL_REFERENCE="TEST-APPROVAL"):
+                request_ai(request=self.request(), provider="test-provider", model="test-model-v1")
 
     def test_unknown_provider_is_denied(self):
         with self.assertRaisesMessage(AIGatewayError, "ai_provider_not_allowed"):
