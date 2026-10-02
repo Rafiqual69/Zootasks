@@ -113,3 +113,27 @@ class DelegationChainTests(SimpleTestCase):
         child=ChainLink("D2","exec","researcher",("research",),("approved_research",),("internal",),6,verify_chain((root,)))
         with self.assertRaisesRegex(DelegationChainError,"delegation_budget_escalation"):
             verify_chain((root,child))
+
+
+from core.ai_audit_ledger import AuditEntry, AuditLedgerError, entry_digest, verify_ledger
+
+class AuditLedgerTests(SimpleTestCase):
+    def _entry(self, sequence, previous=None):
+        return AuditEntry(sequence, f"E{sequence}", "agent-1", "read_analysis", "auth", "source", "input", "result", "2026-10-02T00:00:00Z", previous)
+
+    def test_hash_chained_ledger_verifies(self):
+        first=self._entry(0)
+        second=self._entry(1,entry_digest(first))
+        digest=verify_ledger((first,second))
+        self.assertEqual(digest,entry_digest(second))
+
+    def test_chain_break_rejected(self):
+        first=self._entry(0)
+        second=self._entry(1,"tampered")
+        with self.assertRaisesRegex(AuditLedgerError,"audit_chain_break"):
+            verify_ledger((first,second))
+
+    def test_sequence_tampering_rejected(self):
+        first=self._entry(1)
+        with self.assertRaisesRegex(AuditLedgerError,"audit_sequence_invalid"):
+            verify_ledger((first,))
