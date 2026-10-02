@@ -11,6 +11,11 @@ from typing import Any, Mapping
 
 from django.conf import settings
 
+from .ai_agent_registry import (
+    validate_agent_autonomy,
+    validate_agent_capability,
+    validate_agent_data_class,
+)
 from .ai_capability_budget import validate_execution_budget, validate_input_budget, validate_output_budget
 from .ai_safety_firewall import validate_action_class, validate_autonomy
 
@@ -21,6 +26,7 @@ class AIGatewayError(Exception):
 
 @dataclass(frozen=True)
 class AIRequest:
+    agent_id: str
     capability_id: str
     input_data: Mapping[str, Any]
     correlation_id: str
@@ -43,11 +49,29 @@ def validate_provider_model(provider: str, model: str) -> None:
         raise AIGatewayError("ai_model_not_allowed")
 
 
-def build_task_quality_request(*, task_title: str, task_description: str, category: str, correlation_id: str) -> AIRequest:
+def build_task_quality_request(
+    *,
+    task_title: str,
+    task_description: str,
+    category: str,
+    correlation_id: str,
+    agent_id: str = "ZT-AGENT-001",
+) -> AIRequest:
     """Build the minimum-data request for AI-SYS-001."""
     if not correlation_id:
         raise AIGatewayError("ai_correlation_id_required")
-    values = {"title": (task_title or "").strip(), "description": (task_description or "").strip(), "category": (category or "").strip()}
+    try:
+        validate_agent_capability(agent_id=agent_id, capability_id="AI-SYS-001")
+        validate_agent_data_class(agent_id=agent_id, data_class="task_content_minimal")
+        validate_agent_autonomy(agent_id=agent_id, autonomy="suggestion_only")
+    except Exception as exc:
+        raise AIGatewayError("ai_agent_policy_rejected") from exc
+
+    values = {
+        "title": (task_title or "").strip(),
+        "description": (task_description or "").strip(),
+        "category": (category or "").strip(),
+    }
     if sum(len(value) for value in values.values()) > int(getattr(settings, "AI_MAX_INPUT_CHARS", 12000)):
         raise AIGatewayError("ai_input_too_large")
     try:
@@ -56,7 +80,7 @@ def build_task_quality_request(*, task_title: str, task_description: str, catego
         raise AIGatewayError("ai_input_budget_exceeded") from exc
     if not values["title"] or not values["description"]:
         raise AIGatewayError("ai_task_content_required")
-    return AIRequest("AI-SYS-001", values, correlation_id)
+    return AIRequest(agent_id, "AI-SYS-001", values, correlation_id)
 
 
 def validate_task_quality_output(output: Any) -> Mapping[str, Any]:
@@ -86,7 +110,13 @@ def validate_task_quality_output(output: Any) -> Mapping[str, Any]:
         raise AIGatewayError("ai_output_confidence_invalid")
     if not isinstance(rationale, str) or len(rationale) > 1000:
         raise AIGatewayError("ai_output_rationale_invalid")
-    result = {"category_suggestion": category, "missing_information": missing, "quality_checks": checks, "confidence": confidence, "rationale": rationale}
+    result = {
+        "category_suggestion": category,
+        "missing_information": missing,
+        "quality_checks": checks,
+        "confidence": confidence,
+        "rationale": rationale,
+    }
     try:
         validate_output_budget(capability_id="AI-SYS-001", output=result)
         validate_execution_budget(capability_id="AI-SYS-001", tool_calls=0, external_side_effects=False)
@@ -105,6 +135,11 @@ def validate_production_approval() -> None:
 
 def request_ai(*, request: AIRequest, provider: str, model: str) -> Mapping[str, Any]:
     """Fail closed until an approved provider adapter exists."""
+    try:
+        validate_agent_capability(agent_id=request.agent_id, capability_id=request.capability_id)
+        validate_agent_autonomy(agent_id=request.agent_id, autonomy="suggestion_only")
+    except Exception as exc:
+        raise AIGatewayError("ai_agent_policy_rejected") from exc
     validate_capability(request.capability_id)
     validate_provider_model(provider, model)
     try:
