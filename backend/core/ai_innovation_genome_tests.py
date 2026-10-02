@@ -279,3 +279,71 @@ class IncidentResponseStateMachineTests(SimpleTestCase):
     def test_incident_digest_is_deterministic(self):
         incident=self._incident()
         self.assertEqual(incident_digest(incident), incident_digest(incident))
+
+
+from core.ai_incident_evidence_binding import IncidentEvidenceBindingError, bind_incident_evidence
+
+class IncidentEvidenceBindingTests(SimpleTestCase):
+    def _incident(self):
+        return IncidentEvidence(
+            "INC-B1","AI-SYS-001","R1","high",
+            "policy_violation_detected","d"*64
+        )
+
+    def _policy(self):
+        return PolicyEvidenceBundle(
+            "B1","policy-v1","auth","delegation","source","privacy","audit","quarantine"
+        )
+
+    def _release(self):
+        return ReleaseEvidence(
+            "R1","AI-SYS-001","git-1","src-1","eval-1",
+            "policy-1","test-1","rollback-1","monitor-1"
+        )
+
+    def test_incident_binding_is_deterministic(self):
+        incident=self._incident()
+        policy=self._policy()
+        release=self._release()
+        binding=bind_incident_evidence(
+            incident,policy,release,
+            expected_incident_digest=incident_digest(incident),
+            expected_policy_bundle_digest=bundle_digest(policy),
+            expected_release_digest=release_digest(release),
+        )
+        self.assertEqual(binding.binding_digest, bind_incident_evidence(
+            incident,policy,release,
+            expected_incident_digest=incident_digest(incident),
+            expected_policy_bundle_digest=bundle_digest(policy),
+            expected_release_digest=release_digest(release),
+        ).binding_digest)
+
+    def test_identity_mismatch_fails_closed(self):
+        incident=IncidentEvidence(
+            "INC-B2","OTHER-SYS","R1","high",
+            "policy_violation_detected","d"*64
+        )
+        policy=self._policy()
+        release=self._release()
+        with self.assertRaisesRegex(IncidentEvidenceBindingError, "incident_release_identity_mismatch"):
+            bind_incident_evidence(
+                incident,policy,release,
+                expected_incident_digest=incident_digest(incident),
+                expected_policy_bundle_digest=bundle_digest(policy),
+                expected_release_digest=release_digest(release),
+            )
+
+    def test_allow_bundle_cannot_be_used_as_incident_evidence(self):
+        incident=self._incident()
+        policy=PolicyEvidenceBundle(
+            "B2","policy-v1","auth","delegation","source","privacy","audit",
+            "allow","OWNER-APPROVAL-1"
+        )
+        release=self._release()
+        with self.assertRaisesRegex(IncidentEvidenceBindingError, "incident_binding_allow_bundle_forbidden"):
+            bind_incident_evidence(
+                incident,policy,release,
+                expected_incident_digest=incident_digest(incident),
+                expected_policy_bundle_digest=bundle_digest(policy),
+                expected_release_digest=release_digest(release),
+            )
