@@ -5,6 +5,7 @@ on:
     branches: [main, "feat/**"]
   pull_request:
     branches: [main, "feat/**"]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -23,13 +24,15 @@ jobs:
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: ci-only-secret-key-zootasks-ai-evaluation-2026-long-random-placeholder
           ZOOTASKS_GIT_COMMIT: ${{ github.sha }}
           AI_PRODUCTION_APPROVED: "false"
           AI_APPROVAL_REFERENCE: ""
         run: |
-          python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
-          python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests
+          python -m core.ai_evaluation_runner artifacts/ai/AI-SYS-001-evidence.json
+          python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests core.ai_agent_registry_tests core.ai_safety_firewall_tests core.ai_data_boundary_tests core.ai_tool_permission_tests core.ai_agent_adversarial_tests
       - name: Validate evidence JSON
+        working-directory: backend
         run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
       - name: Verify evidence integrity
         working-directory: backend
@@ -52,5 +55,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AI-SYS-001-evidence-${{ github.sha }}
-          path: artifacts/ai/AI-SYS-001-evidence.json
+          path: backend/artifacts/ai/AI-SYS-001-evidence.json
           if-no-files-found: error
