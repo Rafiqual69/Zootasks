@@ -322,7 +322,7 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
             expected_release_digest=release_digest(release),
         )
         self.assertEqual(binding.binding_digest, bind_incident_evidence(
-            incident,policy,release,
+                incident,policy,release,self._runtime(),
             expected_incident_digest=incident_digest(incident),
             expected_policy_bundle_digest=bundle_digest(policy),
             expected_release_digest=release_digest(release),
@@ -337,7 +337,7 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
         release=self._release()
         with self.assertRaisesRegex(IncidentEvidenceBindingError, "incident_release_identity_mismatch"):
             bind_incident_evidence(
-                incident,policy,release,
+                incident,policy,release,self._runtime(),
                 expected_incident_digest=incident_digest(incident),
                 expected_policy_bundle_digest=bundle_digest(policy),
                 expected_release_digest=release_digest(release),
@@ -352,7 +352,7 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
         release=self._release()
         with self.assertRaisesRegex(IncidentEvidenceBindingError, "incident_binding_allow_bundle_forbidden"):
             bind_incident_evidence(
-                incident,policy,release,
+                incident,policy,release,self._runtime(),
                 expected_incident_digest=incident_digest(incident),
                 expected_policy_bundle_digest=bundle_digest(policy),
                 expected_release_digest=release_digest(release),
@@ -367,7 +367,7 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
         release=self._release()
         with self.assertRaisesRegex(IncidentEvidenceBindingError, "runtime_decision_digest_invalid"):
             bind_incident_evidence(
-                incident,policy,release,
+                incident,policy,release,self._runtime(),
                 expected_incident_digest=incident_digest(incident),
                 expected_policy_bundle_digest=bundle_digest(policy),
                 expected_release_digest=release_digest(release),
