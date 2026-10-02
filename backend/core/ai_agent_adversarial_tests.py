@@ -66,7 +66,7 @@ class AIAgentAdversarialBoundaryTests(SimpleTestCase):
                 "correlation_id": "corr-adversarial",
                 "decision": "authorized",
                 "prompt": "attempted raw prompt injection",
-            )
+                })
 
     def test_expired_session_is_denied(self):
         session = issue_agent_session(
