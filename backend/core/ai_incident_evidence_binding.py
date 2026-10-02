@@ -52,16 +52,15 @@ def bind_incident_evidence(
         raise IncidentEvidenceBindingError("release_digest_mismatch")
     if incident.system_id != release.system_id or incident.release_id != release.release_id:
         raise IncidentEvidenceBindingError("incident_release_identity_mismatch")
+    runtime_digest = incident.runtime_decision_digest
+    if not re.fullmatch(r"[0-9a-f]{64}", runtime_digest):
+        raise IncidentEvidenceBindingError("runtime_decision_digest_invalid")
     try:
         verify_runtime_decision_context(incident.system_id, incident.release_id, runtime_decision)
     except RuntimeMonitorError as exc:
         raise IncidentEvidenceBindingError(str(exc)) from exc
     if runtime_decision.decision_digest != incident.runtime_decision_digest:
         raise IncidentEvidenceBindingError("runtime_decision_digest_mismatch")
-
-    runtime_digest = incident.runtime_decision_digest
-    if not re.fullmatch(r"[0-9a-f]{64}", runtime_digest):
-        raise IncidentEvidenceBindingError("runtime_decision_digest_invalid")
     if policy_bundle.decision == "allow":
         raise IncidentEvidenceBindingError("incident_binding_allow_bundle_forbidden")
 
