@@ -34,6 +34,7 @@ This index is the audit trail for AI governance evidence.
 - Trust graph + non-escalating delegation chain: backend/core/ai_delegation_chain.py + docs/ai/AI_TRUST_GRAPH_AND_DELEGATION_CHAIN.md
 - Tamper-evident AI audit ledger: backend/core/ai_audit_ledger.py + docs/ai/AI_TAMPER_EVIDENT_AUDIT_LEDGER.md
 - Policy decision evidence bundle: backend/core/ai_policy_evidence_bundle.py + docs/ai/AI_POLICY_DECISION_EVIDENCE_BUNDLE.md
+- Release TEVV gate: backend/core/ai_release_tevv_gate.py + docs/ai/AI_RELEASE_TEVV_GATE.md
 
 ## Evidence classes
 
