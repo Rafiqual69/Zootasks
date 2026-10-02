@@ -8,6 +8,21 @@ class AIGatewayBoundaryTests(SimpleTestCase):
     def request(self):
         return build_task_quality_request(task_title="Test task", task_description="A safe task", category="Testing", correlation_id="case")
 
+    def test_registered_agent_is_bound_to_request(self):
+        request = self.request()
+        self.assertEqual(request.agent_id, "ZT-AGENT-001")
+        self.assertEqual(request.capability_id, "AI-SYS-001")
+
+    def test_unknown_agent_is_denied(self):
+        with self.assertRaisesMessage(AIGatewayError, "ai_agent_policy_rejected"):
+            build_task_quality_request(
+                task_title="Test task",
+                task_description="A safe task",
+                category="Testing",
+                correlation_id="case",
+                agent_id="ZT-AGENT-999",
+            )
+
     def test_unknown_capability_is_denied(self):
         with self.assertRaisesMessage(AIGatewayError, "ai_capability_not_allowed"):
             with override_settings(AI_ALLOWED_CAPABILITIES="OTHER"):
