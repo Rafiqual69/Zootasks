@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zootasks.com/schemas/ai-provider-offer-1.0.json",
+  "title": "ZooTasks AI Provider Offer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","offer_id","provider","authorization","source","eligibility","task","reward","data_policy","qualification","verification","adapter","sync","provenance","risk"],
+  "properties": {
+    "schema_version": {"type":"string","const":"1.0"},
+    "offer_id": {"type":"string","minLength":3,"maxLength":128},
+    "provider": {"type":"object","additionalProperties":false,"required":["provider_id","name"],"properties":{"provider_id":{"type":"string","minLength":2,"maxLength":128},"name":{"type":"string","minLength":1,"maxLength":200}}},
+    "authorization": {"type":"object","additionalProperties":false,"required":["status","route"],"properties":{"status":{"type":"string","enum":["verified","pending","quarantined","revoked"]},"route":{"type":"string","enum":["api_partner","public_offer","workforce_platform","enterprise_contract","manual_research"]},"contract_reference":{"type":["string","null"],"maxLength":200}}},
+    "source": {"type":"object","additionalProperties":false,"required":["kind","identifier"],"properties":{"kind":{"type":"string","enum":["url","api","feed","contract"]},"identifier":{"type":"string","minLength":1,"maxLength":1000}}},
+    "eligibility": {"type":"object","additionalProperties":false,"required":["regions","languages"],"properties":{"regions":{"type":"array","items":{"type":"string"},"maxItems":200},"languages":{"type":"array","items":{"type":"string"},"maxItems":200},"requirements":{"type":"array","items":{"type":"string"},"maxItems":50}}},
+    "task": {"type":"object","additionalProperties":false,"required":["category","title"],"properties":{"category":{"type":"string","enum":["data_annotation","multimodal_evaluation","llm_evaluation","preference_ranking","prompt_evaluation","search_relevance","translation","ai_safety","agent_evaluation","data_collection","output_verification","human_review"]},"title":{"type":"string","minLength":1,"maxLength":300},"skills":{"type":"array","items":{"type":"string"},"maxItems":100}}},
+    "reward": {"type":"object","additionalProperties":false,"required":["amount","currency","payment_terms"],"properties":{"amount":{"type":"number","minimum":0},"currency":{"type":"string","pattern":"^[A-Z]{3}$"},"payment_terms":{"type":"string","minLength":1,"maxLength":1000}}},
+    "data_policy": {"type":"object","additionalProperties":false,"required":["sensitivity","retention"],"properties":{"sensitivity":{"type":"string","enum":["public","internal","personal","sensitive","restricted"]},"retention":{"type":"string","minLength":1,"maxLength":1000},"processing_restrictions":{"type":"array","items":{"type":"string"},"maxItems":50}}},
+    "qualification": {"type":"object","additionalProperties":false,"required":["required"],"properties":{"required":{"type":"boolean"},"method":{"type":["string","null"],"maxLength":500}}},
+    "verification": {"type":"object","additionalProperties":false,"required":["method"],"properties":{"method":{"type":"string","minLength":1,"maxLength":500}}},
+    "adapter": {"type":"object","additionalProperties":false,"required":["adapter_id","version"],"properties":{"adapter_id":{"type":"string","minLength":1,"maxLength":128},"version":{"type":"string","minLength":1,"maxLength":64}}},
+    "sync": {"type":"object","additionalProperties":false,"required":["status"],"properties":{"status":{"type":"string","enum":["active","stale","failed","disabled"]},"last_success_at":{"type":["string","null"],"format":"date-time"}}},
+    "provenance": {"type":"object","additionalProperties":false,"required":["source_revision"],"properties":{"source_revision":{"type":"string","minLength":1,"maxLength":200},"evidence_refs":{"type":"array","items":{"type":"string"},"maxItems":100}}},
+    "risk": {"type":"object","additionalProperties":false,"required":["state"],"properties":{"state":{"type":"string","enum":["approved","review_required","quarantined","revoked"]},"reason":{"type":["string","null"],"maxLength":1000}}}
+  }
+}
