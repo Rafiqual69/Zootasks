@@ -1,5 +1,6 @@
 from django.test import SimpleTestCase, override_settings
 
+from core.ai_evaluation_integrity import evidence_sha256
 from core.ai_evaluation_runner import run_evaluation
 
 
@@ -12,7 +13,6 @@ class AIEvaluationRunnerTests(SimpleTestCase):
     )
     def test_runner_emits_machine_readable_pass_evidence(self):
         evidence = run_evaluation()
-
         self.assertEqual(evidence["evidence_type"], "zootasks.ai.security_evaluation")
         self.assertEqual(evidence["schema_version"], "1.0")
         self.assertEqual(evidence["system_id"], "AI-SYS-001")
@@ -21,3 +21,13 @@ class AIEvaluationRunnerTests(SimpleTestCase):
         self.assertEqual(evidence["summary"]["failed"], 0)
         self.assertGreaterEqual(evidence["summary"]["total"], 6)
         self.assertEqual(len(evidence["cases"]), evidence["summary"]["total"])
+
+    def test_evidence_digest_recomputes_to_recorded_value(self):
+        evidence = run_evaluation()
+        self.assertEqual(evidence["integrity"]["evidence_sha256"], evidence_sha256(evidence))
+
+    def test_tampering_changes_evidence_digest(self):
+        evidence = run_evaluation()
+        original = evidence["integrity"]["evidence_sha256"]
+        evidence["summary"]["passed"] += 1
+        self.assertNotEqual(original, evidence_sha256(evidence))
