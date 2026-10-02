@@ -10,6 +10,7 @@ This index is the audit trail for AI governance evidence.
 - AI threat model: `docs/ai/AI_THREAT_MODEL.md`
 - Capability lifecycle gate: `docs/ai/AI_CAPABILITY_GATE.md`
 - Executive/agent architecture: `docs/ai/AI_EXECUTIVE_AGENT_ARCHITECTURE.md`
+- Agent capability contract: `docs/ai/AI_AGENT_CAPABILITY_CONTRACT.md`
 
 ## Evidence classes
 
