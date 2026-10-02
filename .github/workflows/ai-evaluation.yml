@@ -5,6 +5,7 @@ on:
     branches: [main, "feat/**"]
   pull_request:
     branches: [main, "feat/**"]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
