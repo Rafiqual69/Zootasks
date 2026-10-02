@@ -371,6 +371,24 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
                 expected_release_digest=release_digest(release),
             )
 
+    def test_release_policy_bundle_cross_link_mismatch_fails_closed(self):
+        incident=self._incident()
+        policy=self._policy()
+        other_policy=PolicyEvidenceBundle(
+            "B2","policy-v2","auth2","delegation2","source2","privacy2","audit2","quarantine"
+        )
+        release=ReleaseEvidence(
+            "R1","AI-SYS-001","git-1","src-1","eval-1",
+            bundle_digest(other_policy),"test-1","rollback-1","monitor-1"
+        )
+        with self.assertRaisesRegex(IncidentEvidenceBindingError, "release_policy_bundle_mismatch"):
+            bind_incident_evidence(
+                incident,policy,release,self._runtime(),
+                expected_incident_digest=incident_digest(incident),
+                expected_policy_bundle_digest=bundle_digest(policy),
+                expected_release_digest=release_digest(release),
+            )
+
     def test_runtime_decision_digest_format_is_fail_closed(self):
         incident=IncidentEvidence(
             "INC-B3","AI-SYS-001","R1","high",
