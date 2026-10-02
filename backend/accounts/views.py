@@ -11,6 +11,7 @@ from .email_verification import issue_owner_email_verification, verify_owner_ema
 from .forms import AdvertiserRegistrationForm, RegistrationForm
 from .models import AccountEntity, AdvertiserProfile, WorkerProfile
 from .policies import is_owner
+from .owner_verification import get_owner_verification_snapshot
 from promotions.models import Promotion
 from wallet.models import WalletTransaction
 
@@ -102,6 +103,18 @@ def owner_email_verify(request, token):
     response["Referrer-Policy"] = "no-referrer"
     response["Cache-Control"] = "no-store"
     return response
+
+
+@login_required
+@user_passes_test(is_owner)
+def owner_verification_center(request):
+    snapshot = get_owner_verification_snapshot(request.user)
+    response = render(
+        request,
+        "accounts/owner_verification_center.html",
+        {"snapshot": snapshot},
+    )
+    return _no_store(response)
 
 
 @login_required
