@@ -137,3 +137,29 @@ class AuditLedgerTests(SimpleTestCase):
         first=self._entry(1)
         with self.assertRaisesRegex(AuditLedgerError,"audit_sequence_invalid"):
             verify_ledger((first,))
+
+
+from core.ai_policy_evidence_bundle import PolicyEvidenceBundle, PolicyEvidenceError, bundle_digest, verify_bundle
+
+class PolicyEvidenceBundleTests(SimpleTestCase):
+    def _bundle(self, decision="review", approval=None):
+        return PolicyEvidenceBundle("B1","policy-v1","auth","delegation","source","privacy","audit",decision,approval)
+
+    def test_bundle_digest_is_deterministic(self):
+        b=self._bundle()
+        self.assertEqual(bundle_digest(b),bundle_digest(b))
+
+    def test_allow_requires_approval_reference(self):
+        with self.assertRaisesRegex(PolicyEvidenceError,"allow_requires_approval_reference"):
+            bundle_digest(self._bundle("allow"))
+
+    def test_tampered_bundle_fails_verification(self):
+        b=self._bundle()
+        digest=bundle_digest(b)
+        tampered=PolicyEvidenceBundle("B1","policy-v2","auth","delegation","source","privacy","audit","review")
+        with self.assertRaisesRegex(PolicyEvidenceError,"evidence_bundle_digest_mismatch"):
+            verify_bundle(tampered,digest)
+
+    def test_approved_bundle_verifies(self):
+        b=self._bundle("allow","OWNER-APPROVAL-1")
+        self.assertTrue(verify_bundle(b,bundle_digest(b)))
