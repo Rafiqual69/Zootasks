@@ -1,0 +1,30 @@
+name: AI Evaluation Evidence
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main, "feat/**"]
+
+jobs:
+  ai-evaluation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Run AI evaluation
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+        run: python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
+      - name: Validate evidence JSON
+        run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
+      - name: Upload evaluation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-SYS-001-evidence
+          path: artifacts/ai/AI-SYS-001-evidence.json
