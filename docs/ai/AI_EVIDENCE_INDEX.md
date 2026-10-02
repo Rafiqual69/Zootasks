@@ -32,6 +32,7 @@ This index is the audit trail for AI governance evidence.
 - Protocol-neutral Agent Card + scoped delegation: backend/core/ai_agent_card.py + backend/core/ai_delegation_token.py + docs/ai/AI_AGENT_CARD_AND_DELEGATION_BOUNDARY.md
 - Source attestation + privacy/retention gate: backend/core/ai_source_attestation.py + backend/core/ai_privacy_gate.py + docs/ai/AI_SOURCE_ATTESTATION_AND_PRIVACY_GATE.md
 - Trust graph + non-escalating delegation chain: backend/core/ai_delegation_chain.py + docs/ai/AI_TRUST_GRAPH_AND_DELEGATION_CHAIN.md
+- Tamper-evident AI audit ledger: backend/core/ai_audit_ledger.py + docs/ai/AI_TAMPER_EVIDENT_AUDIT_LEDGER.md
 
 ## Evidence classes
 
