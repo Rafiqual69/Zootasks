@@ -12,6 +12,7 @@ from typing import Any, Mapping
 from django.conf import settings
 
 from .ai_data_boundary import AIDataBoundaryError, build_task_content_projection
+from .ai_tool_permission import AIToolPermissionError, validate_tool_permission
 from .ai_agent_registry import (
     validate_agent_autonomy,
     validate_agent_capability,
@@ -135,6 +136,26 @@ def validate_production_approval() -> None:
         raise AIGatewayError("ai_production_not_approved")
     if not str(getattr(settings, "AI_APPROVAL_REFERENCE", "")).strip():
         raise AIGatewayError("ai_approval_reference_required")
+
+
+def validate_tool_execution(
+    *,
+    request: AIRequest,
+    tool_class: str,
+    call_count: int = 0,
+    external_side_effects: bool = False,
+) -> None:
+    """Authorize a future tool execution through the fail-closed tool boundary."""
+    try:
+        validate_tool_permission(
+            agent_id=request.agent_id,
+            capability_id=request.capability_id,
+            tool_class=tool_class,
+            call_count=call_count,
+            external_side_effects=external_side_effects,
+        )
+    except AIToolPermissionError as exc:
+        raise AIGatewayError(str(exc)) from exc
 
 
 def request_ai(*, request: AIRequest, provider: str, model: str) -> Mapping[str, Any]:
