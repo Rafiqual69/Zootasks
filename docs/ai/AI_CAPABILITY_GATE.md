@@ -11,7 +11,11 @@ Reject the AI approach when a deterministic non-AI control is safer and sufficie
 ## Gate B — Risk and architecture
 Complete the threat model, data-flow diagram, trust boundaries, privacy/data-minimization review, authorization-boundary review, cost/availability limits, failure/rollback design, and human-oversight requirement.
 
+For agentic capabilities, also define explicit tool/data/destination/action allowlists, reversibility classes, circuit breakers, inter-agent trust boundaries and resource budgets. Treat prompts, retrieved content, tool output and agent messages as untrusted input until validated.
+
 Hard rule: AI output never grants application permissions.
+
+The Executive AI Advisor/Orchestrator is advisory and coordinating only. It cannot override deterministic authorization or become the source of privileged authority.
 
 ## Gate C — Evaluation
 Minimum suite:
@@ -34,6 +38,8 @@ Verify provider endpoint allowlisting, credential isolation, minimum necessary d
 - Moderate impact: deterministic validation and, where required by the risk assessment, human review.
 - High impact / irreversible: no autonomous execution; deterministic policy gate plus authorized human approval.
 
+For agentic systems, the approval interface must expose the actual proposed action and material parameters. An agent-generated summary is not sufficient evidence for a high-impact approval.
+
 ZooTasks high-impact examples include wallet mutation, withdrawal state changes, permission changes, Owner authentication decisions, and irreversible financial or identity actions.
 
 ## Gate F — Release
@@ -45,6 +51,14 @@ No evidence means no production approval.
 Monitor failures, abuse, quality drift, cost, latency, and provider errors. Re-evaluate after model/provider/configuration/prompt changes. Re-run relevant security/regression tests. Record incidents/exceptions. Maintain a tested disable/rollback path.
 
 A materially changed model or provider is a controlled change, not an invisible dependency update.
+
+## Agentic acquisition boundary
+
+ZooTasks may pursue legitimate task acquisition through two controlled routes: authenticated provider/API/feed integrations and authorized business outreach when a provider does not expose an automation feed. Discovery alone does not establish authorization.
+
+Agents must not spam, impersonate, bypass CAPTCHA or access controls, harvest credentials, or scrape restricted/private systems. Unverified sources remain quarantined until authorization, terms, security and data-handling requirements are established.
+
+Each provider/offer integration must retain provenance including source, authorization status, region/eligibility, reward/currency, data requirements, restrictions, expiry, verification method, adapter/version and audit references.
 
 ## First candidate capability
 AI-SYS-001 — Task Classification & Quality Assistance
