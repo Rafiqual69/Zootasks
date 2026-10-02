@@ -30,6 +30,7 @@ This index is the audit trail for AI governance evidence.
 - Deterministic innovation genome/tests: backend/core/ai_innovation_genome.py + backend/core/ai_innovation_genome_tests.py
 - Mechanism catalog + provenance fabric: backend/core/ai_mechanism_catalog.py + backend/core/ai_provenance_queue.py + docs/ai/AI_MECHANISM_CATALOG_AND_PROVENANCE_FABRIC.md
 - Protocol-neutral Agent Card + scoped delegation: backend/core/ai_agent_card.py + backend/core/ai_delegation_token.py + docs/ai/AI_AGENT_CARD_AND_DELEGATION_BOUNDARY.md
+- Source attestation + privacy/retention gate: backend/core/ai_source_attestation.py + backend/core/ai_privacy_gate.py + docs/ai/AI_SOURCE_ATTESTATION_AND_PRIVACY_GATE.md
 
 ## Evidence classes
 
