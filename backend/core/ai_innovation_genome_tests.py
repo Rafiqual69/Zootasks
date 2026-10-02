@@ -284,10 +284,20 @@ class IncidentResponseStateMachineTests(SimpleTestCase):
 from core.ai_incident_evidence_binding import IncidentEvidenceBindingError, bind_incident_evidence
 
 class IncidentEvidenceBindingTests(SimpleTestCase):
+    def _runtime(self, system_id="AI-SYS-001", release_id="R1"):
+        return runtime_decision(
+            RuntimePolicy(),
+            RuntimeObservation(
+                system_id=system_id, release_id=release_id,
+                calls=100, failures=10, consecutive_failures=0,
+                latency_ms=1000, drift_score=5,
+            ),
+        )
+
     def _incident(self):
         return IncidentEvidence(
             "INC-B1","AI-SYS-001","R1","high",
-            "policy_violation_detected","d"*64
+            "policy_violation_detected",self._runtime().decision_digest
         )
 
     def _policy(self):
@@ -306,7 +316,7 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
         policy=self._policy()
         release=self._release()
         binding=bind_incident_evidence(
-            incident,policy,release,
+            incident,policy,release,self._runtime(),
             expected_incident_digest=incident_digest(incident),
             expected_policy_bundle_digest=bundle_digest(policy),
             expected_release_digest=release_digest(release),
