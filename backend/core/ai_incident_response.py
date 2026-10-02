@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
+import re
 
 class IncidentResponseError(ValueError):
     pass
@@ -45,6 +46,8 @@ def _validate(e: IncidentEvidence) -> None:
     )
     if any(not str(value).strip() for value in required):
         raise IncidentResponseError("incident_evidence_required")
+    if not re.fullmatch(r"[0-9a-f]{64}", e.runtime_decision_digest):
+        raise IncidentResponseError("runtime_decision_digest_invalid")
     if e.state not in STATES:
         raise IncidentResponseError("incident_state_invalid")
     if e.severity not in {"low", "medium", "high", "critical"}:
