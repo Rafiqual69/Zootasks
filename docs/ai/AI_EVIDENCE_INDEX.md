@@ -17,6 +17,8 @@ This index is the audit trail for AI governance evidence.
 - Canonical provider offer schema: docs/ai/AI_PROVIDER_OFFER_SCHEMA.json
 - Deterministic provider offer validator: backend/core/ai_provider_offer.py
 - Provider offer security tests: backend/core/ai_provider_offer_tests.py
+- Deterministic provider change detection: backend/core/ai_provider_change_detection.py
+- Provider change detection security tests: backend/core/ai_provider_change_detection_tests.py
 
 ## Evidence classes
 
@@ -31,8 +33,8 @@ AI risk assessments, treatment plans, residual-risk decisions and review dates.
 - E1 Governance: AI governance policy + capability lifecycle gate
 - E2 Risk: AI risk register + AI threat model
 - E3 Technical: threat-model trust boundaries + Executive/agent architecture + provider/offer pipeline + later implementation/data-flow evidence
-- E4 Evaluation: AI-SYS-001 deterministic evaluation + agent capability security tests + provider offer normalization/security tests are implemented; production evaluation/approval remains pending
-- E5 Operations: not yet complete; monitoring/rollback evidence required before production approval; agent resource budgets/circuit-breakers and provider sync/disable evidence required for agentic/provider capabilities
+- E4 Evaluation: AI-SYS-001 deterministic evaluation + agent capability security tests + provider offer normalization/security tests + provider change-detection tests are implemented; production evaluation/approval remains pending
+- E5 Operations: not yet complete; monitoring/rollback evidence required before production approval; agent resource budgets/circuit-breakers, provider sync/disable, and material-offer-change quarantine evidence are required for agentic/provider capabilities
 - E6 Privacy: not yet complete; provider/data-retention review required before production approval
 
 ### E3 — Technical
