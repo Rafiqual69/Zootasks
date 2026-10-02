@@ -358,6 +358,19 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
                 expected_release_digest=release_digest(release),
             )
 
+    def test_runtime_decision_context_tampering_fails_closed(self):
+        incident=self._incident()
+        policy=self._policy()
+        release=self._release()
+        tampered_runtime=self._runtime(system_id="OTHER-SYS")
+        with self.assertRaisesRegex(IncidentEvidenceBindingError, "decision_digest_mismatch"):
+            bind_incident_evidence(
+                incident,policy,release,tampered_runtime,
+                expected_incident_digest=incident_digest(incident),
+                expected_policy_bundle_digest=bundle_digest(policy),
+                expected_release_digest=release_digest(release),
+            )
+
     def test_runtime_decision_digest_format_is_fail_closed(self):
         incident=IncidentEvidence(
             "INC-B3","AI-SYS-001","R1","high",
