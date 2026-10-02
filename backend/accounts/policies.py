@@ -11,6 +11,8 @@ def is_owner(user):
     User = get_user_model()
     if not isinstance(user, User):
         return False
+    if not user.is_active:
+        return False
 
     return AccountEntity.objects.filter(
         user=user,
