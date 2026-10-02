@@ -188,3 +188,37 @@ class ReleaseTEVVGateTests(SimpleTestCase):
         bad=ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","rollback-1","","OWNER-APPROVAL-1","approved")
         with self.assertRaisesRegex(ReleaseGateError,"release_evidence_required"):
             release_digest(bad)
+
+
+from core.ai_runtime_monitor import RuntimePolicy, RuntimeObservation, RuntimeMonitorError, runtime_decision, enforce_runtime_gate
+
+class RuntimeTrustSentinelTests(SimpleTestCase):
+    def _obs(self, **kw):
+        data=dict(system_id="AI-SYS-001", release_id="R1", calls=100, failures=1, consecutive_failures=0, latency_ms=1000, drift_score=5)
+        data.update(kw)
+        return RuntimeObservation(**data)
+
+    def test_healthy_runtime_continues(self):
+        d=runtime_decision(RuntimePolicy(), self._obs())
+        self.assertEqual(d.state, "healthy")
+        self.assertFalse(d.rollback_required)
+        self.assertEqual(enforce_runtime_gate(RuntimePolicy(), self._obs()), "healthy")
+
+    def test_error_rate_requires_quarantine(self):
+        d=runtime_decision(RuntimePolicy(), self._obs(failures=10))
+        self.assertIn("error_rate_exceeded", d.reasons)
+        self.assertTrue(d.rollback_required)
+        self.assertEqual(enforce_runtime_gate(RuntimePolicy(), self._obs(failures=10)), "quarantined")
+
+    def test_policy_violation_requires_quarantine(self):
+        d=runtime_decision(RuntimePolicy(), self._obs(policy_violations=1))
+        self.assertEqual(d.state, "rollback_required")
+
+    def test_invalid_observation_fails_closed(self):
+        with self.assertRaisesRegex(RuntimeMonitorError, "failures_exceed_calls"):
+            runtime_decision(RuntimePolicy(), self._obs(calls=1, failures=2))
+
+    def test_decision_digest_is_stable(self):
+        a=runtime_decision(RuntimePolicy(), self._obs())
+        b=runtime_decision(RuntimePolicy(), self._obs())
+        self.assertEqual(a.decision_digest, b.decision_digest)
