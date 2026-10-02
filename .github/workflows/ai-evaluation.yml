@@ -32,7 +32,7 @@ jobs:
           AI_APPROVAL_REFERENCE: ""
         run: |
           python -m core.ai_evaluation_runner artifacts/ai/AI-SYS-001-evidence.json
-          python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests core.ai_agent_capability_gate_tests core.ai_provider_offer_tests core.ai_provider_registry_tests core.ai_provider_change_detection_tests
+          python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests core.ai_agent_capability_gate_tests core.ai_provider_offer_tests core.ai_provider_registry_tests core.ai_provider_change_detection_tests core.ai_provider_adapter_tests
       - name: Validate evidence JSON
         working-directory: backend
         run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
