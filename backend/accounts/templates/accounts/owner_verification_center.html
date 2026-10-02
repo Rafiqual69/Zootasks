@@ -1,0 +1,95 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Owner Verification Center — ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
+</head>
+<body class="zt-dashboard-page">
+<header class="zt-app-header">
+    <div class="zt-app-header-inner">
+        <a href="/" class="zt-brand">
+            <span class="zt-brand-mark" aria-hidden="true"></span>
+            <span>ZooTasks</span>
+        </a>
+        <nav class="zt-app-nav" aria-label="Owner navigation">
+            <a href="/admin/live-wallet/">Admin</a>
+            <form method="post" action="/accounts/logout/" class="zt-logout-form">
+                {% csrf_token %}
+                <button type="submit" class="zt-nav-button">Logout</button>
+            </form>
+        </nav>
+    </div>
+</header>
+
+<main class="zt-dashboard-main">
+    <section class="zt-dashboard-hero">
+        <div>
+            <span class="zt-kicker">OWNER SECURITY</span>
+            <h1>Verification Center</h1>
+            <p>Read-only view of the canonical Owner verification state.</p>
+        </div>
+    </section>
+
+    <section class="zt-dashboard-section" aria-label="Owner verification status">
+        <div class="zt-transaction-card">
+            {% for label, verified in verification_items %}
+            <div class="zt-transaction">
+                <div class="zt-transaction-main">
+                    <span class="zt-transaction-icon" aria-hidden="true">
+                        {% if verified %}✓{% else %}•{% endif %}
+                    </span>
+                    <div>
+                        <strong>{{ label }}</strong>
+                        <small>
+                            {% if verified %}Verified{% else %}Not verified{% endif %}
+                        </small>
+                    </div>
+                </div>
+                <strong>{{ verified|yesno:"VERIFIED,PENDING" }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="zt-dashboard-section">
+        <div class="zt-section-heading">
+            <div>
+                <span class="zt-kicker">SECURITY BOUNDARY</span>
+                <h2>Protected status</h2>
+            </div>
+        </div>
+        <div class="zt-transaction-card">
+            <div class="zt-transaction">
+                <div class="zt-transaction-main">
+                    <span class="zt-transaction-icon" aria-hidden="true">✓</span>
+                    <div>
+                        <strong>Canonical Owner</strong>
+                        <small>Active Owner entity required for this page.</small>
+                    </div>
+                </div>
+                <strong>ACTIVE</strong>
+            </div>
+            <div class="zt-transaction">
+                <div class="zt-transaction-main">
+                    <span class="zt-transaction-icon" aria-hidden="true">⊘</span>
+                    <div>
+                        <strong>Financial authority</strong>
+                        <small>This center does not mutate wallets or approve payouts.</small>
+                    </div>
+                </div>
+                <strong>ISOLATED</strong>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="zt-app-footer">
+    <span>ZooTasks</span>
+    <span>Owner security</span>
+</footer>
+</body>
+</html>
