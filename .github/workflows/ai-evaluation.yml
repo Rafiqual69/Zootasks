@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 
 jobs:
   ai-evaluation:
@@ -51,6 +53,11 @@ jobs:
               raise SystemExit("AI evidence Git provenance mismatch")
           print(evidence["integrity"]["evidence_sha256"])
           PY
+      - name: Generate cryptographic artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: backend/artifacts/ai/AI-SYS-001-evidence.json
+
       - name: Upload evaluation evidence
         uses: actions/upload-artifact@v4
         with:
