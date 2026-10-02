@@ -12,7 +12,7 @@ class AIAcquisitionGateTests(SimpleTestCase):
         with self.assertRaisesRegex(AcquisitionGateError,"external_action_approval_required"): authorize_transition(proposal(),"sent")
     def test_approval_binds_exact_digest(self):
         a=AcquisitionApproval(proposal_digest(proposal()),"owner","provider-a","2030-01-01T00:00:00Z")
-        with self.assertRaisesRegex(AcquisitionGateError,"approval_proposal_digest_mismatch"): authorize_transition(proposal(region="BD"),"sent",a,datetime(2029,1,1,tzinfo=timezone.utc))
+        with self.assertRaisesRegex(AcquisitionGateError,"approval_proposal_digest_mismatch"): authorize_transition(proposal(material_parameters=(("region","BD"),("task_type","evaluation"))),"sent",a,datetime(2029,1,1,tzinfo=timezone.utc))
     def test_expired_approval_rejected(self):
         a=AcquisitionApproval(proposal_digest(proposal()),"owner","provider-a","2020-01-01T00:00:00Z")
         with self.assertRaisesRegex(AcquisitionGateError,"approval_expired"): authorize_transition(proposal(),"sent",a,datetime(2026,1,1,tzinfo=timezone.utc))
