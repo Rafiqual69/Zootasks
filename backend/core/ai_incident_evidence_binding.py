@@ -50,6 +50,8 @@ def bind_incident_evidence(
         raise IncidentEvidenceBindingError("policy_bundle_digest_mismatch")
     if actual_release != expected_release_digest:
         raise IncidentEvidenceBindingError("release_digest_mismatch")
+    if release.policy_bundle_digest != actual_policy:
+        raise IncidentEvidenceBindingError("release_policy_bundle_mismatch")
     if incident.system_id != release.system_id or incident.release_id != release.release_id:
         raise IncidentEvidenceBindingError("incident_release_identity_mismatch")
     runtime_digest = incident.runtime_decision_digest
