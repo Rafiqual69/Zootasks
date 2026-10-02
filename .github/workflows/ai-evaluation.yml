@@ -24,6 +24,7 @@ jobs:
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: ci-only-secret-key-zootasks-ai-evaluation-2026-long-random-placeholder
           ZOOTASKS_GIT_COMMIT: ${{ github.sha }}
           AI_PRODUCTION_APPROVED: "false"
           AI_APPROVAL_REFERENCE: ""
