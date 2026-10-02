@@ -24,7 +24,11 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings
           ZOOTASKS_GIT_COMMIT: ${{ github.sha }}
-        run: python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
+          AI_PRODUCTION_APPROVED: "false"
+          AI_APPROVAL_REFERENCE: ""
+        run: |
+          python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
+          python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests
       - name: Validate evidence JSON
         run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
       - name: Verify evidence integrity
