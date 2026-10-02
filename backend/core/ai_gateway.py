@@ -77,8 +77,17 @@ def validate_task_quality_output(output: Any) -> Mapping[str, Any]:
     return {"category_suggestion": category, "missing_information": missing, "quality_checks": checks, "confidence": confidence, "rationale": rationale}
 
 
+def validate_production_approval() -> None:
+    """Require an explicit release approval before any provider adapter can run."""
+    if not bool(getattr(settings, "AI_PRODUCTION_APPROVED", False)):
+        raise AIGatewayError("ai_production_not_approved")
+    if not str(getattr(settings, "AI_APPROVAL_REFERENCE", "")).strip():
+        raise AIGatewayError("ai_approval_reference_required")
+
+
 def request_ai(*, request: AIRequest, provider: str, model: str) -> Mapping[str, Any]:
     """Fail closed until an approved provider adapter exists."""
     validate_capability(request.capability_id)
     validate_provider_model(provider, model)
+    validate_production_approval()
     raise AIGatewayError("ai_provider_adapter_not_enabled")
