@@ -46,6 +46,8 @@ class AgentCapabilityRequest:
     tool: str | None = None
     destination: str | None = None
     approved: bool = False
+    tool_calls_used: int = 0
+    external_side_effects_used: int = 0
 
 
 def authorize_capability(
@@ -66,6 +68,15 @@ def authorize_capability(
         raise AgentCapabilityError("agent_tool_not_allowed")
     if request.destination is not None and request.destination not in capability.allowed_destinations:
         raise AgentCapabilityError("agent_destination_not_allowed")
+
+    if request.tool_calls_used < 0:
+        raise AgentCapabilityError("agent_tool_budget_invalid")
+    if request.tool_calls_used > capability.max_tool_calls:
+        raise AgentCapabilityError("agent_tool_budget_exceeded")
+    if request.external_side_effects_used < 0:
+        raise AgentCapabilityError("agent_side_effect_budget_invalid")
+    if request.external_side_effects_used > capability.max_external_side_effects:
+        raise AgentCapabilityError("agent_side_effect_budget_exceeded")
 
     if capability.requires_human_approval and not request.approved:
         raise AgentCapabilityError("agent_human_approval_required")
