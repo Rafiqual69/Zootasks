@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, "feat/**"]
 
+permissions:
+  contents: read
+
 jobs:
   ai-evaluation:
     runs-on: ubuntu-latest
@@ -20,11 +23,30 @@ jobs:
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: config.settings
+          ZOOTASKS_GIT_COMMIT: ${{ github.sha }}
         run: python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
       - name: Validate evidence JSON
         run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
+      - name: Verify evidence integrity
+        working-directory: backend
+        env:
+          EXPECTED_GIT_COMMIT: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from core.ai_evaluation_integrity import evidence_sha256
+          path = "artifacts/ai/AI-SYS-001-evidence.json"
+          with open(path, encoding="utf-8") as handle:
+              evidence = json.load(handle)
+          if evidence["integrity"]["evidence_sha256"] != evidence_sha256(evidence):
+              raise SystemExit("AI evidence integrity verification failed")
+          if evidence["provenance"]["git_commit"] != os.environ["EXPECTED_GIT_COMMIT"]:
+              raise SystemExit("AI evidence Git provenance mismatch")
+          print(evidence["integrity"]["evidence_sha256"])
+          PY
       - name: Upload evaluation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: AI-SYS-001-evidence
+          name: AI-SYS-001-evidence-${{ github.sha }}
           path: artifacts/ai/AI-SYS-001-evidence.json
+          if-no-files-found: error
