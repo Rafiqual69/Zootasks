@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from urllib.parse import urlsplit
 
 from .email_verification import issue_owner_email_verification, verify_owner_email_token
 from .forms import AdvertiserRegistrationForm, RegistrationForm
@@ -83,7 +84,6 @@ def owner_email_verify(request, token):
             "accounts/owner_email_verify.html",
             {"token": token},
         )
-        response["Referrer-Policy"] = "no-referrer"
         response["Cache-Control"] = "no-store"
         return response
 
@@ -254,12 +254,12 @@ def owner_social_oauth_callback(request, provider):
 def csrf_diagnostic_failure(request, reason=''):
     import logging
     logging.getLogger('django.security.csrf').warning(
-        'ZOOTASKS_CSRF_DIAGNOSTIC reason=%r method=%r host=%r origin=%r referer=%r cookie=%s token=%s',
+        'ZOOTASKS_CSRF_DIAGNOSTIC reason=%r method=%r host=%r origin=%r referer_origin=%r cookie=%s token=%s',
         reason,
         request.method,
         request.get_host(),
         request.META.get('HTTP_ORIGIN'),
-        request.META.get('HTTP_REFERER'),
+        (urlsplit(request.META.get('HTTP_REFERER', '')).scheme + '://' + urlsplit(request.META.get('HTTP_REFERER', '')).netloc) if request.META.get('HTTP_REFERER') else '',
         bool(request.COOKIES.get('csrftoken')),
         bool(request.POST.get('csrfmiddlewaretoken')),
     )
