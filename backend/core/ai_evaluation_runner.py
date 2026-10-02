@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from django.conf import settings
+from django.test import override_settings
 
 from core.ai_evaluation_cases import CASES, EVALUATION_DATASET_VERSION
 from core.ai_evaluation_integrity import evidence_sha256, sha256_json
@@ -75,7 +76,12 @@ def run_evaluation() -> dict:
             if case["group"] == "provider_failure":
                 try:
                     from core.ai_gateway import request_ai
-                    request_ai(request=request, provider="test-provider", model="test-model-v1")
+                    with override_settings(
+                        AI_ALLOWED_CAPABILITIES="AI-SYS-001",
+                        AI_ALLOWED_PROVIDERS="test-provider",
+                        AI_ALLOWED_MODELS="test-model-v1",
+                    ):
+                        request_ai(request=request, provider="test-provider", model="test-model-v1")
                 except AIGatewayError as exc:
                     if str(exc) != "ai_provider_adapter_not_enabled":
                         raise AssertionError(f"unexpected_provider_failure:{exc}")
