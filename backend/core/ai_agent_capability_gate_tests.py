@@ -65,6 +65,45 @@ class AIAgentCapabilityGateTests(SimpleTestCase):
 
         authorize_capability(capability, request.__class__(**{**request.__dict__, "approved": True}))
 
+    def test_tool_budget_is_enforced(self):
+        capability = registered_capabilities()[0]
+        with self.assertRaisesRegex(AgentCapabilityError, "agent_tool_budget_exceeded"):
+            authorize_capability(
+                capability,
+                AgentCapabilityRequest(
+                    agent_id=capability.agent_id,
+                    capability_id=capability.capability_id,
+                    action="read_analysis",
+                    tool_calls_used=capability.max_tool_calls + 1,
+                ),
+            )
+
+    def test_side_effect_budget_is_always_zero_for_registered_agents(self):
+        capability = registered_capabilities()[0]
+        with self.assertRaisesRegex(AgentCapabilityError, "agent_side_effect_budget_exceeded"):
+            authorize_capability(
+                capability,
+                AgentCapabilityRequest(
+                    agent_id=capability.agent_id,
+                    capability_id=capability.capability_id,
+                    action="read_analysis",
+                    external_side_effects_used=1,
+                ),
+            )
+
+    def test_negative_budget_counters_are_rejected(self):
+        capability = registered_capabilities()[0]
+        with self.assertRaisesRegex(AgentCapabilityError, "agent_tool_budget_invalid"):
+            authorize_capability(
+                capability,
+                AgentCapabilityRequest(
+                    agent_id=capability.agent_id,
+                    capability_id=capability.capability_id,
+                    action="read_analysis",
+                    tool_calls_used=-1,
+                ),
+            )
+
     def test_unapproved_tool_and_destination_are_rejected(self):
         capability = registered_capabilities()[0]
         with self.assertRaisesRegex(AgentCapabilityError, "agent_tool_not_allowed"):
