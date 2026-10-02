@@ -66,3 +66,21 @@ class AgentCardDelegationTests(SimpleTestCase):
     def test_delegation_cannot_include_financial_authority(self):
         d=Delegation("D2","A1","A2",("wallet_mutation",),("approved",),(),1,"2026-10-03T00:00:00+00:00")
         with self.assertRaises(ValueError): delegation_digest(d)
+
+
+from core.ai_source_attestation import SourceManifest, evaluate_manifest
+from core.ai_privacy_gate import PrivacyPolicy, evaluate_privacy
+
+class SourcePrivacyGateTests(SimpleTestCase):
+    def test_unverified_source_is_quarantined(self):
+        m=SourceManifest("S1","P1","1","provider",("BD",),("E1",))
+        self.assertEqual(evaluate_manifest(m).state,"quarantined")
+    def test_attested_source_is_only_a_candidate(self):
+        m=SourceManifest("S1","P1","1","provider",("BD",),("E1",),"ATT-1","attested")
+        self.assertEqual(evaluate_manifest(m).state,"candidate")
+    def test_privacy_requires_explicit_approval(self):
+        p=PrivacyPolicy("personal","task evaluation","30 days",("no resale",),("BD",),False)
+        self.assertEqual(evaluate_privacy(p,region="BD").state,"quarantined")
+    def test_unapproved_region_is_quarantined(self):
+        p=PrivacyPolicy("public","evaluation","7 days",(),("US",),True)
+        self.assertEqual(evaluate_privacy(p,region="BD").state,"quarantined")
