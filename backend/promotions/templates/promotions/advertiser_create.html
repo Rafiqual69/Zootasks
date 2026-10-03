@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create Promotion — ZooTasks</title>
+<link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
+</head>
+<body class="zt-auth-page">
+<header class="zt-auth-header">
+<a class="zt-brand" href="/"><span class="zt-brand-mark">Z</span><span>ZooTasks</span></a>
+</header>
+<main class="zt-auth-main">
+<section class="zt-auth-card zt-auth-card-wide">
+<span class="zt-kicker">ADVERTISER WORKSPACE</span>
+<h1>Create a promotion request</h1>
+<p class="zt-auth-intro">Submit a promotion for review. Worker visibility, approval and reward payment remain separated from advertiser creation.</p>
+{% if form.non_field_errors %}<div class="zt-alert zt-alert-error">{{ form.non_field_errors }}</div>{% endif %}
+<form method="post" class="zt-auth-form">
+{% csrf_token %}
+{{ form.as_p }}
+<button class="zt-auth-submit" type="submit">Submit for Review</button>
+</form>
+<p class="zt-auth-footer"><a href="{% url 'advertiser_dashboard' %}">Back to advertiser dashboard</a></p>
+</section>
+</main>
+<footer class="zt-auth-bottom"><a href="/">ZooTasks</a><span>Governed promotion marketplace</span></footer>
+</body>
+</html>

@@ -19,6 +19,9 @@ class WalletTransaction(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        permissions = [
+            ("view_live_wallet_dashboard", "Can view the live wallet dashboard"),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - ৳{self.amount}"

@@ -67,3 +67,27 @@ class OwnerOTPAuthenticationForm(OTPAuthenticationForm):
             raise ValidationError(
                 "Owner MFA is not enrolled. Owner access is currently unavailable."
             )
+
+
+class AdvertiserRegistrationForm(RegistrationForm):
+    organization_name = forms.CharField(max_length=200)
+    contact_name = forms.CharField(max_length=150)
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "organization_name",
+            "contact_name",
+        ]
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if not email:
+            raise forms.ValidationError("Email is required for advertiser registration.")
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Email is already registered.")
+        return email

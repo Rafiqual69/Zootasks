@@ -24,6 +24,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from accounts.models import TelegramIdentity, WorkerProfile
 from tasks.models import Task, TaskClaim
+from tasks.services import TaskServiceError, claim_task_for_worker, submit_claim_proof, approve_claim, reject_claim
 from wallet.models import WalletTransaction, WithdrawalRequest
 from decimal import Decimal, InvalidOperation
 from django.db.models import F, Sum
@@ -153,7 +154,7 @@ async def tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "id",
                 "title",
                 "reward",
-                "completed_workers",
+                "claimed_workers",
                 "max_workers",
                 "category",
             )[:20]
@@ -178,7 +179,7 @@ async def tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(
             f"🔹 {task['title']}\n"
             f"💰 Reward: ৳{task['reward']}\n"
-            f"👥 Workers: {task['completed_workers']}/{task['max_workers']}\n"
+            f"👥 Workers: {task['claimed_workers']}/{task['max_workers']}\n"
             f"📂 Category: {task['category']}\n"
         )
 
@@ -215,42 +216,20 @@ async def claim_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     @sync_to_async
     def do_claim(user):
-        WorkerProfile.objects.get_or_create(user=user)
-
         try:
-            with transaction.atomic():
-                task = (
-                    Task.objects
-                    .select_for_update()
-                    .get(id=task_id, status="active")
-                )
+            claim = claim_task_for_worker(
+                user=user,
+                task_id=task_id,
+            )
+        except TaskServiceError as exc:
+            messages = {
+                "task_unavailable": "❌ এই task আর available নেই।",
+                "task_full": "❌ এই task-এর worker limit পূর্ণ হয়ে গেছে।",
+                "already_claimed": "⚠️ আপনি এই task ইতিমধ্যে claim করেছেন।",
+            }
+            return messages.get(str(exc), "❌ Task claim করা যায়নি.")
 
-                if task.completed_workers >= task.max_workers:
-                    return "❌ এই task-এর worker limit পূর্ণ হয়ে গেছে।"
-
-                if TaskClaim.objects.filter(
-                    task=task,
-                    worker=user,
-                ).exists():
-                    return "⚠️ আপনি এই task ইতিমধ্যে claim করেছেন।"
-
-                TaskClaim.objects.create(
-                    task=task,
-                    worker=user,
-                    status="claimed",
-                )
-
-                task.completed_workers += 1
-                if task.completed_workers >= task.max_workers:
-                    task.status = "completed"
-
-                task.save(
-                    update_fields=["completed_workers", "status"]
-                )
-
-        except Task.DoesNotExist:
-            return "❌ এই task আর available নেই।"
-
+        task = Task.objects.get(pk=claim.task_id)
         return (
             "✅ Task successfully claimed!\n\n"
             f"📋 {task.title}\n"
@@ -561,12 +540,16 @@ async def submit_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not claim:
             return "❌ আপনার কোনো pending claimed task নেই।"
 
-        claim.proof = proof_text
-        claim.status = "submitted"
-        claim.submitted_at = django.utils.timezone.now()
-        claim.save(
-            update_fields=["proof", "status", "submitted_at"]
-        )
+        try:
+            claim = submit_claim_proof(
+                user=user,
+                task_id=claim.task_id,
+                proof=proof_text,
+            )
+        except TaskServiceError as exc:
+            if str(exc) == "proof_required":
+                return "❌ Proof খালি রাখা যাবে না।"
+            return "❌ Proof submit করা যায়নি।"
 
         return (
             "✅ Proof successfully submitted!\\n\\n"
@@ -706,76 +689,34 @@ async def review_claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
     @sync_to_async
     def process_claim():
         try:
-            with transaction.atomic():
-                claim = (
-                    TaskClaim.objects
-                    .select_for_update()
-                    .select_related("task", "worker")
-                    .get(id=claim_id)
-                )
-
-                if claim.status != "submitted":
+            if action == "approve":
+                _, result = approve_claim(claim_id=claim_id)
+                if result == "approved":
                     return (
-                        f"⚠️ এই claim আগে থেকেই "
-                        f"{claim.status} অবস্থায় আছে।"
+                        f"✅ Claim #{claim_id} approved হয়েছে.\n\n"
+                        "💰 Reward worker-এর balance-এ যোগ হয়েছে।"
                     )
+                if result in {"already_paid", "already_approved"}:
+                    return f"✅ Claim #{claim_id} already processed ছিল।"
+                return "❌ Claim approve করা যায়নি।"
 
-                if action == "reject":
-                    claim.status = "rejected"
-                    claim.save(update_fields=["status"])
-                    return f"❌ Claim #{claim.id} rejected হয়েছে।"
+            if action == "reject":
+                _, result = reject_claim(claim_id=claim_id)
+                if result == "rejected":
+                    return f"❌ Claim #{claim_id} rejected হয়েছে।"
+                if result == "already_rejected":
+                    return f"⚠️ Claim #{claim_id} আগেই rejected ছিল।"
+                return "❌ Claim reject করা যায়নি।"
 
-                if action == "approve":
-                    profile, _ = (
-                        WorkerProfile.objects
-                        .select_for_update()
-                        .get_or_create(user=claim.worker)
-                    )
+            return "❌ Invalid action."
 
-                    existing_tx = WalletTransaction.objects.filter(
-                        task_claim=claim,
-                        transaction_type="earning",
-                    ).first()
-
-                    if existing_tx:
-                        claim.status = "approved"
-                        claim.save(update_fields=["status"])
-                        return (
-                            f"✅ Claim #{claim.id} already credited ছিল।"
-                        )
-
-                    WalletTransaction.objects.create(
-                        user=claim.worker,
-                        amount=claim.task.reward,
-                        transaction_type="earning",
-                        description=f"Reward for: {claim.task.title}",
-                        task_claim=claim,
-                    )
-
-                    profile.balance += claim.task.reward
-                    profile.total_earned += claim.task.reward
-                    profile.completed_tasks += 1
-                    profile.save(
-                        update_fields=[
-                            "balance",
-                            "total_earned",
-                            "completed_tasks",
-                        ]
-                    )
-
-                    claim.status = "approved"
-                    claim.save(update_fields=["status"])
-
-                    return (
-                        f"✅ Claim #{claim.id} approved হয়েছে.\n\n"
-                        f"💰 Reward ৳{claim.task.reward} "
-                        f"worker-এর balance-এ যোগ হয়েছে।"
-                    )
-
-                return "❌ Invalid action."
-
-        except TaskClaim.DoesNotExist:
-            return "❌ Claim পাওয়া যায়নি।"
+        except TaskServiceError as exc:
+            messages = {
+                "claim_not_found": "❌ Claim পাওয়া যায়নি।",
+                "claim_not_submittable": "⚠️ এই claim এখন approve করার অবস্থায় নেই।",
+                "claim_not_rejectable": "⚠️ এই claim এখন reject করার অবস্থায় নেই।",
+            }
+            return messages.get(str(exc), "❌ Claim process করা যায়নি.")
 
     result = await process_claim()
     await query.edit_message_text(result)

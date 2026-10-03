@@ -4,6 +4,9 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import F, Sum
 from django.shortcuts import redirect, render
+from django.core.exceptions import PermissionDenied
+
+from accounts.policies import is_worker
 
 from .models import WalletTransaction, WithdrawalRequest
 from accounts.models import WorkerProfile
@@ -33,9 +36,9 @@ def get_wallet_summary(user):
         or Decimal("0.00")
     )
 
-    profile = WorkerProfile.objects.get_or_create(
-        user=user
-    )[0]
+    profile = WorkerProfile.objects.filter(user=user).first()
+    if profile is None:
+        raise PermissionDenied("A provisioned Worker account is required for wallet access.")
 
     pending_withdrawals = profile.reserved_balance
 
@@ -51,6 +54,8 @@ def get_wallet_summary(user):
 
 @login_required
 def wallet(request):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     summary = get_wallet_summary(request.user)
 
     transactions = (
@@ -80,6 +85,8 @@ def wallet(request):
 @login_required
 @transaction.atomic
 def request_withdrawal(request):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     summary = get_wallet_summary(request.user)
     error = ""
 
@@ -148,6 +155,8 @@ def request_withdrawal(request):
 
 @login_required
 def withdrawal_success(request):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     summary = get_wallet_summary(request.user)
 
     return render(
@@ -161,6 +170,8 @@ def withdrawal_success(request):
 
 @login_required
 def withdrawal_history(request):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     withdrawals = (
         WithdrawalRequest.objects
         .filter(user=request.user)

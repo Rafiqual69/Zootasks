@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction, WithdrawalRequest
 from wallet.admin import approve_withdrawals, reject_withdrawals, mark_withdrawals_paid
 
@@ -14,6 +14,10 @@ class WithdrawalFlowTests(TestCase):
         self.user = User.objects.create_user(
             username="worker_test",
             password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=self.user,
+            entity_type=AccountEntity.EntityType.WORKER,
         )
         self.profile = WorkerProfile.objects.create(
             user=self.user,

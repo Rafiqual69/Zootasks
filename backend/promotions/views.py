@@ -1,16 +1,55 @@
 from django.contrib.auth.decorators import login_required
-from django.middleware.csrf import get_token
-from django.utils.html import escape
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.middleware.csrf import get_token
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .models import Promotion, PromotionClaim
+from django.utils.html import escape
+
+from accounts.models import AccountEntity, AdvertiserProfile
+from accounts.policies import is_worker
 from wallet.models import WalletTransaction
+
+from .forms import AdvertiserPromotionForm
+from .models import Promotion, PromotionClaim
+
+@login_required
+def advertiser_create_promotion(request):
+    try:
+        entity = request.user.account_entity
+        profile = request.user.advertiser_profile
+    except (AccountEntity.DoesNotExist, AdvertiserProfile.DoesNotExist) as exc:
+        raise PermissionDenied("A provisioned Advertiser account is required.") from exc
+
+    if not entity.is_active or entity.entity_type != AccountEntity.EntityType.ADVERTISER:
+        raise PermissionDenied("This endpoint is restricted to active Advertiser accounts.")
+
+    if request.method == "POST":
+        form = AdvertiserPromotionForm(request.POST)
+        if form.is_valid():
+            promotion = form.save(commit=False)
+            promotion.advertiser = profile
+            promotion.advertiser_name = (
+                profile.organization_name or profile.contact_name or request.user.username
+            )
+            promotion.status = "pending"
+            promotion.save()
+            return redirect("advertiser_dashboard")
+    else:
+        form = AdvertiserPromotionForm()
+
+    return render(
+        request,
+        "promotions/advertiser_create.html",
+        {"form": form, "profile": profile},
+    )
 
 @login_required
 def marketplace(request):
-    promotions = Promotion.objects.filter(status__in=["active", "approved", "paused"]).order_by("-created_at")
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
+    promotions = Promotion.objects.filter(status__in=["active", "approved"]).order_by("-created_at")
     search = request.GET.get("search", "").strip()
     if search:
         promotions = promotions.filter(title__icontains=search)
@@ -58,6 +97,8 @@ def marketplace(request):
 @login_required
 @transaction.atomic
 def start_promotion(request, promotion_id):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     if request.method != "POST":
         return redirect("promotion_marketplace")
     promotion = get_object_or_404(Promotion.objects.select_for_update(), id=promotion_id, status__in=["active", "approved"])
@@ -73,6 +114,8 @@ def start_promotion(request, promotion_id):
 
 @login_required
 def submit_promotion(request, promotion_id):
+    if not is_worker(request.user):
+        raise PermissionDenied("Worker access is required.")
     claim = get_object_or_404(PromotionClaim, promotion_id=promotion_id, worker=request.user)
     if claim.status != "claimed":
         return redirect("promotion_marketplace")

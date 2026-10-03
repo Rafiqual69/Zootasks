@@ -1,0 +1,55 @@
+name: AI Evaluation Evidence
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main, "feat/**"]
+
+jobs:
+  ai-evaluation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install jsonschema
+      - name: Run AI evaluation
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+        run: python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
+      - name: Run AI evidence tests
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+          AI_ALLOWED_CAPABILITIES: AI-SYS-001
+          AI_ALLOWED_PROVIDERS: test-provider
+          AI_ALLOWED_MODELS: test-model-v1
+        run: python manage.py test core.ai_evaluation_runner_tests core.ai_evaluation_integrity_tests
+      - name: Validate evidence JSON and schema
+        run: |
+          python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
+          python - <<'PY'
+          import json
+          from jsonschema import Draft202012Validator
+          from pathlib import Path
+
+          evidence = json.loads(Path("artifacts/ai/AI-SYS-001-evidence.json").read_text())
+          schema = json.loads(Path("docs/ai/AI_EVIDENCE_SCHEMA.json").read_text())
+          errors = sorted(Draft202012Validator(schema).iter_errors(evidence), key=lambda e: list(e.path))
+          if errors:
+              for error in errors:
+                  print(error.message)
+              raise SystemExit(1)
+          print("AI evidence schema validation: PASS")
+          PY
+      - name: Upload evaluation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-SYS-001-evidence
+          path: artifacts/ai/AI-SYS-001-evidence.json

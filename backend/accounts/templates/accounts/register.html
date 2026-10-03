@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Create your ZooTasks account.">
-    <title>Create Account — ZooTasks</title>
+    <title>{% if account_type == 'advertiser' %}Advertiser Registration{% else %}Create Account{% endif %} — ZooTasks</title>
     <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
 </head>
 
@@ -23,9 +23,9 @@
         <div class="zt-auth-icon">+</div>
 
         <span class="zt-kicker">GET STARTED</span>
-        <h1>Create your account</h1>
+        <h1>{% if account_type == 'advertiser' %}Create an advertiser account{% else %}Create your account{% endif %}</h1>
         <p class="zt-auth-intro">
-            Join ZooTasks and start discovering tasks and reward opportunities.
+            {% if account_type == 'advertiser' %}Register your organization to prepare for advertiser services on ZooTasks.{% else %}Join ZooTasks and start discovering tasks and reward opportunities.{% endif %}
         </p>
 
         {% if form.non_field_errors %}
@@ -48,6 +48,12 @@
             Already have an account?
             <a href="{% url 'login' %}">Sign in</a>
         </p>
+        {% if account_type != 'advertiser' %}
+            <p class="zt-auth-footer">
+                Are you an organization or business?
+                <a href="{% url 'advertiser_register' %}">Create an advertiser account</a>
+            </p>
+        {% endif %}
     </section>
 </main>
 

@@ -1,0 +1,105 @@
+name: ZooTasks Security Gate
+
+on:
+  push:
+    branches:
+      - main
+      - feat/**
+  pull_request:
+    branches:
+      - main
+      - feat/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zootasks-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit
+
+      - name: Django system check
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          OWNER_USERNAME: "ci-owner"
+        run: python manage.py check
+
+      - name: Django deployment security check
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          OWNER_USERNAME: "ci-owner"
+          PRODUCTION_MODE: "true"
+          SECURE_SSL_REDIRECT: "true"
+          SECURE_COOKIES: "true"
+          TRUST_PROXY_SSL: "true"
+          SECURE_HSTS_SECONDS: "31536000"
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: "true"
+          SECURE_HSTS_PRELOAD: "true"
+        run: python manage.py check --deploy
+
+      - name: Configure and audit privileged RBAC
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          OWNER_USERNAME: "ci-owner"
+        run: |
+          python manage.py migrate --noinput
+          python manage.py setup_rbac
+          python manage.py shell -c '
+          from django.contrib.auth import get_user_model
+          from accounts.models import AccountEntity
+          User = get_user_model()
+          username = "ci-owner"
+          user, _ = User.objects.get_or_create(username=username)
+          user.is_staff = True
+          user.is_superuser = True
+          user.set_unusable_password()
+          user.save(update_fields=["is_staff", "is_superuser", "password"])
+          AccountEntity.objects.get_or_create(
+              entity_type=AccountEntity.EntityType.OWNER,
+              defaults={"user": user, "is_active": True},
+          )
+          '
+          python manage.py audit_security
+
+      - name: Full regression tests
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026-long-random-placeholder
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          OWNER_USERNAME: "ci-owner"
+        run: python manage.py test
+
+      - name: Dependency vulnerability audit
+        working-directory: backend
+        run: pip-audit -r requirements.txt
+
+      - name: Check whitespace errors
+        run: git diff --check

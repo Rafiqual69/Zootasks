@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from accounts.policies import is_owner
 from django.db import transaction
 from django.utils import timezone
 
@@ -9,9 +10,35 @@ from wallet.models import WalletTransaction
 
 @admin.register(Promotion)
 class PromotionAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        # Only the canonical active Owner may create financial root objects.
+        return is_owner(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        # Promotions are financial/audit roots; use status transitions instead.
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            # Owner may create a new promotion with its initial reward/budget
+            # and capacity. Runtime lifecycle counters remain protected.
+            return ("completed_workers", "status", "created_at")
+
+        return (
+            "advertiser",
+            "advertiser_name",
+            "reward",
+            "budget",
+            "max_workers",
+            "completed_workers",
+            "status",
+            "created_at",
+        )
+
     list_display = (
         "title",
         "advertiser_name",
+        "advertiser",
         "reward",
         "budget",
         "max_workers",
@@ -20,11 +47,20 @@ class PromotionAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("status",)
-    search_fields = ("title", "advertiser_name")
+    search_fields = (
+        "title",
+        "advertiser_name",
+        "advertiser__organization_name",
+        "advertiser__user__username",
+    )
 
 
 @admin.register(PromotionClaim)
 class PromotionClaimAdmin(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        # Claims participate in payout/audit history and must not be deleted.
+        return False
+
     list_display = (
         "promotion",
         "worker",
@@ -106,6 +142,22 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     )
 
                     reward = locked.promotion.reward
+                    promotion = locked.promotion
+
+                    if promotion.status not in {"approved", "active"}:
+                        failed += 1
+                        continue
+
+                    declared_liability = reward * promotion.completed_workers
+                    if declared_liability > promotion.budget:
+                        failed += 1
+                        self.message_user(
+                            request,
+                            f"Promotion #{promotion.id} skipped: declared "
+                            f"worker liability exceeds budget. Manual reconciliation required.",
+                            messages.ERROR,
+                        )
+                        continue
 
                     profile.balance += reward
                     profile.total_earned += reward
@@ -182,12 +234,28 @@ class PromotionClaimAdmin(admin.ModelAdmin):
             )
             return
 
-        updated = queryset.filter(
-            status="submitted"
-        ).update(
-            status="rejected",
-            approved_at=None,
-        )
+        updated = 0
+
+        for claim_id in queryset.values_list("id", flat=True):
+            with transaction.atomic():
+                claim = (
+                    PromotionClaim.objects
+                    .select_for_update()
+                    .get(id=claim_id)
+                )
+
+                if claim.status != "submitted":
+                    continue
+
+                claim.status = "rejected"
+                claim.approved_at = None
+                claim.save(
+                    update_fields=[
+                        "status",
+                        "approved_at",
+                    ]
+                )
+                updated += 1
 
         self.message_user(
             request,

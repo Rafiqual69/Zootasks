@@ -1,17 +1,40 @@
 from django.contrib import admin, messages
-from django.db import transaction
+from accounts.policies import is_owner
 
 from .models import Task, TaskClaim
-from accounts.models import WorkerProfile
-from wallet.models import WalletTransaction
+from .services import (
+    TaskServiceError,
+    approve_claim,
+    reject_claim,
+)
 
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return is_owner(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ("claimed_workers", "completed_workers", "created_at")
+
+        return (
+            "reward",
+            "max_workers",
+            "claimed_workers",
+            "completed_workers",
+            "status",
+            "created_at",
+        )
+
     list_display = (
         "title",
         "category",
         "reward",
+        "claimed_workers",
         "completed_workers",
         "max_workers",
         "status",
@@ -37,59 +60,17 @@ def approve_submissions(modeladmin, request, queryset):
     already_paid = 0
 
     for claim_id in queryset.values_list("id", flat=True):
-        with transaction.atomic():
-            claim = (
-                TaskClaim.objects
-                .select_for_update()
-                .select_related("task", "worker")
-                .get(id=claim_id)
-            )
+        try:
+            _, result = approve_claim(claim_id=claim_id)
+        except TaskServiceError:
+            continue
 
-            if claim.status != "submitted":
-                continue
-
-            existing_payment = WalletTransaction.objects.filter(
-                task_claim=claim
-            ).first()
-
-            if existing_payment:
-                claim.status = "approved"
-                claim.save(update_fields=["status"])
-                already_paid += 1
-                continue
-
-            reward = claim.task.reward
-
-            profile = (
-                WorkerProfile.objects
-                .select_for_update()
-                .get(user=claim.worker)
-            )
-
-            profile.balance += reward
-            profile.total_earned += reward
-            profile.completed_tasks += 1
-
-            profile.save(
-                update_fields=[
-                    "balance",
-                    "total_earned",
-                    "completed_tasks",
-                ]
-            )
-
-            WalletTransaction.objects.create(
-                user=claim.worker,
-                amount=reward,
-                transaction_type="earning",
-                description=f"Reward for: {claim.task.title}",
-                task_claim=claim,
-            )
-
-            claim.status = "approved"
-            claim.save(update_fields=["status"])
-
+        if result == "approved":
             approved += 1
+        elif result == "already_paid":
+            already_paid += 1
+        elif result == "already_approved":
+            already_paid += 1
 
     if approved:
         modeladmin.message_user(
@@ -124,11 +105,16 @@ def reject_submissions(modeladmin, request, queryset):
         )
         return
 
-    updated = queryset.filter(
-        status="submitted"
-    ).update(
-        status="rejected"
-    )
+    updated = 0
+
+    for claim_id in queryset.values_list("id", flat=True):
+        try:
+            _, result = reject_claim(claim_id=claim_id)
+        except TaskServiceError:
+            continue
+
+        if result in {"rejected", "already_rejected"}:
+            updated += 1
 
     modeladmin.message_user(
         request,
@@ -139,6 +125,9 @@ def reject_submissions(modeladmin, request, queryset):
 
 @admin.register(TaskClaim)
 class TaskClaimAdmin(admin.ModelAdmin):
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     list_display = (
         "task",
         "worker",

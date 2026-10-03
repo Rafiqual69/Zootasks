@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 
+from accounts.models import AdvertiserProfile
+
 
 class Promotion(models.Model):
     STATUS_CHOICES = [
@@ -19,6 +21,15 @@ class Promotion(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     advertiser_name = models.CharField(max_length=150)
+    # Nullable for backward compatibility; existing promotions remain valid
+    # until a controlled ownership backfill is performed.
+    advertiser = models.ForeignKey(
+        AdvertiserProfile,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="promotions",
+    )
     reward = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -80,3 +91,77 @@ class PromotionClaim(models.Model):
 
     def __str__(self):
         return f"{self.worker.username} - {self.promotion.title}"
+
+
+
+class PromotionFunding(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Verification"
+        VERIFIED = "verified", "Verified"
+        RESERVED = "reserved", "Reserved"
+        RELEASED = "released", "Released"
+
+    promotion = models.OneToOneField(
+        Promotion,
+        on_delete=models.PROTECT,
+        related_name="funding",
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    provider_reference = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    reserved_at = models.DateTimeField(null=True, blank=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        permissions = [
+            ("verify_promotion_funding", "Can verify promotion funding"),
+            ("reserve_promotion_funding", "Can reserve promotion funding"),
+            ("release_promotion_funding", "Can release promotion funding"),
+        ]
+
+    def __str__(self):
+        return f"{self.promotion.title} - ৳{self.amount} ({self.status})"
+
+
+class PromotionFundingLedger(models.Model):
+    class EntryType(models.TextChoices):
+        FUND = "fund", "Funding Received"
+        RESERVE = "reserve", "Worker Liability Reserved"
+        RELEASE = "release", "Unused Funds Released"
+        REFUND = "refund", "Advertiser Refund"
+
+    funding = models.ForeignKey(
+        PromotionFunding,
+        on_delete=models.PROTECT,
+        related_name="ledger_entries",
+    )
+    entry_type = models.CharField(max_length=20, choices=EntryType.choices)
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    idempotency_key = models.CharField(max_length=120, unique=True)
+    provider_reference = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"{self.funding_id} - {self.entry_type} - ৳{self.amount}"

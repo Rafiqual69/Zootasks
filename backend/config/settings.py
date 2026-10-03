@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "tasks",
     "promotions",
     "wallet",
+    "core",
 ]
 
 MIDDLEWARE = [
@@ -82,24 +83,109 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 
 # =============== EMAIL SETTINGS ===============
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True") == "True"
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "noreply@zootasks.com")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = "ZooTasks <noreply@zootasks.com>"
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", f"ZooTasks <{EMAIL_HOST_USER}>"
+)
 
 # =============== SECURITY ===============
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-WSGI_APPLICATION = "config.wsgi.application"
+# Development stays HTTP-friendly; production enables HTTPS-only controls.
+PRODUCTION_MODE = config("PRODUCTION_MODE", default=False, cast=bool)
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cast=bool)
+SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = config(
+    "SECURE_REFERRER_POLICY", default="same-origin"
+)
+SECURE_CROSS_ORIGIN_OPENER_POLICY = config(
+    "SECURE_CROSS_ORIGIN_OPENER_POLICY", default="same-origin"
+)
+X_FRAME_OPTIONS = "DENY"
+
+# Only enable this when a trusted reverse proxy terminates TLS and sets
+# X-Forwarded-Proto after stripping any client-supplied copy.
+TRUST_PROXY_SSL = config("TRUST_PROXY_SSL", default=PRODUCTION_MODE, cast=bool)
+if TRUST_PROXY_SSL:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# HSTS is intentionally production-only because enabling it on an HTTP
+# development host can make the host inaccessible in a browser.
+SECURE_HSTS_SECONDS = config(
+    "SECURE_HSTS_SECONDS",
+    default=31536000 if PRODUCTION_MODE else 0,
+    cast=int,
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    default=PRODUCTION_MODE,
+    cast=bool,
+)
+SECURE_HSTS_PRELOAD = config(
+    "SECURE_HSTS_PRELOAD",
+    default=PRODUCTION_MODE,
+    cast=bool,
+)
 
 ASGI_APPLICATION = "config.asgi.application"
 
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
+# =============== AI SAFETY BOUNDARY ===============
+# Empty by default: production AI cannot activate accidentally.
+AI_PRODUCTION_APPROVED = config("AI_PRODUCTION_APPROVED", default=False, cast=bool)
+AI_APPROVAL_REFERENCE = config("AI_APPROVAL_REFERENCE", default="")
+AI_ALLOWED_CAPABILITIES = config("AI_ALLOWED_CAPABILITIES", default="")
+AI_ALLOWED_PROVIDERS = config("AI_ALLOWED_PROVIDERS", default="")
+AI_ALLOWED_MODELS = config("AI_ALLOWED_MODELS", default="")
+AI_MAX_INPUT_CHARS = config("AI_MAX_INPUT_CHARS", default=12000, cast=int)
 # High-assurance Owner access
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
+OWNER_IDENTITY_EMAIL = config("OWNER_IDENTITY_EMAIL", default="")
+OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS = config(
+    "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS", default=5, cast=int
+)
+OWNER_SOCIAL_OAUTH_STATE_TTL_SECONDS = config(
+    "OWNER_SOCIAL_OAUTH_STATE_TTL_SECONDS", default=600, cast=int
+)
+OWNER_FACEBOOK_OAUTH_CLIENT_ID = config("OWNER_FACEBOOK_OAUTH_CLIENT_ID", default="")
+OWNER_FACEBOOK_OAUTH_CLIENT_SECRET = config("OWNER_FACEBOOK_OAUTH_CLIENT_SECRET", default="")
+OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT = config("OWNER_FACEBOOK_OAUTH_TOKEN_ENDPOINT", default="")
+OWNER_FACEBOOK_OAUTH_GRANT_TYPE = config("OWNER_FACEBOOK_OAUTH_GRANT_TYPE", default="authorization_code")
+OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT = config("OWNER_FACEBOOK_OAUTH_PROFILE_ENDPOINT", default="")
+OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS = config("OWNER_FACEBOOK_OAUTH_PROFILE_FIELDS", default="")
+OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT = config(
+    "OWNER_FACEBOOK_OAUTH_AUTHORIZATION_ENDPOINT", default=""
+)
+OWNER_FACEBOOK_OAUTH_REDIRECT_URI = config(
+    "OWNER_FACEBOOK_OAUTH_REDIRECT_URI", default=""
+)
+OWNER_FACEBOOK_OAUTH_SCOPES = config("OWNER_FACEBOOK_OAUTH_SCOPES", default="")
+OWNER_INSTAGRAM_OAUTH_CLIENT_ID = config("OWNER_INSTAGRAM_OAUTH_CLIENT_ID", default="")
+OWNER_INSTAGRAM_OAUTH_CLIENT_SECRET = config("OWNER_INSTAGRAM_OAUTH_CLIENT_SECRET", default="")
+OWNER_INSTAGRAM_OAUTH_TOKEN_ENDPOINT = config("OWNER_INSTAGRAM_OAUTH_TOKEN_ENDPOINT", default="")
+OWNER_INSTAGRAM_OAUTH_GRANT_TYPE = config("OWNER_INSTAGRAM_OAUTH_GRANT_TYPE", default="authorization_code")
+OWNER_INSTAGRAM_OAUTH_PROFILE_ENDPOINT = config("OWNER_INSTAGRAM_OAUTH_PROFILE_ENDPOINT", default="")
+OWNER_INSTAGRAM_OAUTH_PROFILE_FIELDS = config("OWNER_INSTAGRAM_OAUTH_PROFILE_FIELDS", default="")
+OWNER_INSTAGRAM_OAUTH_AUTHORIZATION_ENDPOINT = config(
+    "OWNER_INSTAGRAM_OAUTH_AUTHORIZATION_ENDPOINT", default=""
+)
+OWNER_INSTAGRAM_OAUTH_REDIRECT_URI = config(
+    "OWNER_INSTAGRAM_OAUTH_REDIRECT_URI", default=""
+)
+OWNER_INSTAGRAM_OAUTH_SCOPES = config("OWNER_INSTAGRAM_OAUTH_SCOPES", default="")
+
 LOGOUT_REDIRECT_URL = "/"
+
+CSRF_FAILURE_VIEW = "accounts.views.csrf_diagnostic_failure"

@@ -10,6 +10,11 @@ from wallet.models import WalletTransaction, WithdrawalRequest
 
 
 def live_wallet_dashboard(request):
+    if not request.user.has_perm("wallet.view_live_wallet_dashboard"):
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied
+
     wallet_totals = WalletTransaction.objects.aggregate(
         total_earned=Sum(
             "amount",
