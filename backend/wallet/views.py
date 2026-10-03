@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import F, Sum
 from django.shortcuts import redirect, render
 from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_POST
 
 from accounts.policies import is_worker
 
@@ -83,7 +84,7 @@ def wallet(request):
 
 
 @login_required
-@transaction.atomic
+@require_POST
 def request_withdrawal(request):
     if not is_worker(request.user):
         raise PermissionDenied("Worker access is required.")
@@ -133,14 +134,13 @@ def request_withdrawal(request):
                 error = "Insufficient available balance."
             else:
                 WithdrawalRequest.objects.create(
-                user=request.user,
-                amount=amount,
-                bank_name=bank_name,
-                account_holder=account_holder,
-                bank_account=bank_account,
-            )
-
-            return redirect("withdrawal_success")
+                    user=request.user,
+                    amount=amount,
+                    bank_name=bank_name,
+                    account_holder=account_holder,
+                    bank_account=bank_account,
+                )
+                return redirect("withdrawal_success")
 
     return render(
         request,
