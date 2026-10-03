@@ -12,6 +12,8 @@ This index is the audit trail for AI governance evidence.
 - Executive/agent architecture: docs/ai/AI_EXECUTIVE_AGENT_ARCHITECTURE.md
 - Agent capability contract: docs/ai/AI_AGENT_CAPABILITY_CONTRACT.md
 - Deterministic agent capability gate: backend/core/ai_agent_capability_gate.py
+- Deterministic AI action taxonomy: backend/core/ai_action_taxonomy.py + backend/core/ai_action_taxonomy_tests.py
+- Adversarial regression memory: backend/core/ai_adversarial_regression.py + backend/core/ai_adversarial_regression_tests.py
 - Agent capability security tests: backend/core/ai_agent_capability_gate_tests.py
 - Provider registry/offer pipeline: docs/ai/AI_PROVIDER_REGISTRY_AND_OFFER_PIPELINE.md
 - Canonical provider offer schema: docs/ai/AI_PROVIDER_OFFER_SCHEMA.json
@@ -54,7 +56,7 @@ AI risk assessments, treatment plans, residual-risk decisions and review dates.
 - E1 Governance: AI governance policy + capability lifecycle gate
 - E2 Risk: AI risk register + AI threat model
 - E3 Technical: threat-model trust boundaries + Executive/agent architecture + provider/offer pipeline + ingress quarantine + worker eligibility boundary + autonomous innovation boundary
-- E4 Evaluation: AI-SYS-001 deterministic evaluation + agent capability security tests + provider offer normalization/security tests + provider change-detection tests + provider ingress tests + worker eligibility tests + innovation gate tests + innovation genome tests are implemented; production evaluation/approval remains pending
+- E4 Evaluation: deterministic capability/action-taxonomy tests, adversarial regression vectors, AI-SYS-001 evaluation, agent capability security tests, provider offer normalization/security tests, provider change-detection tests, provider ingress tests, worker eligibility tests, innovation gate tests, and innovation genome tests are implemented; model/provider production evaluation and approval remain pending
 - E5 Operations: not yet complete; monitoring/rollback evidence required before production approval; agent resource budgets/circuit-breakers, provider sync/disable, material-offer-change quarantine, ingress evidence, and safe worker matching controls are required for agentic/provider capabilities
 - E6 Privacy: not yet complete; provider/data-retention review required before production approval
 
