@@ -42,6 +42,18 @@
     </section>
     {% endif %}
 
+    {% if messages %}
+    <section class="zt-dashboard-section" aria-label="Verification messages">
+        <div class="zt-transaction-card">
+            {% for message in messages %}
+            <div class="zt-transaction">
+                <div class="zt-transaction-main"><strong>{{ message }}</strong></div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <section class="zt-dashboard-section" aria-label="Owner verification status">
         <div class="zt-transaction-card">
             {% for label, verified in verification_items %}
@@ -62,6 +74,33 @@
             {% endfor %}
         </div>
     </section>
+
+    {% if not snapshot.email_verified %}
+    <section class="zt-dashboard-section" aria-label="Owner email verification action">
+        <div class="zt-section-heading">
+            <div>
+                <span class="zt-kicker">EMAIL VERIFICATION</span>
+                <h2>Verify Owner identity email</h2>
+            </div>
+        </div>
+        <div class="zt-transaction-card">
+            <div class="zt-transaction">
+                <div class="zt-transaction-main">
+                    <span class="zt-transaction-icon" aria-hidden="true">✉</span>
+                    <div>
+                        <strong>Send verification email</strong>
+                        <small>The link expires after 15 minutes and can be requested once per 60 seconds.</small>
+                    </div>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="request_email_verification">
+                    <button type="submit">Send email</button>
+                </form>
+            </div>
+        </div>
+    </section>
+    {% endif %}
 
     <section class="zt-dashboard-section">
         <div class="zt-section-heading">
