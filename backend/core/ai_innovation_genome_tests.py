@@ -12,7 +12,7 @@ class AIInnovationGenomeTests(SimpleTestCase):
         state,reasons=evaluate_genome(genome(),(genome(),))
         self.assertEqual(state,"known")
         self.assertIn("exact_genome_match",reasons)
-    def test_changed_dimension_is_novel_candidate(self):
+    def test_changed_mechanism_is_candidate(self):
         candidate=genome(integration="provider federation with signed source revisions")
         state,reasons=evaluate_genome(candidate,(genome(),))
         self.assertEqual(state,"novel_candidate")
@@ -23,7 +23,6 @@ class AIInnovationGenomeTests(SimpleTestCase):
     def test_empty_dimension_is_rejected(self):
         with self.assertRaisesRegex(InnovationGenomeError,"all_genome_dimensions_required"):
             genome(capability="")
-
 
 from core.ai_mechanism_catalog import MechanismRecord, evaluate_against_catalog, catalog_fingerprint
 from core.ai_provenance_queue import enqueue_observation, content_digest, observation_digest
@@ -50,7 +49,6 @@ class MechanismCatalogAndProvenanceTests(SimpleTestCase):
         b=enqueue_observation(observation_id="OBS-2",source_kind="api",source_identifier="p",observed_at="2026-10-02T18:00:00+00:00",payload={"x":1},previous_digest="a"*64)
         self.assertNotEqual(observation_digest(a.record),observation_digest(b.record))
 
-
 from core.ai_agent_card import parse_agent_card, card_digest, is_signed
 from core.ai_delegation_token import Delegation, delegation_digest, authorize_delegated_call
 
@@ -66,7 +64,6 @@ class AgentCardDelegationTests(SimpleTestCase):
     def test_delegation_cannot_include_financial_authority(self):
         d=Delegation("D2","A1","A2",("wallet_mutation",),("approved",),(),1,"2026-10-03T00:00:00+00:00")
         with self.assertRaises(ValueError): delegation_digest(d)
-
 
 from core.ai_source_attestation import SourceManifest, evaluate_manifest
 from core.ai_privacy_gate import PrivacyPolicy, evaluate_privacy
@@ -84,7 +81,6 @@ class SourcePrivacyGateTests(SimpleTestCase):
     def test_unapproved_region_is_quarantined(self):
         p=PrivacyPolicy("public","evaluation","7 days",(),("US",),True)
         self.assertEqual(evaluate_privacy(p,region="BD").state,"quarantined")
-
 
 from core.ai_delegation_chain import ChainLink, DelegationChainError, verify_chain
 
@@ -114,7 +110,6 @@ class DelegationChainTests(SimpleTestCase):
         with self.assertRaisesRegex(DelegationChainError,"delegation_budget_escalation"):
             verify_chain((root,child))
 
-
 from core.ai_audit_ledger import AuditEntry, AuditLedgerError, entry_digest, verify_ledger
 
 class AuditLedgerTests(SimpleTestCase):
@@ -137,7 +132,6 @@ class AuditLedgerTests(SimpleTestCase):
         first=self._entry(1)
         with self.assertRaisesRegex(AuditLedgerError,"audit_sequence_invalid"):
             verify_ledger((first,))
-
 
 from core.ai_policy_evidence_bundle import PolicyEvidenceBundle, PolicyEvidenceError, bundle_digest, verify_bundle
 
@@ -164,7 +158,6 @@ class PolicyEvidenceBundleTests(SimpleTestCase):
         b=self._bundle("allow","OWNER-APPROVAL-1")
         self.assertTrue(verify_bundle(b,bundle_digest(b)))
 
-
 from core.ai_release_tevv_gate import ReleaseEvidence, ReleaseGateError, evaluate_release, release_digest
 
 class ReleaseTEVVGateTests(SimpleTestCase):
@@ -185,10 +178,9 @@ class ReleaseTEVVGateTests(SimpleTestCase):
         self.assertEqual(state,"approved_for_controlled_rollout")
 
     def test_missing_monitoring_evidence_rejected(self):
-        bad=ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","rollback-1","","OWNER-APPROVAL-1","approved")
+        bad=ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","","OWNER-APPROVAL-1","approved")
         with self.assertRaisesRegex(ReleaseGateError,"release_evidence_required"):
             release_digest(bad)
-
 
 from core.ai_runtime_monitor import RuntimePolicy, RuntimeObservation, RuntimeMonitorError, runtime_decision, enforce_runtime_gate
 
@@ -222,7 +214,6 @@ class RuntimeTrustSentinelTests(SimpleTestCase):
         a=runtime_decision(RuntimePolicy(), self._obs())
         b=runtime_decision(RuntimePolicy(), self._obs())
         self.assertEqual(a.decision_digest, b.decision_digest)
-
 
 from core.ai_incident_response import IncidentEvidence, IncidentResponseError, incident_digest, transition_incident
 
@@ -280,7 +271,6 @@ class IncidentResponseStateMachineTests(SimpleTestCase):
         incident=self._incident()
         self.assertEqual(incident_digest(incident), incident_digest(incident))
 
-
 from core.ai_incident_evidence_binding import IncidentEvidenceBindingError, bind_incident_evidence
 
 class IncidentEvidenceBindingTests(SimpleTestCase):
@@ -305,10 +295,11 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
             "B1","policy-v1","auth","delegation","source","privacy","audit","quarantine"
         )
 
-    def _release(self):
+    def _release(self, policy=None):
+        policy = policy or self._policy()
         return ReleaseEvidence(
             "R1","AI-SYS-001","git-1","src-1","eval-1",
-            bundle_digest(self._policy()),"test-1","rollback-1","monitor-1"
+            bundle_digest(policy),"test-1","rollback-1","monitor-1"
         )
 
     def test_incident_binding_is_deterministic(self):
@@ -349,7 +340,7 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
             "B2","policy-v1","auth","delegation","source","privacy","audit",
             "allow","OWNER-APPROVAL-1"
         )
-        release=self._release()
+        release=self._release(policy)
         with self.assertRaisesRegex(IncidentEvidenceBindingError, "incident_binding_allow_bundle_forbidden"):
             bind_incident_evidence(
                 incident,policy,release,self._runtime(),
