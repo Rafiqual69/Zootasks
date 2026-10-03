@@ -92,9 +92,8 @@
                         <small>The link expires after 15 minutes and can be requested once per 60 seconds.</small>
                     </div>
                 </div>
-                <form method="post">
+                <form method="post" action="{% url 'owner_email_verification_request' %}">
                     {% csrf_token %}
-                    <input type="hidden" name="action" value="request_email_verification">
                     <button type="submit">Send email</button>
                 </form>
             </div>
