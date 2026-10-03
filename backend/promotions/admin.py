@@ -107,8 +107,13 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     locked = (
                         PromotionClaim.objects
                         .select_for_update()
-                        .select_related("promotion", "worker")
+                        .select_related("worker")
                         .get(id=claim_id)
+                    )
+                    promotion = (
+                        Promotion.objects
+                        .select_for_update()
+                        .get(pk=locked.promotion_id)
                     )
 
                     if locked.status != "submitted":
@@ -141,15 +146,14 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                         .get(user=locked.worker)
                     )
 
-                    reward = locked.promotion.reward
-                    promotion = locked.promotion
+                    reward = promotion.reward
 
                     if promotion.status not in {"approved", "active"}:
                         failed += 1
                         continue
 
-                    declared_liability = reward * promotion.completed_workers
-                    if declared_liability > promotion.budget:
+                    projected_liability = reward * (promotion.completed_workers + 1)
+                    if projected_liability > promotion.budget:
                         failed += 1
                         self.message_user(
                             request,
@@ -177,6 +181,13 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                             f"{locked.promotion.title}"
                         ),
                         promotion_claim=locked,
+                    )
+
+                    promotion.completed_workers += 1
+                    if promotion.completed_workers >= promotion.max_workers:
+                        promotion.status = "paused"
+                    promotion.save(
+                        update_fields=["completed_workers", "status"]
                     )
 
                     locked.status = "approved"
