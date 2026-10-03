@@ -81,3 +81,13 @@ Evidence should be timestamped, attributable to an accountable actor/system, pro
 ## Certification statement
 
 This repository contains preparation and implementation evidence only. It is not itself a certification certificate or conformity assessment.
+
+
+## Integrated E4/E5/E6 Evidence
+
+- E4: docs/ai/evidence/E4_PRE_DEPLOYMENT_TEVV.md
+- E5: docs/ai/evidence/E5_ADVERSARIAL_MONITORING.md
+- E6: docs/ai/evidence/E6_RELEASE_GOVERNANCE.md
+- Effective production AI approval: disabled.
+- Production financial authority: excluded from AI.
+- Evaluation-only approval overrides remain isolated to tests.
