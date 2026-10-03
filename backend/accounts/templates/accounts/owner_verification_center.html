@@ -30,9 +30,17 @@
         <div>
             <span class="zt-kicker">OWNER SECURITY</span>
             <h1>Verification Center</h1>
-            <p>Read-only view of the canonical Owner verification state.</p>
+            <p>Protected Owner verification state and controlled verification actions.</p>
         </div>
     </section>
+
+    {% if messages %}
+    <section class="zt-dashboard-section" aria-label="Security messages">
+        {% for message in messages %}
+        <div class="zt-transaction-card"><p>{{ message }}</p></div>
+        {% endfor %}
+    </section>
+    {% endif %}
 
     <section class="zt-dashboard-section" aria-label="Owner verification status">
         <div class="zt-transaction-card">
