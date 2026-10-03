@@ -2,6 +2,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 
 from .forms import OwnerOTPAuthenticationForm
+from .owner_verification_actions import request_owner_email_verification
 from .views import (
     advertiser_dashboard,
     advertiser_register,
@@ -21,7 +22,7 @@ urlpatterns = [
         next_page="/admin/live-wallet/",
         redirect_authenticated_user=False,
     ), name="owner_login"),
-    path("owner/email/verify/request/", owner_email_verification_request, name="owner_email_verification_request"),
+    path("owner/email/verify/request/", request_owner_email_verification, name="owner_email_verification_request"),
     path("owner/email/verify/<str:token>/", owner_email_verify, name="owner_email_verify"),
     path("owner/verification/", owner_verification_center, name="owner_verification_center"),
     path("owner/social/<str:provider>/start/", owner_social_oauth_start, name="owner_social_oauth_start"),
