@@ -1,5 +1,6 @@
 from django.contrib.auth import login
 from django.core.exceptions import ValidationError
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -109,6 +110,22 @@ def owner_email_verify(request, token):
 @login_required
 @user_passes_test(is_owner)
 def owner_verification_center(request):
+    if request.method == "POST":
+        if request.POST.get("action") != "request_email_verification":
+            return HttpResponse("Unsupported verification action.", status=400)
+        try:
+            issue_owner_email_verification(request, request.user)
+        except ValidationError as exc:
+            messages.warning(request, str(exc))
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(
+                request,
+                "Owner email verification email sent. Check the configured identity inbox.",
+            )
+        return redirect("owner_verification_center")
+
     snapshot = get_owner_verification_snapshot(request.user)
     verification_items = (
         ("Canonical Owner", snapshot.owner_active),
