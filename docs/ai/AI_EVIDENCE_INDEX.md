@@ -1,5 +1,7 @@
 # ZooTasks AI Certification Evidence Index
 
+- Principal readiness baseline: docs/PRINCIPAL_READINESS.md
+
 This index is the audit trail for AI governance evidence.
 
 ## Governance
