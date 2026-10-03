@@ -12,9 +12,14 @@ The principal implementation continues incrementally from restore point `4829340
 - Social OAuth state is random, hashed at rest, provider-bound, expiring and single-use.
 - OAuth endpoints are HTTPS/allowlist constrained and redirect-following is blocked.
 - Financial authority remains outside the verification center.
+- Verification-center email requests route through one Owner-only, POST-only, CSRF-protected action.
 
 ## Financial integrity boundary
 AI and Owner verification code must not mutate wallet balances, withdrawal state, promotion payouts, task rewards or financial ledger records.
+- Withdrawal requests reserve balance atomically and cannot report success when reservation fails.
+- Promotion claims do not increment completion counters; payout increments completion exactly once and pauses at capacity.
+- Promotion claim admission accounts for completed and active liability so declared budget cannot be over-committed.
+- Regression coverage exists for withdrawal reservation, promotion lifecycle, payout idempotency and budget exposure.
 
 ## AI principal boundary
 Production AI remains disabled by default. Deterministic controls include capability allowlists, hard-zero side-effect budgets, capability budgets, action taxonomy, adversarial regression vectors, provider quarantine, privacy gating, policy evidence, tamper-evident audit, release TEVV, runtime monitoring, incident response/rollback, and scoped delegation.
