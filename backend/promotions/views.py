@@ -123,7 +123,10 @@ def start_promotion(request, promotion_id):
     if active_claims >= promotion.max_workers:
         return redirect("promotion_marketplace")
 
-    if promotion.reward * (promotion.completed_workers + 1) > promotion.budget:
+    projected_liability = promotion.reward * (
+        promotion.completed_workers + active_claims + 1
+    )
+    if projected_liability > promotion.budget:
         return redirect("promotion_marketplace")
 
     if existing is None:
