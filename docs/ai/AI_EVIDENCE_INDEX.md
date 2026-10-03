@@ -37,8 +37,8 @@ This index is the audit trail for AI governance evidence.
 - Tamper-evident AI audit ledger: backend/core/ai_audit_ledger.py + docs/ai/AI_TAMPER_EVIDENT_AUDIT_LEDGER.md
 - Policy decision evidence bundle: backend/core/ai_policy_evidence_bundle.py + docs/ai/AI_POLICY_DECISION_EVIDENCE_BUNDLE.md
 - Release TEVV gate: backend/core/ai_release_tevv_gate.py + docs/ai/AI_RELEASE_TEVV_GATE.md
-- Runtime Trust Sentinel: backend/core/ai_runtime_monitor.py + docs/ai/AI_RUNTIME_MONITORING_AND_ROLLBACK_GATE.md
-- Incident response + safe rollback state machine: backend/core/ai_incident_response.py + docs/ai/AI_INCIDENT_RESPONSE_AND_SAFE_ROLLBACK.md
+- Runtime Trust Sentinel: backend/core/ai_runtime_monitor.py + backend/core/ai_runtime_monitor_tests.py + docs/ai/AI_RUNTIME_MONITORING_AND_ROLLBACK_GATE.md
+- Incident response + safe rollback state machine: backend/core/ai_incident_response.py + backend/core/ai_incident_response_tests.py + docs/ai/AI_INCIDENT_RESPONSE_AND_SAFE_ROLLBACK.md
 - Incident evidence binding: backend/core/ai_incident_evidence_binding.py
 - Incident evidence binding hardening: SHA-256-format validation for runtime decision digests + regression test
 - Runtime decision context binding: incident evidence now verifies the decision digest against the exact system/release context before recovery evidence can be trusted
@@ -57,8 +57,8 @@ AI risk assessments, treatment plans, residual-risk decisions and review dates.
 - E2 Risk: AI risk register + AI threat model
 - E3 Technical: threat-model trust boundaries + Executive/agent architecture + provider/offer pipeline + ingress quarantine + worker eligibility boundary + autonomous innovation boundary
 - E4 Evaluation: deterministic capability/action-taxonomy tests, adversarial regression vectors, AI-SYS-001 evaluation, agent capability security tests, provider offer normalization/security tests, provider change-detection tests, provider ingress tests, worker eligibility tests, innovation gate tests, and innovation genome tests are implemented; model/provider production evaluation and approval remain pending
-- E5 Operations: not yet complete; monitoring/rollback evidence required before production approval; agent resource budgets/circuit-breakers, provider sync/disable, material-offer-change quarantine, ingress evidence, and safe worker matching controls are required for agentic/provider capabilities
-- E6 Privacy: not yet complete; provider/data-retention review required before production approval
+- E5 Operations: deterministic runtime-monitor, incident-response, rollback-state, capability-budget and provider quarantine controls are implemented and regression-tested; live operational evidence and an approved production monitoring/incident run remain required before production approval
+- E6 Privacy: deterministic privacy/retention gate is implemented and regression-tested; provider-specific processing, transfer, retention and data-subject review remain required before production approval
 
 ### E3 — Technical
 Architecture, data-flow diagrams, model/provider configuration, access control and isolation.
