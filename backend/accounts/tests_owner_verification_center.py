@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import AccountEntity
@@ -57,7 +58,7 @@ class OwnerVerificationCenterActionTests(TestCase):
         self.assertEqual(response["Location"], reverse("login"))
 
     def test_verified_email_hides_request_form(self):
-        self.entity.email_verified_at = __import__("django.utils.timezone", fromlist=["timezone"]).timezone.now()
+        self.entity.email_verified_at = timezone.now()
         self.entity.save(update_fields=["email_verified_at"])
         self.client.force_login(self.owner)
         response = self.client.get(
