@@ -85,6 +85,7 @@ def wallet(request):
 
 @login_required
 @require_POST
+@transaction.atomic
 def request_withdrawal(request):
     if not is_worker(request.user):
         raise PermissionDenied("Worker access is required.")
