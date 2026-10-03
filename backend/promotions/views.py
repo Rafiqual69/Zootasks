@@ -101,15 +101,49 @@ def start_promotion(request, promotion_id):
         raise PermissionDenied("Worker access is required.")
     if request.method != "POST":
         return redirect("promotion_marketplace")
-    promotion = get_object_or_404(Promotion.objects.select_for_update(), id=promotion_id, status__in=["active", "approved"])
-    existing = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
-    if existing or promotion.completed_workers >= promotion.max_workers:
+
+    promotion = get_object_or_404(
+        Promotion.objects.select_for_update(),
+        id=promotion_id,
+        status__in=["active", "approved"],
+    )
+
+    existing = (
+        PromotionClaim.objects.select_for_update()
+        .filter(promotion=promotion, worker=request.user)
+        .first()
+    )
+    if existing and existing.status != "rejected":
         return redirect("promotion_marketplace")
-    PromotionClaim.objects.create(promotion=promotion, worker=request.user)
-    promotion.completed_workers += 1
-    if promotion.completed_workers >= promotion.max_workers:
-        promotion.status = "paused"
-    promotion.save(update_fields=["completed_workers", "status"])
+
+    active_claims = PromotionClaim.objects.filter(
+        promotion=promotion,
+        status__in=["claimed", "submitted", "approved"],
+    ).count()
+    if active_claims >= promotion.max_workers:
+        return redirect("promotion_marketplace")
+
+    if promotion.reward * (promotion.completed_workers + 1) > promotion.budget:
+        return redirect("promotion_marketplace")
+
+    if existing is None:
+        PromotionClaim.objects.create(promotion=promotion, worker=request.user)
+    else:
+        existing.status = "claimed"
+        existing.proof = ""
+        existing.submitted_at = None
+        existing.approved_at = None
+        existing.claimed_at = timezone.now()
+        existing.save(
+            update_fields=[
+                "status",
+                "proof",
+                "submitted_at",
+                "approved_at",
+                "claimed_at",
+            ]
+        )
+
     return redirect("promotion_marketplace")
 
 @login_required
