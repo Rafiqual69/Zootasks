@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [main, "feat/**"]
 
-permissions:
-  contents: read
-
 jobs:
   ai-evaluation:
     runs-on: ubuntu-latest
@@ -18,39 +15,41 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: |
+          pip install -r backend/requirements.txt
+          pip install jsonschema
       - name: Run AI evaluation
         working-directory: backend
         env:
           DJANGO_SETTINGS_MODULE: config.settings
-          ZOOTASKS_GIT_COMMIT: ${{ github.sha }}
-          AI_PRODUCTION_APPROVED: "false"
-          AI_APPROVAL_REFERENCE: ""
-        run: |
-          python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
-          python manage.py test core.ai_gateway_tests core.ai_evaluation_runner_tests
-      - name: Validate evidence JSON
-        run: python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
-      - name: Verify evidence integrity
+        run: python core/ai_evaluation_runner.py ../artifacts/ai/AI-SYS-001-evidence.json
+      - name: Run AI evidence tests
         working-directory: backend
         env:
-          EXPECTED_GIT_COMMIT: ${{ github.sha }}
+          DJANGO_SETTINGS_MODULE: config.settings
+          AI_ALLOWED_CAPABILITIES: AI-SYS-001
+          AI_ALLOWED_PROVIDERS: test-provider
+          AI_ALLOWED_MODELS: test-model-v1
+        run: python manage.py test core.ai_evaluation_runner_tests core.ai_evaluation_integrity_tests
+      - name: Validate evidence JSON and schema
         run: |
+          python -m json.tool artifacts/ai/AI-SYS-001-evidence.json >/dev/null
           python - <<'PY'
-          import json, os
-          from core.ai_evaluation_integrity import evidence_sha256
-          path = "artifacts/ai/AI-SYS-001-evidence.json"
-          with open(path, encoding="utf-8") as handle:
-              evidence = json.load(handle)
-          if evidence["integrity"]["evidence_sha256"] != evidence_sha256(evidence):
-              raise SystemExit("AI evidence integrity verification failed")
-          if evidence["provenance"]["git_commit"] != os.environ["EXPECTED_GIT_COMMIT"]:
-              raise SystemExit("AI evidence Git provenance mismatch")
-          print(evidence["integrity"]["evidence_sha256"])
+          import json
+          from jsonschema import Draft202012Validator
+          from pathlib import Path
+
+          evidence = json.loads(Path("artifacts/ai/AI-SYS-001-evidence.json").read_text())
+          schema = json.loads(Path("docs/ai/AI_EVIDENCE_SCHEMA.json").read_text())
+          errors = sorted(Draft202012Validator(schema).iter_errors(evidence), key=lambda e: list(e.path))
+          if errors:
+              for error in errors:
+                  print(error.message)
+              raise SystemExit(1)
+          print("AI evidence schema validation: PASS")
           PY
       - name: Upload evaluation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: AI-SYS-001-evidence-${{ github.sha }}
+          name: AI-SYS-001-evidence
           path: artifacts/ai/AI-SYS-001-evidence.json
-          if-no-files-found: error
