@@ -67,3 +67,43 @@ class PromotionLifecycleIntegrityTests(TestCase):
         self.promotion.refresh_from_db()
         self.assertEqual(claim.status, "claimed")
         self.assertEqual(self.promotion.completed_workers, 0)
+
+
+    def test_active_claims_cannot_overcommit_promotion_budget(self):
+        other = get_user_model().objects.create_user(
+            username="promotion-worker-2",
+            password="Strong-Test-Password-123!",
+        )
+        AccountEntity.objects.create(
+            user=other,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+        WorkerProfile.objects.create(user=other)
+
+        self.promotion.budget = Decimal("10.00")
+        self.promotion.max_workers = 2
+        self.promotion.save(update_fields=["budget", "max_workers"])
+
+        first = self.client.post(
+            reverse(
+                "start_promotion",
+                kwargs={"promotion_id": self.promotion.id},
+            )
+        )
+        self.assertEqual(first.status_code, 302)
+
+        self.client.force_login(other)
+        second = self.client.post(
+            reverse(
+                "start_promotion",
+                kwargs={"promotion_id": self.promotion.id},
+            )
+        )
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(
+            PromotionClaim.objects.filter(
+                promotion=self.promotion,
+                status="claimed",
+            ).count(),
+            1,
+        )
