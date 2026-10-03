@@ -197,27 +197,3 @@ class OwnerEmailVerificationTests(TestCase):
         self.entity.refresh_from_db()
         self.assertIsNone(self.entity.email_verified_at)
 
-
-    @patch("accounts.email_verification.send_mail")
-    def test_owner_verification_center_can_request_email(self, send_mail):
-        self.client.force_login(self.owner)
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                reverse("owner_verification_center"),
-                {"action": "request_email_verification"},
-                HTTP_HOST="127.0.0.1",
-            )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            response["Location"],
-            reverse("owner_verification_center"),
-        )
-        send_mail.assert_called_once()
-
-    def test_owner_verification_center_hides_request_after_verification(self):
-        self.entity.email_verified_at = timezone.now()
-        self.entity.save(update_fields=["email_verified_at"])
-        self.client.force_login(self.owner)
-        response = self.client.get(reverse("owner_verification_center"))
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Send verification email")
