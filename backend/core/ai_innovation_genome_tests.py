@@ -305,11 +305,10 @@ class IncidentEvidenceBindingTests(SimpleTestCase):
             "B1","policy-v1","auth","delegation","source","privacy","audit","quarantine"
         )
 
-    def _release(self, policy=None):
-        policy = policy or self._policy()
+    def _release(self):
         return ReleaseEvidence(
             "R1","AI-SYS-001","git-1","src-1","eval-1",
-            bundle_digest(policy),"test-1","rollback-1","monitor-1"
+            bundle_digest(self._policy()),"test-1","rollback-1","monitor-1"
         )
 
     def test_incident_binding_is_deterministic(self):
