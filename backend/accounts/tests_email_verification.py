@@ -199,3 +199,29 @@ class OwnerEmailVerificationTests(TestCase):
         self.entity.refresh_from_db()
         self.assertIsNone(self.entity.email_verified_at)
 
+
+
+    def test_owner_verification_center_enforces_csrf_with_issued_cookie(self):
+        self.client = Client(enforce_csrf_checks=True)
+        self.client.force_login(self.owner)
+
+        get_response = self.client.get(
+            reverse("owner_verification_center"),
+            HTTP_HOST="127.0.0.1",
+        )
+        self.assertEqual(get_response.status_code, 200)
+        self.assertIn("csrftoken", self.client.cookies)
+
+        from django.middleware.csrf import get_token
+
+        token = get_token(get_response.wsgi_request)
+        post_response = self.client.post(
+            reverse("owner_email_verification_request"),
+            {"csrfmiddlewaretoken": token},
+            HTTP_HOST="127.0.0.1",
+        )
+        self.assertEqual(post_response.status_code, 302)
+        self.assertEqual(
+            post_response["Location"],
+            reverse("owner_verification_center"),
+        )
