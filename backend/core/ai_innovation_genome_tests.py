@@ -12,7 +12,7 @@ class AIInnovationGenomeTests(SimpleTestCase):
         state,reasons=evaluate_genome(genome(),(genome(),))
         self.assertEqual(state,"known")
         self.assertIn("exact_genome_match",reasons)
-    def test_changed_mechanism_is_candidate(self):
+    def test_changed_dimension_is_novel_candidate(self):
         candidate=genome(integration="provider federation with signed source revisions")
         state,reasons=evaluate_genome(candidate,(genome(),))
         self.assertEqual(state,"novel_candidate")
@@ -23,6 +23,7 @@ class AIInnovationGenomeTests(SimpleTestCase):
     def test_empty_dimension_is_rejected(self):
         with self.assertRaisesRegex(InnovationGenomeError,"all_genome_dimensions_required"):
             genome(capability="")
+
 
 from core.ai_mechanism_catalog import MechanismRecord, evaluate_against_catalog, catalog_fingerprint
 from core.ai_provenance_queue import enqueue_observation, content_digest, observation_digest
@@ -178,7 +179,7 @@ class ReleaseTEVVGateTests(SimpleTestCase):
         self.assertEqual(state,"approved_for_controlled_rollout")
 
     def test_missing_monitoring_evidence_rejected(self):
-        bad=ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","","OWNER-APPROVAL-1","approved")
+        bad=ReleaseEvidence("R1","AI-SYS-001","git-1","src-1","eval-1","policy-1","test-1","rollback-1","","OWNER-APPROVAL-1","approved")
         with self.assertRaisesRegex(ReleaseGateError,"release_evidence_required"):
             release_digest(bad)
 
