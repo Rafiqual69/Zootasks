@@ -58,17 +58,25 @@ def issue_owner_email_verification(request, user):
     verify_url = request.build_absolute_uri(
         reverse("owner_email_verify", kwargs={"token": token})
     )
-    send_mail(
-        subject="ZooTasks Owner email verification",
-        message=(
-            "Verify the Owner identity email for ZooTasks.\n\n"
-            f"Verification link (expires in 15 minutes):\n{verify_url}\n\n"
-            "If you did not request this, ignore this message."
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[entity.identity_email],
-        fail_silently=False,
+    email_subject = "ZooTasks Owner email verification"
+    email_message = (
+        "Verify the Owner identity email for ZooTasks.\n\n"
+        f"Verification link (expires in 15 minutes):\n{verify_url}\n\n"
+        "If you did not request this, ignore this message."
     )
+    email_from = settings.DEFAULT_FROM_EMAIL
+    email_recipient = entity.identity_email
+
+    transaction.on_commit(
+        lambda: send_mail(
+            subject=email_subject,
+            message=email_message,
+            from_email=email_from,
+            recipient_list=[email_recipient],
+            fail_silently=False,
+        )
+    )
+
     return challenge
 
 

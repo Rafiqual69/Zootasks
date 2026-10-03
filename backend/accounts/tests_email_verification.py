@@ -31,10 +31,11 @@ class OwnerEmailVerificationTests(TestCase):
     @patch("accounts.email_verification.send_mail")
     def test_owner_can_request_email_verification(self, send_mail):
         self.client.force_login(self.owner)
-        response = self.client.post(
-            reverse("owner_email_verification_request"),
-            HTTP_HOST="127.0.0.1",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("owner_email_verification_request"),
+                HTTP_HOST="127.0.0.1",
+            )
         self.assertEqual(response.status_code, 200)
         send_mail.assert_called_once()
         challenge = OwnerEmailVerificationChallenge.objects.get(
@@ -50,10 +51,11 @@ class OwnerEmailVerificationTests(TestCase):
     def test_owner_email_verification_end_to_end_with_locmem_backend(self):
         self.client.force_login(self.owner)
 
-        request_response = self.client.post(
-            reverse("owner_email_verification_request"),
-            HTTP_HOST="127.0.0.1",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            request_response = self.client.post(
+                reverse("owner_email_verification_request"),
+                HTTP_HOST="127.0.0.1",
+            )
         self.assertEqual(request_response.status_code, 200)
         self.assertEqual(len(mail.outbox), 1)
 

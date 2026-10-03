@@ -6,3 +6,8 @@ db.sqlite3
 staticfiles/
 media/
 *.log
+
+# Local backup artifacts
+*.bak-*
+*-backup-*
+var/
