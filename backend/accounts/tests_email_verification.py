@@ -36,7 +36,8 @@ class OwnerEmailVerificationTests(TestCase):
                 reverse("owner_email_verification_request"),
                 HTTP_HOST="127.0.0.1",
             )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("owner_verification_center"))
         send_mail.assert_called_once()
         challenge = OwnerEmailVerificationChallenge.objects.get(
             account_entity=self.entity
@@ -56,7 +57,8 @@ class OwnerEmailVerificationTests(TestCase):
                 reverse("owner_email_verification_request"),
                 HTTP_HOST="127.0.0.1",
             )
-        self.assertEqual(request_response.status_code, 200)
+        self.assertEqual(request_response.status_code, 302)
+        self.assertEqual(request_response["Location"], reverse("owner_verification_center"))
         self.assertEqual(len(mail.outbox), 1)
 
         message = mail.outbox[0]
