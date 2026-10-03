@@ -85,6 +85,7 @@ def owner_email_verify(request, token):
             {"token": token},
         )
         response["Cache-Control"] = "no-store"
+        response["Referrer-Policy"] = "no-referrer"
         return response
 
     if request.method != "POST":
