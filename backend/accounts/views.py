@@ -1,7 +1,8 @@
-from django.views.decorators.csrf import json
+import json
 
-import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth import login
+from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
@@ -10,6 +11,7 @@ from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from urllib.parse import urlsplit
 
 from .email_verification import issue_owner_email_verification, verify_owner_email_token
@@ -84,9 +86,6 @@ def advertiser_register(request):
 
 @login_required
 @user_passes_test(is_owner)
-
-@login_required
-@user_passes_test(is_owner)
 @require_POST
 def owner_webauthn_registration_options(request):
     from .owner_webauthn import issue_owner_webauthn_registration
@@ -151,7 +150,10 @@ def owner_webauthn_authentication_complete(request):
 
 
 
+@login_required
+@user_passes_test(is_owner)
 def owner_email_verification_request(request):
+
     if request.method != "POST":
         return HttpResponse("Owner email verification requires POST.", status=405)
     issue_owner_email_verification(request, request.user)
