@@ -286,6 +286,58 @@ class OwnerTrustedDevice(models.Model):
         return super().save(*args, **kwargs)
 
 
+class OwnerSessionBinding(models.Model):
+    """Server-side binding between an authenticated Owner session and a trusted device."""
+
+    owner_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="owner_session_bindings",
+    )
+    trusted_device = models.ForeignKey(
+        OwnerTrustedDevice,
+        on_delete=models.PROTECT,
+        related_name="session_bindings",
+    )
+    binding_token_hash = models.CharField(max_length=64, unique=True)
+    session_key_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("owner_entity", "session_key_hash"),
+                condition=models.Q(revoked_at__isnull=True),
+                name="acct_owner_sess_active_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=("owner_entity", "revoked_at"),
+                name="acct_owner_sess_rev_idx",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.owner_entity.entity_type != AccountEntity.EntityType.OWNER or not self.owner_entity.is_active:
+            raise ValidationError("Owner session binding requires the canonical active Owner entity.")
+        if self.trusted_device.owner_entity_id != self.owner_entity_id:
+            raise ValidationError("Trusted device must belong to the same Owner entity.")
+        if self.revoked_at is None and self.trusted_device.status != OwnerTrustedDevice.Status.ACTIVE:
+            raise ValidationError("Active session binding requires an active trusted device.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None and self.trusted_device.status == OwnerTrustedDevice.Status.ACTIVE
+
+
 class AdvertiserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="advertiser_profile")
     organization_name = models.CharField(max_length=200, blank=True)
