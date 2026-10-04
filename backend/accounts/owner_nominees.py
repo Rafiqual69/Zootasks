@@ -1,6 +1,6 @@
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.contrib.auth import get_user_model
 
 from .models import AccountEntity, OwnerNominee
 from .policies import is_owner
@@ -98,3 +98,19 @@ def revoke_owner_nominee(owner_user, nominee_id):
     nominee.revoked_at = timezone.now()
     nominee.save(update_fields=("is_active", "revoked_at", "updated_at"))
     return nominee
+
+
+
+def active_owner_nominees(owner_user):
+    """Return the Owner's active six-position succession roster in order."""
+    if not is_owner(owner_user):
+        raise PermissionError("Only the canonical active Owner can view nominee succession.")
+    owner_entity = AccountEntity.objects.get(
+        user=owner_user,
+        entity_type=AccountEntity.EntityType.OWNER,
+        is_active=True,
+    )
+    return OwnerNominee.objects.filter(
+        owner_entity=owner_entity,
+        is_active=True,
+    ).select_related("nominee_user").order_by("succession_order")
