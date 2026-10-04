@@ -8,6 +8,7 @@ from .models import (
     OwnerSocialIdentity,
     WorkerProfile,
     OwnerNominee,
+    OwnerSuccessionState,
 )
 
 
@@ -207,4 +208,33 @@ class OwnerNomineeAdmin(admin.ModelAdmin):
     readonly_fields = (
         "owner_entity", "nominee_user", "role", "succession_order",
         "is_active", "appointed_at", "updated_at", "revoked_at",
+    )
+
+
+@admin.register(OwnerSuccessionState)
+class OwnerSuccessionStateAdmin(admin.ModelAdmin):
+    """Read-only audit surface; succession activation requires a dedicated gate."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "owner_entity",
+        "status",
+        "activated_nominee",
+        "activation_reference",
+        "activated_at",
+        "updated_at",
+    )
+    list_filter = ("status",)
+    search_fields = ("owner_entity__user__username", "activation_reference")
+    readonly_fields = (
+        "owner_entity", "status", "activation_reference",
+        "activated_at", "activated_nominee", "created_at", "updated_at",
     )
