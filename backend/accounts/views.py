@@ -180,7 +180,7 @@ def advertiser_dashboard(request):
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
-from django.views.decorators.csrf import ensure_csrf_cookie
+
 from django.views.decorators.http import require_GET
 
 from .models import OwnerSocialIdentity
