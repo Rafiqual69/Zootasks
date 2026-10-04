@@ -232,6 +232,48 @@ class OwnerSocialOAuthState(models.Model):
         return super().save(*args, **kwargs)
 
 
+class OwnerNominee(models.Model):
+    """Owner-controlled succession nominee; financial authority is intentionally separate."""
+
+    class Role(models.TextChoices):
+        SUPER_NOMINEE = "super_nominee", "Super Nominee"
+        NOMINEE = "nominee", "Nominee"
+
+    owner_entity = models.ForeignKey(AccountEntity, on_delete=models.PROTECT, related_name="owner_nominees")
+    nominee_user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="owner_nomination")
+    role = models.CharField(max_length=32, choices=Role.choices, default=Role.NOMINEE)
+    succession_order = models.PositiveSmallIntegerField()
+    is_active = models.BooleanField(default=True)
+    appointed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("succession_order", "appointed_at")
+        constraints = [
+            models.UniqueConstraint(fields=("owner_entity", "succession_order"), name="accounts_unique_nominee_succession_order"),
+            models.UniqueConstraint(fields=("owner_entity",), condition=models.Q(role="super_nominee", is_active=True), name="accounts_single_active_super_nominee"),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.owner_entity.entity_type != AccountEntity.EntityType.OWNER or not self.owner_entity.is_active:
+            raise ValidationError("Nominees require the canonical active Owner entity.")
+        if self.nominee_user_id == self.owner_entity.user_id:
+            raise ValidationError("The Owner cannot be appointed as a nominee.")
+        if not 1 <= self.succession_order <= 6:
+            raise ValidationError("Nominee succession order must be between 1 and 6.")
+        if self.revoked_at and self.is_active:
+            raise ValidationError("A revoked nominee cannot remain active.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.nominee_user.username}"
+
+
 class AdvertiserProfile(models.Model):
     user = models.OneToOneField(
         User,
