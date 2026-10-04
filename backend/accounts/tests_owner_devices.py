@@ -8,6 +8,8 @@ from .owner_devices import (
     approve_owner_device_with_challenge,
     bind_owner_device,
     request_owner_device_enrollment,
+    issue_owner_device_auth_challenge,
+    verify_owner_device_auth_challenge,
     revoke_owner_device,
 )
 
@@ -90,6 +92,27 @@ class OwnerTrustedDeviceTests(TestCase):
         _, replacement_key = self._keypair()
         replacement = bind_owner_device(self.owner, "device-b", replacement_key)
         self.assertEqual(replacement.status, OwnerTrustedDevice.Status.ACTIVE)
+
+    def test_active_device_auth_challenge_is_one_time(self):
+        private_key, public_key = self._keypair()
+        device = bind_owner_device(self.owner, "device-auth", public_key)
+        challenge = issue_owner_device_auth_challenge(self.owner, device.pk)
+        signature = private_key.sign(challenge)
+        verified = verify_owner_device_auth_challenge(
+            self.owner, device.pk, challenge, signature
+        )
+        self.assertEqual(verified.pk, device.pk)
+        with self.assertRaises(ValidationError):
+            verify_owner_device_auth_challenge(
+                self.owner, device.pk, challenge, signature
+            )
+
+    def test_revoked_device_cannot_issue_auth_challenge(self):
+        _, public_key = self._keypair()
+        device = bind_owner_device(self.owner, "device-revoked", public_key)
+        revoke_owner_device(self.owner, device.pk)
+        with self.assertRaises(ValidationError):
+            issue_owner_device_auth_challenge(self.owner, device.pk)
 
     def test_non_owner_cannot_bind(self):
         User = get_user_model()
