@@ -62,8 +62,9 @@ class OwnerSessionBindingGuardTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    @staticmethod
     @owner_session_binding_required
-    def _protected_view(self, request):
+    def _protected_view(request):
         return HttpResponse("protected")
 
     def _request(self):
