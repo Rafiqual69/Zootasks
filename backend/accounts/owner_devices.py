@@ -1,11 +1,9 @@
 import hashlib
-import secrets
-
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import AccountEntity
+from .models import AccountEntity, OwnerTrustedDevice
 from .policies import is_owner
 
 MAX_ACTIVE_OWNER_DEVICES = 3
@@ -30,9 +28,8 @@ def bind_owner_device(owner_user, device_identifier, label=""):
     )
 
     device_hash = hash_device_identifier(device_identifier)
-    device_model = __import__("accounts.models", fromlist=["OwnerTrustedDevice"]).OwnerTrustedDevice
 
-    existing = device_model.objects.filter(
+    existing = OwnerTrustedDevice.objects.filter(
         owner_entity=owner_entity,
         device_identifier_hash=device_hash,
         status=device_model.Status.ACTIVE,
@@ -79,7 +76,7 @@ def revoke_owner_device(owner_user, device_id):
     if device is None:
         raise ValidationError("Active trusted device not found.")
 
-    device.status = device_model.Status.REVOKED
+    device.status = OwnerTrustedDevice.Status.REVOKED
     device.revoked_at = timezone.now()
     device.save(update_fields=("status", "revoked_at", "updated_at"))
     return device
