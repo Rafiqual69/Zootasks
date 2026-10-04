@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from datetime import timedelta
 
 from .models import (
     AccountEntity,
@@ -198,6 +199,7 @@ class OwnerWebAuthnTests(TestCase):
             webauthn_credential=credential,
             binding_token_hash="a" * 64,
             session_key_hash="b" * 64,
+            expires_at=timezone.now() + timedelta(hours=1),
         )
         self.assertTrue(binding.is_active)
         credential.revoked_at = timezone.now()
