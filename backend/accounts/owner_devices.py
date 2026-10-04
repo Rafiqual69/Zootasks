@@ -32,14 +32,14 @@ def bind_owner_device(owner_user, device_identifier, label=""):
     existing = OwnerTrustedDevice.objects.filter(
         owner_entity=owner_entity,
         device_identifier_hash=device_hash,
-        status=device_model.Status.ACTIVE,
+        status=OwnerTrustedDevice.Status.ACTIVE,
     ).first()
     if existing:
         existing.last_seen_at = timezone.now()
         existing.save(update_fields=("last_seen_at", "updated_at"))
         return existing
 
-    active_count = device_model.objects.filter(
+    active_count = OwnerTrustedDevice.objects.filter(
         owner_entity=owner_entity,
         status=device_model.Status.ACTIVE,
     ).count()
@@ -48,7 +48,7 @@ def bind_owner_device(owner_user, device_identifier, label=""):
             "The Owner already has the maximum of 3 active trusted devices."
         )
 
-    return device_model.objects.create(
+    return OwnerTrustedDevice.objects.create(
         owner_entity=owner_entity,
         device_identifier_hash=device_hash,
         label=label[:100],
@@ -67,7 +67,6 @@ def revoke_owner_device(owner_user, device_id):
         entity_type=AccountEntity.EntityType.OWNER,
         is_active=True,
     )
-    device_model = __import__("accounts.models", fromlist=["OwnerTrustedDevice"]).OwnerTrustedDevice
     device = device_model.objects.select_for_update().filter(
         pk=device_id,
         owner_entity=owner_entity,
@@ -91,8 +90,7 @@ def active_owner_devices(owner_user):
         entity_type=AccountEntity.EntityType.OWNER,
         is_active=True,
     )
-    device_model = __import__("accounts.models", fromlist=["OwnerTrustedDevice"]).OwnerTrustedDevice
-    return device_model.objects.filter(
+    return OwnerTrustedDevice.objects.filter(
         owner_entity=owner_entity,
         status=device_model.Status.ACTIVE,
     ).order_by("-last_seen_at", "-created_at")
