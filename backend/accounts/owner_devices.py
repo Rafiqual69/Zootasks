@@ -179,6 +179,51 @@ def approve_owner_device_with_challenge(owner_user, device_id, challenge, challe
 
 
 @transaction.atomic
+def issue_owner_device_auth_challenge(owner_user, device_id):
+    if not is_owner(owner_user):
+        raise PermissionError("Only the canonical active Owner can authenticate devices.")
+    owner_entity = AccountEntity.objects.select_for_update().get(user=owner_user, entity_type=AccountEntity.EntityType.OWNER, is_active=True)
+    device = OwnerTrustedDevice.objects.select_for_update().filter(pk=device_id, owner_entity=owner_entity, status=OwnerTrustedDevice.Status.ACTIVE).first()
+    if device is None or not device.public_key:
+        raise ValidationError("Active trusted device not found.")
+    challenge = secrets.token_bytes(32)
+    device.auth_challenge_hash = _hash_challenge(challenge)
+    device.auth_challenge_expires_at = timezone.now() + ENROLLMENT_TTL
+    device.save(update_fields=("auth_challenge_hash", "auth_challenge_expires_at", "updated_at"))
+    return challenge
+
+
+@transaction.atomic
+def verify_owner_device_auth_challenge(owner_user, device_id, challenge, challenge_signature):
+    if not is_owner(owner_user):
+        raise PermissionError("Only the canonical active Owner can authenticate devices.")
+    if not isinstance(challenge, bytes) or len(challenge) != 32:
+        raise ValidationError("A valid 32-byte device challenge is required.")
+    if not isinstance(challenge_signature, bytes) or not challenge_signature:
+        raise ValidationError("A device challenge signature is required.")
+    owner_entity = AccountEntity.objects.select_for_update().get(user=owner_user, entity_type=AccountEntity.EntityType.OWNER, is_active=True)
+    device = OwnerTrustedDevice.objects.select_for_update().filter(pk=device_id, owner_entity=owner_entity, status=OwnerTrustedDevice.Status.ACTIVE).first()
+    if device is None:
+        raise ValidationError("Active trusted device not found.")
+    now = timezone.now()
+    if not device.auth_challenge_hash or not device.auth_challenge_expires_at:
+        raise ValidationError("Device authentication challenge is unavailable.")
+    if device.auth_challenge_expires_at <= now:
+        raise ValidationError("Device authentication challenge has expired.")
+    if not secrets.compare_digest(device.auth_challenge_hash, _hash_challenge(challenge)):
+        raise ValidationError("Invalid or replayed device authentication challenge.")
+    try:
+        Ed25519PublicKey.from_public_bytes(device.public_key).verify(challenge_signature, challenge)
+    except (ValueError, TypeError):
+        raise ValidationError("Invalid device authentication signature.")
+    device.auth_challenge_hash = None
+    device.auth_challenge_expires_at = None
+    device.last_seen_at = now
+    device.save(update_fields=("auth_challenge_hash", "auth_challenge_expires_at", "last_seen_at", "updated_at"))
+    return device
+
+
+@transaction.atomic
 def revoke_owner_device(owner_user, device_id):
     if not is_owner(owner_user):
         raise PermissionError("Only the canonical active Owner can revoke devices.")
