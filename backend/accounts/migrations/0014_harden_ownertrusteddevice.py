@@ -20,6 +20,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="ownertrusteddevice",
             name="enrollment_challenge_expires_at",
+            field=models.DateTimeField(blank=True, max_length=64, null=True),
+        ),
+        migrations.AddField(
+            model_name="ownertrusteddevice",
+            name="auth_challenge_hash",
+            field=models.CharField(blank=True, max_length=64, null=True),
+        ),
+        migrations.AddField(
+            model_name="ownertrusteddevice",
+            name="auth_challenge_expires_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AlterField(
