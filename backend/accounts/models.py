@@ -243,6 +243,8 @@ class OwnerTrustedDevice(models.Model):
     public_key = models.BinaryField(max_length=32, null=True, blank=True)
     enrollment_challenge_hash = models.CharField(max_length=64, null=True, blank=True)
     enrollment_challenge_expires_at = models.DateTimeField(null=True, blank=True)
+    auth_challenge_hash = models.CharField(max_length=64, null=True, blank=True)
+    auth_challenge_expires_at = models.DateTimeField(null=True, blank=True)
     label = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     approved_at = models.DateTimeField(null=True, blank=True)
