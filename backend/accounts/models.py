@@ -299,6 +299,15 @@ class OwnerSessionBinding(models.Model):
         OwnerTrustedDevice,
         on_delete=models.PROTECT,
         related_name="session_bindings",
+        null=True,
+        blank=True,
+    )
+    webauthn_credential = models.ForeignKey(
+        "OwnerWebAuthnCredential",
+        on_delete=models.PROTECT,
+        related_name="session_bindings",
+        null=True,
+        blank=True,
     )
     binding_token_hash = models.CharField(max_length=64, unique=True)
     session_key_hash = models.CharField(max_length=64)
@@ -325,10 +334,29 @@ class OwnerSessionBinding(models.Model):
         from django.core.exceptions import ValidationError
         if self.owner_entity.entity_type != AccountEntity.EntityType.OWNER or not self.owner_entity.is_active:
             raise ValidationError("Owner session binding requires the canonical active Owner entity.")
-        if self.trusted_device.owner_entity_id != self.owner_entity_id:
-            raise ValidationError("Trusted device must belong to the same Owner entity.")
-        if self.revoked_at is None and self.trusted_device.status != OwnerTrustedDevice.Status.ACTIVE:
-            raise ValidationError("Active session binding requires an active trusted device.")
+        if bool(self.trusted_device_id) == bool(self.webauthn_credential_id):
+            raise ValidationError(
+                "Owner session binding requires exactly one trusted authenticator."
+            )
+        if self.trusted_device_id:
+            if self.trusted_device.owner_entity_id != self.owner_entity_id:
+                raise ValidationError("Trusted device must belong to the same Owner entity.")
+            if (
+                self.revoked_at is None
+                and self.trusted_device.status != OwnerTrustedDevice.Status.ACTIVE
+            ):
+                raise ValidationError(
+                    "Active session binding requires an active trusted device."
+                )
+        if self.webauthn_credential_id:
+            if self.webauthn_credential.owner_entity_id != self.owner_entity_id:
+                raise ValidationError(
+                    "WebAuthn credential must belong to the same Owner entity."
+                )
+            if self.revoked_at is None and not self.webauthn_credential.is_active:
+                raise ValidationError(
+                    "Active session binding requires an active WebAuthn credential."
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -336,7 +364,13 @@ class OwnerSessionBinding(models.Model):
 
     @property
     def is_active(self):
-        return self.revoked_at is None and self.trusted_device.status == OwnerTrustedDevice.Status.ACTIVE
+        if self.revoked_at is not None:
+            return False
+        if self.trusted_device_id:
+            return self.trusted_device.status == OwnerTrustedDevice.Status.ACTIVE
+        return bool(
+            self.webauthn_credential_id and self.webauthn_credential.is_active
+        )
 
 
 class OwnerWebAuthnCredential(models.Model):
