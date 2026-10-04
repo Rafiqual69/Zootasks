@@ -233,6 +233,9 @@ def issue_owner_webauthn_authentication(request, owner_user):
     _, challenge = _issue_challenge(
         request, entity, OwnerWebAuthnChallenge.Ceremony.AUTHENTICATION
     )
+    request.session["owner_webauthn_authentication_challenge"] = (
+        base64.urlsafe_b64encode(challenge).decode("ascii")
+    )
     options = generate_authentication_options(
         rp_id=settings.OWNER_WEBAUTHN_RP_ID,
         challenge=challenge,
@@ -247,13 +250,20 @@ def issue_owner_webauthn_authentication(request, owner_user):
 
 
 @transaction.atomic
-def complete_owner_webauthn_authentication(
-    request, owner_user, credential, challenge
-):
+def complete_owner_webauthn_authentication(request, owner_user, credential):
     _require_recent_owner_reauth(request, owner_user)
     entity = AccountEntity.objects.select_for_update().get(
         pk=_owner_entity(owner_user).pk
     )
+    encoded = request.session.pop("owner_webauthn_authentication_challenge", "")
+    if not encoded:
+        raise ValidationError("No active Owner WebAuthn authentication challenge.")
+    try:
+        challenge = base64.urlsafe_b64decode(
+            encoded + "=" * (-len(encoded) % 4)
+        )
+    except (ValueError, TypeError):
+        raise ValidationError("Invalid Owner WebAuthn authentication challenge.")
     raw_id = credential.get("rawId") if isinstance(credential, dict) else None
     if not raw_id:
         raise ValidationError("WebAuthn credential ID is required.")
