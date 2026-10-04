@@ -226,6 +226,56 @@ class OwnerSuccessionState(models.Model):
         return super().save(*args, **kwargs)
 
 
+class OwnerTrustedDevice(models.Model):
+    """Server-side trusted device binding; raw device identifiers are never stored."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        REVOKED = "revoked", "Revoked"
+
+    owner_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="trusted_devices",
+    )
+    device_identifier_hash = models.CharField(max_length=64)
+    label = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("owner_entity", "device_identifier_hash"),
+                condition=models.Q(status="active"),
+                name="accounts_unique_active_owner_device",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=("owner_entity", "status"),
+                name="accounts_owner_device_status_idx",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.owner_entity.entity_type != AccountEntity.EntityType.OWNER or not self.owner_entity.is_active:
+            raise ValidationError("Trusted device requires the canonical active Owner entity.")
+        if self.status == self.Status.REVOKED and not self.revoked_at:
+            raise ValidationError("Revoked device must have a revocation timestamp.")
+        if self.status == self.Status.ACTIVE and self.revoked_at:
+            raise ValidationError("Active device cannot have a revocation timestamp.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class AdvertiserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="advertiser_profile")
     organization_name = models.CharField(max_length=200, blank=True)
