@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from urllib.parse import urlsplit
 
 from .email_verification import issue_owner_email_verification, verify_owner_email_token
@@ -17,6 +18,16 @@ from .owner_verification import get_owner_verification_snapshot
 from promotions.models import Promotion
 from wallet.models import WalletTransaction
 
+
+
+class OwnerLoginView(LoginView):
+    """Owner login view that records a short-lived re-authentication marker."""
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if is_owner(self.request.user):
+            self.request.session["owner_reauthenticated_at"] = timezone.now().timestamp()
+            self.request.session.modified = True
+        return response
 
 def register(request):
     if request.user.is_authenticated:
