@@ -250,7 +250,6 @@ class OwnerTrustedDevice(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     approved_at = models.DateTimeField(null=True, blank=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)
-    expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -314,6 +313,7 @@ class OwnerSessionBinding(models.Model):
     session_key_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
