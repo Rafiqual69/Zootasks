@@ -1,10 +1,12 @@
 from django.contrib.auth import login
+from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
-from .forms import RegistrationForm
+from .forms import OwnerOTPAuthenticationForm, RegistrationForm
 from .models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
 
@@ -83,3 +85,22 @@ def dashboard(request):
             "completed_tasks": completed_tasks,
         },
     )
+
+
+class OwnerLoginView(LoginView):
+    """High-assurance Owner login with a privileged landing boundary."""
+
+    template_name = "accounts/owner_login.html"
+    authentication_form = OwnerOTPAuthenticationForm
+    redirect_authenticated_user = False
+
+    def get_success_url(self):
+        return reverse("admin:index")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        from django.utils import timezone
+
+        self.request.session["owner_reauthenticated_at"] = timezone.now().isoformat()
+        self.request.session.modified = True
+        return response
