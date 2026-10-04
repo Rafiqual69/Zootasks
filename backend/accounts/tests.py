@@ -220,3 +220,51 @@ class AccountEntitySecurityTests(TestCase):
 
         with self.assertRaises(ValidationError):
             entity.full_clean()
+
+
+class RegistrationAccountEntityTests(TestCase):
+    def test_registration_creates_worker_entity_atomically(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "new-worker",
+                "email": "worker@example.com",
+                "first_name": "New",
+                "last_name": "Worker",
+                "password": "Strong-Worker-Password-1",
+                "password_confirm": "Strong-Worker-Password-1",
+            },
+            HTTP_HOST="127.0.0.1",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="new-worker")
+        entity = AccountEntity.objects.get(user=user)
+
+        self.assertEqual(entity.entity_type, AccountEntity.EntityType.WORKER)
+        self.assertTrue(entity.is_active)
+
+    def test_registration_does_not_create_owner_entity(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "normal-user",
+                "email": "normal@example.com",
+                "first_name": "Normal",
+                "last_name": "User",
+                "password": "Strong-Normal-Password-1",
+                "password_confirm": "Strong-Normal-Password-1",
+            },
+            HTTP_HOST="127.0.0.1",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="normal-user")
+        entity = AccountEntity.objects.get(user=user)
+
+        self.assertEqual(entity.entity_type, AccountEntity.EntityType.WORKER)
+        self.assertFalse(
+            AccountEntity.objects.filter(
+                entity_type=AccountEntity.EntityType.OWNER
+            ).exists()
+        )
