@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from accounts.models import AccountEntity
 from .models import Promotion, PromotionClaim
 
 
@@ -11,7 +12,26 @@ class PromotionXSSTests(TestCase):
             username="xssworker",
             password="testpass123",
         )
+        AccountEntity.objects.create(
+            user=self.user,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
         self.client.login(username="xssworker", password="testpass123")
+
+    def test_non_worker_is_denied_promotion_access(self):
+        owner = get_user_model().objects.create_user(
+            username="promotion-owner",
+            password="testpass123",
+        )
+        AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("promotion_marketplace"))
+
+        self.assertEqual(response.status_code, 403)
 
     def test_marketplace_escapes_untrusted_promotion_content(self):
         Promotion.objects.create(
@@ -66,6 +86,7 @@ class PromotionXSSTests(TestCase):
 
         self.assertIn("&lt;script&gt;alert(4)&lt;/script&gt;", content)
         self.assertIn("&lt;img src=x onerror=&quot;alert(5)&quot;&gt;", content)
+
 
 class PromotionRewardValidationTests(TestCase):
     def test_negative_reward_is_rejected(self):
