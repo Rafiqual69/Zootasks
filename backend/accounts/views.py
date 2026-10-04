@@ -1,11 +1,13 @@
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import json
+
+import ensure_csrf_cookie
 from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from urllib.parse import urlsplit
@@ -82,6 +84,73 @@ def advertiser_register(request):
 
 @login_required
 @user_passes_test(is_owner)
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_registration_options(request):
+    from .owner_webauthn import issue_owner_webauthn_registration
+    try:
+        options = issue_owner_webauthn_registration(request, request.user)
+    except (PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn registration unavailable."}, status=403)
+    response = JsonResponse(options)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_registration_complete(request):
+    from .owner_webauthn import complete_owner_webauthn_registration
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        credential = payload.get("credential")
+        label = payload.get("label", "")
+        if not isinstance(credential, dict):
+            raise ValidationError("Invalid credential.")
+        complete_owner_webauthn_registration(
+            request, request.user, credential, label
+        )
+    except (ValueError, TypeError, json.JSONDecodeError, PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn registration failed."}, status=400)
+    return JsonResponse({"status": "ok"})
+
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_authentication_options(request):
+    from .owner_webauthn import issue_owner_webauthn_authentication
+    try:
+        options = issue_owner_webauthn_authentication(request, request.user)
+    except (PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn authentication unavailable."}, status=403)
+    response = JsonResponse(options)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_authentication_complete(request):
+    from .owner_webauthn import complete_owner_webauthn_authentication
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        credential = payload.get("credential")
+        if not isinstance(credential, dict):
+            raise ValidationError("Invalid credential.")
+        complete_owner_webauthn_authentication(
+            request, request.user, credential
+        )
+    except (ValueError, TypeError, json.JSONDecodeError, PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn authentication failed."}, status=400)
+    return JsonResponse({"status": "bound"})
+
+
+
 def owner_email_verification_request(request):
     if request.method != "POST":
         return HttpResponse("Owner email verification requires POST.", status=405)
