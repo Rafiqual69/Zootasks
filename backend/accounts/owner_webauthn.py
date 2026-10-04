@@ -130,10 +130,12 @@ def issue_owner_webauthn_registration(request, owner_user):
     if active.count() >= MAX_ACTIVE_CREDENTIALS:
         raise ValidationError("The Owner already has the maximum of 3 active passkeys.")
 
-    options_record, challenge = _issue_challenge(
+    _, challenge = _issue_challenge(
         request, entity, OwnerWebAuthnChallenge.Ceremony.REGISTRATION
     )
-    _ = options_record
+    request.session["owner_webauthn_registration_challenge"] = (
+        base64.urlsafe_b64encode(challenge).decode("ascii")
+    )
     options = generate_registration_options(
         rp_id=settings.OWNER_WEBAUTHN_RP_ID,
         rp_name="ZooTasks",
@@ -157,19 +159,22 @@ def issue_owner_webauthn_registration(request, owner_user):
 @transaction.atomic
 def complete_owner_webauthn_registration(request, owner_user, credential, label=""):
     _require_recent_owner_reauth(request, owner_user)
-    entity = AccountEntity.objects.select_for_update().get(
-        pk=_owner_entity(owner_user).pk
+    encoded = request.session.pop("owner_webauthn_registration_challenge", "")
+    if not encoded:
+        raise ValidationError("No active Owner WebAuthn registration challenge.")
+    try:
+        challenge = base64.urlsafe_b64decode(
+            encoded + "=" * (-len(encoded) % 4)
+        )
+    except (ValueError, TypeError):
+        raise ValidationError("Invalid Owner WebAuthn registration challenge.")
+    credential_record = complete_owner_webauthn_registration_with_challenge(
+        request, owner_user, credential, challenge
     )
-    challenge = base64url_to_bytes(
-        json.loads(options_to_json(generate_registration_options(
-            rp_id=settings.OWNER_WEBAUTHN_RP_ID,
-            rp_name="ZooTasks",
-            user_id=_ensure_user_handle(entity),
-            user_name=entity.user.username,
-            challenge=secrets.token_bytes(CHALLENGE_BYTES),
-        )))["challenge"]
-    )
-    raise RuntimeError("Use complete_owner_webauthn_registration_with_challenge.")
+    if label:
+        credential_record.label = label[:100]
+        credential_record.save(update_fields=("label",))
+    return credential_record
 
 
 @transaction.atomic
@@ -267,7 +272,7 @@ def complete_owner_webauthn_authentication(
     )
     if not stored:
         raise ValidationError("Unknown or revoked Owner passkey.")
-    challenge_record = _consume_challenge(
+    _consume_challenge(
         request, entity, OwnerWebAuthnChallenge.Ceremony.AUTHENTICATION, challenge
     )
     verification = verify_authentication_response(
@@ -302,5 +307,4 @@ def complete_owner_webauthn_authentication(
         )
     )
     bind_owner_session_webauthn(request, owner_user, stored.pk)
-    challenge_record.used_at = challenge_record.used_at or timezone.now()
     return stored
