@@ -39,6 +39,7 @@ def appoint_owner_nominee(owner_user, nominee_user, succession_order, *, super_n
     existing = OwnerNominee.objects.filter(
         owner_entity=owner_entity,
         succession_order=succession_order,
+        is_active=True,
     ).first()
 
     if existing is None and active_count >= MAX_OWNER_NOMINEES:

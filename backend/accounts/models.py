@@ -264,7 +264,7 @@ class OwnerTrustedDevice(models.Model):
         indexes = [
             models.Index(
                 fields=("owner_entity", "status"),
-                name="accounts_owner_device_status_idx",
+                name="acct_owner_dev_status_idx",
             ),
         ]
 
