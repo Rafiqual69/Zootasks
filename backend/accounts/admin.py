@@ -9,6 +9,9 @@ from .models import (
     WorkerProfile,
     OwnerNominee,
     OwnerSuccessionState,
+    OwnerWebAuthnCredential,
+    OwnerWebAuthnChallenge,
+    OwnerSessionBinding,
 )
 
 
@@ -237,4 +240,112 @@ class OwnerSuccessionStateAdmin(admin.ModelAdmin):
     readonly_fields = (
         "owner_entity", "status", "activation_reference",
         "activated_at", "activated_nominee", "created_at", "updated_at",
+    )
+
+
+@admin.register(OwnerWebAuthnCredential)
+class OwnerWebAuthnCredentialAdmin(admin.ModelAdmin):
+    """Read-only WebAuthn credential audit surface."""
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "owner_entity",
+        "label",
+        "aaguid",
+        "sign_count",
+        "backup_eligible",
+        "backed_up",
+        "created_at",
+        "last_used_at",
+        "revoked_at",
+    )
+    list_filter = ("backup_eligible", "backed_up", "revoked_at")
+    search_fields = ("owner_entity__user__username", "label", "aaguid")
+    readonly_fields = (
+        "owner_entity",
+        "credential_id",
+        "public_key",
+        "user_handle",
+        "sign_count",
+        "aaguid",
+        "transports",
+        "label",
+        "backup_eligible",
+        "backed_up",
+        "created_at",
+        "last_used_at",
+        "revoked_at",
+    )
+
+
+@admin.register(OwnerWebAuthnChallenge)
+class OwnerWebAuthnChallengeAdmin(admin.ModelAdmin):
+    """Read-only challenge audit surface; raw challenges are never stored."""
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "owner_entity",
+        "ceremony",
+        "expires_at",
+        "used_at",
+        "created_at",
+    )
+    list_filter = ("ceremony", "used_at")
+    search_fields = ("owner_entity__user__username", "session_key_hash")
+    readonly_fields = (
+        "owner_entity",
+        "session_key_hash",
+        "ceremony",
+        "challenge_hash",
+        "expires_at",
+        "used_at",
+        "created_at",
+    )
+
+
+@admin.register(OwnerSessionBinding)
+class OwnerSessionBindingAdmin(admin.ModelAdmin):
+    """Read-only server-side Owner session binding audit surface."""
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "owner_entity",
+        "trusted_device",
+        "webauthn_credential",
+        "created_at",
+        "last_seen_at",
+        "revoked_at",
+    )
+    list_filter = ("revoked_at",)
+    search_fields = ("owner_entity__user__username", "session_key_hash")
+    readonly_fields = (
+        "owner_entity",
+        "trusted_device",
+        "webauthn_credential",
+        "binding_token_hash",
+        "session_key_hash",
+        "created_at",
+        "last_seen_at",
+        "revoked_at",
     )
