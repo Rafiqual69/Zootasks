@@ -230,6 +230,7 @@ class OwnerTrustedDevice(models.Model):
     """Server-side trusted device binding; raw device identifiers are never stored."""
 
     class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
         ACTIVE = "active", "Active"
         REVOKED = "revoked", "Revoked"
 
@@ -239,8 +240,11 @@ class OwnerTrustedDevice(models.Model):
         related_name="trusted_devices",
     )
     device_identifier_hash = models.CharField(max_length=64)
+    public_key = models.BinaryField(max_length=32, null=True, blank=True)
+    enrollment_challenge_hash = models.CharField(max_length=64, null=True, blank=True)
+    enrollment_challenge_expires_at = models.DateTimeField(null=True, blank=True)
     label = models.CharField(max_length=100, blank=True)
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     approved_at = models.DateTimeField(null=True, blank=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
@@ -270,6 +274,10 @@ class OwnerTrustedDevice(models.Model):
             raise ValidationError("Revoked device must have a revocation timestamp.")
         if self.status == self.Status.ACTIVE and self.revoked_at:
             raise ValidationError("Active device cannot have a revocation timestamp.")
+        if self.status == self.Status.ACTIVE and not self.public_key:
+            raise ValidationError("Active trusted device requires a public key.")
+        if self.status == self.Status.PENDING and not self.enrollment_challenge_hash:
+            raise ValidationError("Pending trusted device requires an enrollment challenge.")
 
     def save(self, *args, **kwargs):
         self.full_clean()
