@@ -1,11 +1,11 @@
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from .authorization import worker_required
 from .forms import OwnerOTPAuthenticationForm, RegistrationForm
 from .models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
@@ -38,7 +38,7 @@ def register(request):
     )
 
 
-@login_required
+@worker_required
 def dashboard(request):
     profile, _ = WorkerProfile.objects.get_or_create(
         user=request.user
