@@ -41,7 +41,7 @@ def bind_owner_device(owner_user, device_identifier, label=""):
 
     active_count = OwnerTrustedDevice.objects.filter(
         owner_entity=owner_entity,
-        status=device_model.Status.ACTIVE,
+        status=OwnerTrustedDevice.Status.ACTIVE,
     ).count()
     if active_count >= MAX_ACTIVE_OWNER_DEVICES:
         raise ValidationError(
@@ -67,7 +67,7 @@ def revoke_owner_device(owner_user, device_id):
         entity_type=AccountEntity.EntityType.OWNER,
         is_active=True,
     )
-    device = device_model.objects.select_for_update().filter(
+    device = OwnerTrustedDevice.objects.select_for_update().filter(
         pk=device_id,
         owner_entity=owner_entity,
         status=device_model.Status.ACTIVE,
