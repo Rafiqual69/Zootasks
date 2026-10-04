@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import AccountEntity, OwnerSessionBinding, OwnerTrustedDevice
+from .models import AccountEntity, OwnerSessionBinding, OwnerTrustedDevice, OwnerWebAuthnCredential
 from .policies import is_owner
 
 
@@ -74,6 +74,51 @@ def bind_owner_session(request, owner_user, trusted_device_id):
     return binding
 
 
+
+@transaction.atomic
+def bind_owner_session_webauthn(request, owner_user, webauthn_credential_id):
+    """Bind the current Owner session to a verified active WebAuthn credential."""
+    if not getattr(request.user, "is_authenticated", False):
+        raise PermissionError("An authenticated Owner session is required.")
+    if request.user.pk != owner_user.pk:
+        raise PermissionError("The session user must match the Owner being bound.")
+    if not is_owner(owner_user):
+        raise PermissionError("Only the canonical active Owner can bind a session.")
+
+    session_key = request.session.session_key
+    session_hash = _session_key_hash(session_key)
+    owner_entity = AccountEntity.objects.select_for_update().get(
+        user=owner_user,
+        entity_type=AccountEntity.EntityType.OWNER,
+        is_active=True,
+    )
+    credential = OwnerWebAuthnCredential.objects.select_for_update().filter(
+        pk=webauthn_credential_id,
+        owner_entity=owner_entity,
+        revoked_at__isnull=True,
+    ).first()
+    if credential is None:
+        raise ValidationError("Active Owner WebAuthn credential not found.")
+
+    now = timezone.now()
+    OwnerSessionBinding.objects.select_for_update().filter(
+        owner_entity=owner_entity,
+        session_key_hash=session_hash,
+        revoked_at__isnull=True,
+    ).update(revoked_at=now)
+
+    token = secrets.token_urlsafe(BINDING_TOKEN_BYTES)
+    binding = OwnerSessionBinding.objects.create(
+        owner_entity=owner_entity,
+        webauthn_credential=credential,
+        binding_token_hash=_binding_token_hash(token),
+        session_key_hash=session_hash,
+        last_seen_at=now,
+    )
+    request.session[SESSION_BINDING_SESSION_KEY] = token
+    request.session.modified = True
+    return binding
+
 def get_current_owner_session_binding(request):
     """Return the current valid Owner session binding, or None on any mismatch."""
     if not getattr(request.user, "is_authenticated", False):
@@ -96,16 +141,17 @@ def get_current_owner_session_binding(request):
 
     binding = (
         OwnerSessionBinding.objects
-        .select_related("trusted_device")
+        .select_related("trusted_device", "webauthn_credential")
         .filter(
             owner_entity=owner_entity,
             binding_token_hash=_binding_token_hash(token),
             session_key_hash=_session_key_hash(session_key),
             revoked_at__isnull=True,
-            trusted_device__status=OwnerTrustedDevice.Status.ACTIVE,
         )
         .first()
     )
+    if binding is None or not binding.is_active:
+        return None
     return binding
 
 
