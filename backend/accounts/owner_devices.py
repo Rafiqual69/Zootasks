@@ -122,39 +122,6 @@ def request_owner_device_enrollment(owner_user, device_identifier, public_key, l
 
 
 @transaction.atomic
-def approve_owner_device(owner_user, device_id, challenge_signature):
-    """Owner approves a pending device only after proof of private-key possession."""
-    if not is_owner(owner_user):
-        raise PermissionError("Only the canonical active Owner can approve devices.")
-    if not isinstance(challenge_signature, bytes) or not challenge_signature:
-        raise ValidationError("A device challenge signature is required.")
-
-    owner_entity = AccountEntity.objects.select_for_update().get(
-        user=owner_user,
-        entity_type=AccountEntity.EntityType.OWNER,
-        is_active=True,
-    )
-    device = OwnerTrustedDevice.objects.select_for_update().filter(
-        pk=device_id,
-        owner_entity=owner_entity,
-        status=OwnerTrustedDevice.Status.PENDING,
-    ).first()
-    if device is None:
-        raise ValidationError("Pending trusted device not found.")
-
-    now = timezone.now()
-    if not device.enrollment_challenge_hash or not device.enrollment_challenge_expires_at:
-        raise ValidationError("Device enrollment challenge is unavailable.")
-    if device.enrollment_challenge_expires_at <= now:
-        raise ValidationError("Device enrollment challenge has expired.")
-
-    challenge = None
-    # The raw challenge is deliberately never persisted. The caller must provide
-    # the original challenge bytes alongside the signature via the verifier below.
-    raise ValidationError("Use approve_owner_device_with_challenge for enrollment approval.")
-
-
-@transaction.atomic
 def approve_owner_device_with_challenge(owner_user, device_id, challenge, challenge_signature):
     """Approve a pending device using a one-time Ed25519 challenge response."""
     if not is_owner(owner_user):
