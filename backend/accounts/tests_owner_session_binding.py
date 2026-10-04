@@ -40,20 +40,21 @@ class OwnerSessionBindingTests(TestCase):
         self.client.force_login(self.owner)
 
     def test_verified_device_binds_current_owner_session_server_side(self):
-        binding = bind_owner_session(self._request(), self.owner, self.device.pk)
+        request = self._request()
+        binding = bind_owner_session(request, self.owner, self.device.pk)
 
         self.assertEqual(binding.owner_entity_id, self.entity.pk)
         self.assertEqual(binding.trusted_device_id, self.device.pk)
         self.assertIsNone(binding.revoked_at)
 
-        session = self._request().session
+        session = request.session
         token = session.get(SESSION_BINDING_SESSION_KEY)
         self.assertTrue(token)
         self.assertNotEqual(token, str(self.device.pk))
         self.assertNotEqual(token, self.device.device_identifier_hash)
-        self.assertTrue(is_owner_session_bound(self._request()))
+        self.assertTrue(is_owner_session_bound(request))
         self.assertEqual(
-            get_current_owner_session_binding(self._request()).pk,
+            get_current_owner_session_binding(request).pk,
             binding.pk,
         )
 
@@ -65,8 +66,8 @@ class OwnerSessionBindingTests(TestCase):
         self.device.revoked_at = timezone.now()
         self.device.save(update_fields=("status", "revoked_at", "updated_at"))
 
-        self.assertFalse(is_owner_session_bound(self._request()))
-        self.assertIsNone(get_current_owner_session_binding(self._request()))
+        self.assertFalse(is_owner_session_bound(request))
+        self.assertIsNone(get_current_owner_session_binding(request))
 
     def test_session_key_change_fails_closed(self):
         request = self._request()
