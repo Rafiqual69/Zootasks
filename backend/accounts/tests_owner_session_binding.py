@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from datetime import timedelta
 
 from .models import AccountEntity, OwnerSessionBinding, OwnerTrustedDevice
 from .owner_devices import bind_owner_device
@@ -68,6 +69,13 @@ class OwnerSessionBindingTests(TestCase):
 
         self.assertFalse(is_owner_session_bound(request))
         self.assertIsNone(get_current_owner_session_binding(request))
+
+    def test_expired_binding_fails_closed(self):
+        request = self._request()
+        binding = bind_owner_session(request, self.owner, self.device.pk)
+        binding.expires_at = timezone.now() - timedelta(seconds=1)
+        binding.save(update_fields=("expires_at",))
+        self.assertFalse(is_owner_session_bound(request))
 
     def test_session_key_change_fails_closed(self):
         request = self._request()

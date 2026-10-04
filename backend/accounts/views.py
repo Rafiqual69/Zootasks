@@ -1,12 +1,17 @@
+import json
+
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth import login
+from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 from urllib.parse import urlsplit
 
 from .email_verification import issue_owner_email_verification, verify_owner_email_token
@@ -17,6 +22,16 @@ from .owner_verification import get_owner_verification_snapshot
 from promotions.models import Promotion
 from wallet.models import WalletTransaction
 
+
+
+class OwnerLoginView(LoginView):
+    """Owner login view that records a short-lived re-authentication marker."""
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if is_owner(self.request.user):
+            self.request.session["owner_reauthenticated_at"] = timezone.now().timestamp()
+            self.request.session.modified = True
+        return response
 
 def register(request):
     if request.user.is_authenticated:
@@ -71,7 +86,74 @@ def advertiser_register(request):
 
 @login_required
 @user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_registration_options(request):
+    from .owner_webauthn import issue_owner_webauthn_registration
+    try:
+        options = issue_owner_webauthn_registration(request, request.user)
+    except (PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn registration unavailable."}, status=403)
+    response = JsonResponse(options)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_registration_complete(request):
+    from .owner_webauthn import complete_owner_webauthn_registration
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        credential = payload.get("credential")
+        label = payload.get("label", "")
+        if not isinstance(credential, dict):
+            raise ValidationError("Invalid credential.")
+        complete_owner_webauthn_registration(
+            request, request.user, credential, label
+        )
+    except (ValueError, TypeError, json.JSONDecodeError, PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn registration failed."}, status=400)
+    return JsonResponse({"status": "ok"})
+
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_authentication_options(request):
+    from .owner_webauthn import issue_owner_webauthn_authentication
+    try:
+        options = issue_owner_webauthn_authentication(request, request.user)
+    except (PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn authentication unavailable."}, status=403)
+    response = JsonResponse(options)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@login_required
+@user_passes_test(is_owner)
+@require_POST
+def owner_webauthn_authentication_complete(request):
+    from .owner_webauthn import complete_owner_webauthn_authentication
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+        credential = payload.get("credential")
+        if not isinstance(credential, dict):
+            raise ValidationError("Invalid credential.")
+        complete_owner_webauthn_authentication(
+            request, request.user, credential
+        )
+    except (ValueError, TypeError, json.JSONDecodeError, PermissionError, ValidationError):
+        return JsonResponse({"error": "Owner WebAuthn authentication failed."}, status=400)
+    return JsonResponse({"status": "bound"})
+
+
+
+@login_required
+@user_passes_test(is_owner)
 def owner_email_verification_request(request):
+
     if request.method != "POST":
         return HttpResponse("Owner email verification requires POST.", status=405)
     issue_owner_email_verification(request, request.user)

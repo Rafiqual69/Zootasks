@@ -19,6 +19,7 @@ class AccountEntity(models.Model):
     entity_type = models.CharField(max_length=32, choices=EntityType.choices)
     identity_email = models.EmailField(unique=True, null=True, blank=True)
     email_verified_at = models.DateTimeField(null=True, blank=True)
+    webauthn_user_handle = models.BinaryField(max_length=64, unique=True, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -298,11 +299,21 @@ class OwnerSessionBinding(models.Model):
         OwnerTrustedDevice,
         on_delete=models.PROTECT,
         related_name="session_bindings",
+        null=True,
+        blank=True,
+    )
+    webauthn_credential = models.ForeignKey(
+        "OwnerWebAuthnCredential",
+        on_delete=models.PROTECT,
+        related_name="session_bindings",
+        null=True,
+        blank=True,
     )
     binding_token_hash = models.CharField(max_length=64, unique=True)
     session_key_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -324,10 +335,29 @@ class OwnerSessionBinding(models.Model):
         from django.core.exceptions import ValidationError
         if self.owner_entity.entity_type != AccountEntity.EntityType.OWNER or not self.owner_entity.is_active:
             raise ValidationError("Owner session binding requires the canonical active Owner entity.")
-        if self.trusted_device.owner_entity_id != self.owner_entity_id:
-            raise ValidationError("Trusted device must belong to the same Owner entity.")
-        if self.revoked_at is None and self.trusted_device.status != OwnerTrustedDevice.Status.ACTIVE:
-            raise ValidationError("Active session binding requires an active trusted device.")
+        if bool(self.trusted_device_id) == bool(self.webauthn_credential_id):
+            raise ValidationError(
+                "Owner session binding requires exactly one trusted authenticator."
+            )
+        if self.trusted_device_id:
+            if self.trusted_device.owner_entity_id != self.owner_entity_id:
+                raise ValidationError("Trusted device must belong to the same Owner entity.")
+            if (
+                self.revoked_at is None
+                and self.trusted_device.status != OwnerTrustedDevice.Status.ACTIVE
+            ):
+                raise ValidationError(
+                    "Active session binding requires an active trusted device."
+                )
+        if self.webauthn_credential_id:
+            if self.webauthn_credential.owner_entity_id != self.owner_entity_id:
+                raise ValidationError(
+                    "WebAuthn credential must belong to the same Owner entity."
+                )
+            if self.revoked_at is None and not self.webauthn_credential.is_active:
+                raise ValidationError(
+                    "Active session binding requires an active WebAuthn credential."
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -335,7 +365,113 @@ class OwnerSessionBinding(models.Model):
 
     @property
     def is_active(self):
-        return self.revoked_at is None and self.trusted_device.status == OwnerTrustedDevice.Status.ACTIVE
+        from django.utils import timezone
+        if self.revoked_at is not None or self.expires_at <= timezone.now():
+            return False
+        if self.trusted_device_id:
+            return self.trusted_device.status == OwnerTrustedDevice.Status.ACTIVE
+        return bool(
+            self.webauthn_credential_id and self.webauthn_credential.is_active
+        )
+
+
+class OwnerWebAuthnCredential(models.Model):
+    """Phishing-resistant WebAuthn credential bound to the canonical Owner."""
+
+    owner_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="webauthn_credentials",
+    )
+    credential_id = models.BinaryField(max_length=1024, unique=True)
+    public_key = models.BinaryField(max_length=4096)
+    user_handle = models.BinaryField(max_length=64)
+    sign_count = models.PositiveBigIntegerField(default=0)
+    aaguid = models.CharField(max_length=36, blank=True)
+    transports = models.JSONField(default=list, blank=True)
+    label = models.CharField(max_length=100, blank=True)
+    backup_eligible = models.BooleanField(default=False)
+    backed_up = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("owner_entity", "revoked_at"),
+                name="acct_owner_webauthn_idx",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if (
+            self.owner_entity.entity_type != AccountEntity.EntityType.OWNER
+            or not self.owner_entity.is_active
+        ):
+            raise ValidationError(
+                "WebAuthn credentials require the canonical active Owner entity."
+            )
+        if len(self.user_handle) > 64:
+            raise ValidationError("WebAuthn user handle must not exceed 64 bytes.")
+        if self.revoked_at is not None and self.last_used_at is not None:
+            pass
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class OwnerWebAuthnChallenge(models.Model):
+    """Single-use, short-lived server-side WebAuthn ceremony challenge."""
+
+    class Ceremony(models.TextChoices):
+        REGISTRATION = "registration", "Registration"
+        AUTHENTICATION = "authentication", "Authentication"
+
+    owner_entity = models.ForeignKey(
+        AccountEntity,
+        on_delete=models.PROTECT,
+        related_name="webauthn_challenges",
+    )
+    session_key_hash = models.CharField(max_length=64)
+    ceremony = models.CharField(max_length=20, choices=Ceremony.choices)
+    challenge_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("owner_entity", "ceremony", "created_at"),
+                name="acct_owner_webauthn_chal_idx",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if (
+            self.owner_entity.entity_type != AccountEntity.EntityType.OWNER
+            or not self.owner_entity.is_active
+        ):
+            raise ValidationError(
+                "WebAuthn challenges require the canonical active Owner entity."
+            )
+
+    def is_valid(self, now=None):
+        from django.utils import timezone
+        now = now or timezone.now()
+        return self.used_at is None and self.expires_at > now
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class AdvertiserProfile(models.Model):

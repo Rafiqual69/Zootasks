@@ -101,6 +101,40 @@
     </section>
     {% endif %}
 
+    <section class="zt-dashboard-section" aria-label="Owner passkey security">
+        <div class="zt-section-heading">
+            <div>
+                <span class="zt-kicker">PASSKEY / WEBAUTHN</span>
+                <h2>High-assurance Owner session</h2>
+            </div>
+        </div>
+        <div class="zt-transaction-card">
+            <p id="owner-webauthn-status">
+                Register a passkey after Owner password + TOTP authentication, then use it to bind this session.
+            </p>
+            <div class="zt-transaction">
+                <div class="zt-transaction-main">
+                    <span class="zt-transaction-icon" aria-hidden="true">🔐</span>
+                    <div>
+                        <strong>Register passkey</strong>
+                        <small>WebAuthn user verification is required. The private key remains with your authenticator.</small>
+                    </div>
+                </div>
+                <button type="button" id="owner-webauthn-register">Register</button>
+            </div>
+            <div class="zt-transaction">
+                <div class="zt-transaction-main">
+                    <span class="zt-transaction-icon" aria-hidden="true">✓</span>
+                    <div>
+                        <strong>Authenticate passkey</strong>
+                        <small>Successful authentication creates the server-side Owner session binding.</small>
+                    </div>
+                </div>
+                <button type="button" id="owner-webauthn-authenticate">Authenticate</button>
+            </div>
+        </div>
+    </section>
+
     <section class="zt-dashboard-section">
         <div class="zt-section-heading">
             <div>
@@ -131,6 +165,154 @@
             </div>
         </div>
     </section>
+<script>
+(function () {
+    const status = document.getElementById("owner-webauthn-status");
+    const registerButton = document.getElementById("owner-webauthn-register");
+    const authenticateButton = document.getElementById("owner-webauthn-authenticate");
+
+    function setStatus(message) {
+        status.textContent = message;
+    }
+
+    function csrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+    }
+
+    function base64urlToBytes(value) {
+        const padded = value.replace(/-/g, "+").replace(/_/g, "/")
+            + "=".repeat((4 - value.length % 4) % 4);
+        const binary = atob(padded);
+        return Uint8Array.from(binary, function (char) { return char.charCodeAt(0); });
+    }
+
+    function bytesToBase64url(value) {
+        const bytes = new Uint8Array(value);
+        let binary = "";
+        bytes.forEach(function (byte) { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function registrationOptions(options) {
+        options.challenge = base64urlToBytes(options.challenge);
+        options.user.id = base64urlToBytes(options.user.id);
+        (options.excludeCredentials || []).forEach(function (item) {
+            item.id = base64urlToBytes(item.id);
+        });
+        return options;
+    }
+
+    function authenticationOptions(options) {
+        options.challenge = base64urlToBytes(options.challenge);
+        (options.allowCredentials || []).forEach(function (item) {
+            item.id = base64urlToBytes(item.id);
+        });
+        return options;
+    }
+
+    function registrationCredential(credential) {
+        return {
+            id: credential.id,
+            rawId: bytesToBase64url(credential.rawId),
+            type: credential.type,
+            response: {
+                clientDataJSON: bytesToBase64url(credential.response.clientDataJSON),
+                attestationObject: bytesToBase64url(credential.response.attestationObject),
+                transports: credential.response.getTransports ? credential.response.getTransports() : []
+            },
+            clientExtensionResults: credential.getClientExtensionResults()
+        };
+    }
+
+    function authenticationCredential(credential) {
+        return {
+            id: credential.id,
+            rawId: bytesToBase64url(credential.rawId),
+            type: credential.type,
+            response: {
+                clientDataJSON: bytesToBase64url(credential.response.clientDataJSON),
+                authenticatorData: bytesToBase64url(credential.response.authenticatorData),
+                signature: bytesToBase64url(credential.response.signature),
+                userHandle: credential.response.userHandle
+                    ? bytesToBase64url(credential.response.userHandle)
+                    : null
+            },
+            clientExtensionResults: credential.getClientExtensionResults()
+        };
+    }
+
+    async function postJSON(url, payload) {
+        const response = await fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken()
+            },
+            body: JSON.stringify(payload || {})
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Owner security operation failed.");
+        }
+        return data;
+    }
+
+    registerButton.addEventListener("click", async function () {
+        registerButton.disabled = true;
+        authenticateButton.disabled = true;
+        try {
+            if (!window.PublicKeyCredential || !navigator.credentials) {
+                throw new Error("This browser does not support WebAuthn.");
+            }
+            setStatus("Preparing secure passkey registration...");
+            const options = registrationOptions(
+                await postJSON("{% url 'owner_webauthn_registration_options' %}", {})
+            );
+            const credential = await navigator.credentials.create({ publicKey: options });
+            if (!credential) throw new Error("Passkey registration was cancelled.");
+            setStatus("Verifying passkey registration...");
+            await postJSON("{% url 'owner_webauthn_registration_complete' %}", {
+                credential: registrationCredential(credential)
+            });
+            setStatus("Passkey registered successfully.");
+        } catch (error) {
+            setStatus(error.message || "Passkey registration failed.");
+        } finally {
+            registerButton.disabled = false;
+            authenticateButton.disabled = false;
+        }
+    });
+
+    authenticateButton.addEventListener("click", async function () {
+        registerButton.disabled = true;
+        authenticateButton.disabled = true;
+        try {
+            if (!window.PublicKeyCredential || !navigator.credentials) {
+                throw new Error("This browser does not support WebAuthn.");
+            }
+            setStatus("Preparing passkey authentication...");
+            const options = authenticationOptions(
+                await postJSON("{% url 'owner_webauthn_authentication_options' %}", {})
+            );
+            const credential = await navigator.credentials.get({ publicKey: options });
+            if (!credential) throw new Error("Passkey authentication was cancelled.");
+            setStatus("Verifying passkey and binding this session...");
+            await postJSON("{% url 'owner_webauthn_authentication_complete' %}", {
+                credential: authenticationCredential(credential)
+            });
+            setStatus("Owner session is now cryptographically bound.");
+        } catch (error) {
+            setStatus(error.message || "Passkey authentication failed.");
+        } finally {
+            registerButton.disabled = false;
+            authenticateButton.disabled = false;
+        }
+    });
+})();
+</script>
+
 </main>
 
 <footer class="zt-app-footer">
