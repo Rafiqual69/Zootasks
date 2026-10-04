@@ -12,11 +12,12 @@ from .views import (
     owner_verification_center,
     owner_social_oauth_callback,
     owner_social_oauth_start,
+    OwnerLoginView,
     register,
 )
 
 urlpatterns = [
-    path("owner/login/", LoginView.as_view(
+    path("owner/login/", OwnerLoginView.as_view(
         template_name="accounts/owner_login.html",
         authentication_form=OwnerOTPAuthenticationForm,
         next_page="/admin/live-wallet/",
