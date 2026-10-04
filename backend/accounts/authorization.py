@@ -12,6 +12,7 @@ def worker_required(view_func):
     @login_required
     @wraps(view_func)
     def wrapped(request, *args, **kwargs):
+        # Role state is authoritative server-side; missing/stale entities deny.
         is_worker = AccountEntity.objects.filter(
             user=request.user,
             entity_type=AccountEntity.EntityType.WORKER,
