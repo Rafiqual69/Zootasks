@@ -1,3 +1,4 @@
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from django.contrib.auth.decorators import login_required, user_passes_test
