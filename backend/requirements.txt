@@ -11,3 +11,4 @@ redis==5.0.1
 
 django-otp==1.7.3
 pyotp==2.10.0
+webauthn==3.0.1
