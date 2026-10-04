@@ -16,19 +16,9 @@ class AccountEntity(models.Model):
         on_delete=models.PROTECT,
         related_name="account_entity",
     )
-    entity_type = models.CharField(
-        max_length=32,
-        choices=EntityType.choices,
-    )
-    identity_email = models.EmailField(
-        unique=True,
-        null=True,
-        blank=True,
-    )
-    email_verified_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
+    entity_type = models.CharField(max_length=32, choices=EntityType.choices)
+    identity_email = models.EmailField(unique=True, null=True, blank=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -49,45 +39,18 @@ class AccountEntity(models.Model):
 
 
 class OwnerIdentityBinding(models.Model):
-    account_entity = models.OneToOneField(
-        AccountEntity,
-        on_delete=models.PROTECT,
-        related_name="owner_identity_binding",
-    )
-    mobile_number = models.CharField(
-        max_length=32,
-        unique=True,
-        null=True,
-        blank=True,
-    )
-    mobile_verified_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-    whatsapp_verified_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
-    telegram_identity = models.OneToOneField(
-        "TelegramIdentity",
-        on_delete=models.PROTECT,
-        related_name="owner_identity_binding",
-        null=True,
-        blank=True,
-    )
+    account_entity = models.OneToOneField(AccountEntity, on_delete=models.PROTECT, related_name="owner_identity_binding")
+    mobile_number = models.CharField(max_length=32, unique=True, null=True, blank=True)
+    mobile_verified_at = models.DateTimeField(null=True, blank=True)
+    whatsapp_verified_at = models.DateTimeField(null=True, blank=True)
+    telegram_identity = models.OneToOneField("TelegramIdentity", on_delete=models.PROTECT, related_name="owner_identity_binding", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def clean(self):
         from django.core.exceptions import ValidationError
-
-        if (
-            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
-            or not self.account_entity.is_active
-        ):
-            raise ValidationError(
-                "Owner identity binding requires the canonical active Owner entity."
-            )
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER or not self.account_entity.is_active:
+            raise ValidationError("Owner identity binding requires the canonical active Owner entity.")
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -102,11 +65,7 @@ class OwnerSocialIdentity(models.Model):
         FACEBOOK = "facebook", "Facebook"
         INSTAGRAM = "instagram", "Instagram"
 
-    account_entity = models.ForeignKey(
-        AccountEntity,
-        on_delete=models.PROTECT,
-        related_name="owner_social_identities",
-    )
+    account_entity = models.ForeignKey(AccountEntity, on_delete=models.PROTECT, related_name="owner_social_identities")
     provider = models.CharField(max_length=32, choices=Provider.choices)
     provider_user_id = models.CharField(max_length=255)
     username = models.CharField(max_length=150, blank=True)
@@ -116,22 +75,13 @@ class OwnerSocialIdentity(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=("provider", "provider_user_id"),
-                name="accounts_unique_owner_social_identity",
-            ),
+            models.UniqueConstraint(fields=("provider", "provider_user_id"), name="accounts_unique_owner_social_identity"),
         ]
 
     def clean(self):
         from django.core.exceptions import ValidationError
-
-        if (
-            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
-            or not self.account_entity.is_active
-        ):
-            raise ValidationError(
-                "Owner social identity requires the canonical active Owner entity."
-            )
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER or not self.account_entity.is_active:
+            raise ValidationError("Owner social identity requires the canonical active Owner entity.")
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -142,11 +92,7 @@ class OwnerSocialIdentity(models.Model):
 
 
 class OwnerEmailVerificationChallenge(models.Model):
-    account_entity = models.ForeignKey(
-        AccountEntity,
-        on_delete=models.PROTECT,
-        related_name="owner_email_verification_challenges",
-    )
+    account_entity = models.ForeignKey(AccountEntity, on_delete=models.PROTECT, related_name="owner_email_verification_challenges")
     token_hash = models.CharField(max_length=64, unique=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
@@ -155,29 +101,14 @@ class OwnerEmailVerificationChallenge(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-
-        if (
-            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
-            or not self.account_entity.is_active
-        ):
-            raise ValidationError(
-                "Owner email verification requires the canonical active Owner entity."
-            )
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER or not self.account_entity.is_active:
+            raise ValidationError("Owner email verification requires the canonical active Owner entity.")
 
     def is_valid(self, now=None):
         from django.utils import timezone
-
         now = now or timezone.now()
-        max_attempts = getattr(
-            settings,
-            "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS",
-            5,
-        )
-        return (
-            self.used_at is None
-            and self.expires_at > now
-            and self.attempts < max_attempts
-        )
+        max_attempts = getattr(settings, "OWNER_EMAIL_VERIFICATION_MAX_ATTEMPTS", 5)
+        return self.used_at is None and self.expires_at > now and self.attempts < max_attempts
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -188,15 +119,8 @@ class OwnerEmailVerificationChallenge(models.Model):
 
 
 class OwnerSocialOAuthState(models.Model):
-    account_entity = models.ForeignKey(
-        AccountEntity,
-        on_delete=models.PROTECT,
-        related_name="owner_social_oauth_states",
-    )
-    provider = models.CharField(
-        max_length=32,
-        choices=OwnerSocialIdentity.Provider.choices,
-    )
+    account_entity = models.ForeignKey(AccountEntity, on_delete=models.PROTECT, related_name="owner_social_oauth_states")
+    provider = models.CharField(max_length=32, choices=OwnerSocialIdentity.Provider.choices)
     state_hash = models.CharField(max_length=64, unique=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
@@ -204,26 +128,16 @@ class OwnerSocialOAuthState(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(
-                fields=("account_entity", "provider", "created_at"),
-                name="accounts_social_oauth_idx",
-            ),
+            models.Index(fields=("account_entity", "provider", "created_at"), name="accounts_social_oauth_idx"),
         ]
 
     def clean(self):
         from django.core.exceptions import ValidationError
-
-        if (
-            self.account_entity.entity_type != AccountEntity.EntityType.OWNER
-            or not self.account_entity.is_active
-        ):
-            raise ValidationError(
-                "Owner social OAuth state requires the canonical active Owner entity."
-            )
+        if self.account_entity.entity_type != AccountEntity.EntityType.OWNER or not self.account_entity.is_active:
+            raise ValidationError("Owner social OAuth state requires the canonical active Owner entity.")
 
     def is_valid(self, now=None):
         from django.utils import timezone
-
         now = now or timezone.now()
         return self.used_at is None and self.expires_at > now
 
@@ -251,8 +165,16 @@ class OwnerNominee(models.Model):
     class Meta:
         ordering = ("succession_order", "appointed_at")
         constraints = [
-            models.UniqueConstraint(fields=("owner_entity", "succession_order"), name="accounts_unique_nominee_succession_order"),
-            models.UniqueConstraint(fields=("owner_entity",), condition=models.Q(role="super_nominee", is_active=True), name="accounts_single_active_super_nominee"),
+            models.UniqueConstraint(
+                fields=("owner_entity", "succession_order"),
+                condition=models.Q(is_active=True),
+                name="accounts_unique_active_nominee_succession_order",
+            ),
+            models.UniqueConstraint(
+                fields=("owner_entity",),
+                condition=models.Q(role="super_nominee", is_active=True),
+                name="accounts_single_active_super_nominee",
+            ),
         ]
 
     def clean(self):
@@ -274,12 +196,38 @@ class OwnerNominee(models.Model):
         return f"{self.get_role_display()}: {self.nominee_user.username}"
 
 
+class OwnerSuccessionState(models.Model):
+    """Extension point for verified succession; activation remains explicitly gated."""
+
+    class Status(models.TextChoices):
+        OWNER_ACTIVE = "owner_active", "Owner Active"
+        ACTIVATION_PENDING = "activation_pending", "Activation Pending"
+        SUPER_NOMINEE_ACTIVE = "super_nominee_active", "Super Nominee Active"
+        FALLBACK_ACTIVE = "fallback_active", "Fallback Nominee Active"
+        SUSPENDED = "suspended", "Suspended"
+
+    owner_entity = models.OneToOneField(AccountEntity, on_delete=models.PROTECT, related_name="succession_state")
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.OWNER_ACTIVE)
+    activation_reference = models.CharField(max_length=128, blank=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    activated_nominee = models.ForeignKey(OwnerNominee, on_delete=models.PROTECT, null=True, blank=True, related_name="succession_activations")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.owner_entity.entity_type != AccountEntity.EntityType.OWNER or not self.owner_entity.is_active:
+            raise ValidationError("Succession state requires the canonical active Owner entity.")
+        if self.status == self.Status.OWNER_ACTIVE and self.activated_nominee_id:
+            raise ValidationError("Owner-active state cannot have an activated nominee.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class AdvertiserProfile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.PROTECT,
-        related_name="advertiser_profile",
-    )
+    user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="advertiser_profile")
     organization_name = models.CharField(max_length=200, blank=True)
     contact_name = models.CharField(max_length=150, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -308,11 +256,7 @@ class WorkerProfile(models.Model):
 
 
 class TelegramIdentity(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name="telegram_identity",
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="telegram_identity")
     telegram_user_id = models.BigIntegerField(unique=True)
     username = models.CharField(max_length=150, blank=True)
     first_name = models.CharField(max_length=150, blank=True)
