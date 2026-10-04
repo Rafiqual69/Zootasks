@@ -365,7 +365,8 @@ class OwnerSessionBinding(models.Model):
 
     @property
     def is_active(self):
-        if self.revoked_at is not None:
+        from django.utils import timezone
+        if self.revoked_at is not None or self.expires_at <= timezone.now():
             return False
         if self.trusted_device_id:
             return self.trusted_device.status == OwnerTrustedDevice.Status.ACTIVE
