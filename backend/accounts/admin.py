@@ -7,6 +7,7 @@ from .models import (
     AdvertiserProfile,
     OwnerSocialIdentity,
     WorkerProfile,
+    OwnerNominee,
 )
 
 
@@ -176,4 +177,34 @@ class OwnerSocialIdentityAdmin(admin.ModelAdmin):
         "verified_at",
         "created_at",
         "updated_at",
+    )
+
+
+@admin.register(OwnerNominee)
+class OwnerNomineeAdmin(admin.ModelAdmin):
+    """Read-only audit surface; appointment/revocation stays Owner-workflow controlled."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = (
+        "owner_entity",
+        "nominee_user",
+        "role",
+        "succession_order",
+        "is_active",
+        "appointed_at",
+        "revoked_at",
+    )
+    list_filter = ("role", "is_active")
+    search_fields = ("owner_entity__user__username", "nominee_user__username")
+    readonly_fields = (
+        "owner_entity", "nominee_user", "role", "succession_order",
+        "is_active", "appointed_at", "updated_at", "revoked_at",
     )
