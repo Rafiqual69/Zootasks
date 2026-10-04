@@ -1,5 +1,8 @@
 import hashlib
 import secrets
+from datetime import timedelta
+
+from django.conf import settings
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -67,6 +70,7 @@ def bind_owner_session(request, owner_user, trusted_device_id):
         binding_token_hash=_binding_token_hash(token),
         session_key_hash=session_hash,
         last_seen_at=now,
+        expires_at=now + timedelta(seconds=settings.OWNER_SESSION_BINDING_TTL_SECONDS),
     )
 
     request.session[SESSION_BINDING_SESSION_KEY] = token
