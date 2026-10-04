@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction, WithdrawalRequest
 from wallet.admin import approve_withdrawals, reject_withdrawals, mark_withdrawals_paid
 
@@ -14,6 +14,10 @@ class WithdrawalFlowTests(TestCase):
         self.user = User.objects.create_user(
             username="worker_test",
             password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=self.user,
+            entity_type=AccountEntity.EntityType.WORKER,
         )
         self.profile = WorkerProfile.objects.create(
             user=self.user,
@@ -34,6 +38,21 @@ class WithdrawalFlowTests(TestCase):
             "bank_account": "1234567890",
         }
 
+    def test_non_worker_is_denied_wallet_access(self):
+        owner = User.objects.create_user(
+            username="wallet-owner",
+            password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("wallet"))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_valid_withdrawal_reserves_balance(self):
         response = self.client.post(
             reverse("request_withdrawal"),
@@ -45,18 +64,9 @@ class WithdrawalFlowTests(TestCase):
         self.profile.refresh_from_db()
         withdrawal = WithdrawalRequest.objects.get(user=self.user)
 
-        self.assertEqual(
-            self.profile.balance,
-            Decimal("200.00"),
-        )
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("50.00"),
-        )
-        self.assertEqual(
-            withdrawal.amount,
-            Decimal("50.00"),
-        )
+        self.assertEqual(self.profile.balance, Decimal("200.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
+        self.assertEqual(withdrawal.amount, Decimal("50.00"))
         self.assertEqual(withdrawal.status, "pending")
 
     def test_withdrawal_cannot_exceed_available_balance(self):
@@ -75,10 +85,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("175.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("175.00"))
 
     def test_minimum_withdrawal_is_50(self):
         response = self.client.post(
@@ -93,10 +100,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_available_balance_uses_reserved_balance(self):
         self.profile.reserved_balance = Decimal("75.00")
@@ -109,7 +113,6 @@ class WithdrawalFlowTests(TestCase):
             response.context["available_balance"],
             Decimal("125.00"),
         )
-
 
     def test_nan_withdrawal_is_rejected(self):
         response = self.client.post(
@@ -124,10 +127,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_infinity_withdrawal_is_rejected(self):
         response = self.client.post(
@@ -142,10 +142,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_withdrawal_rejects_more_than_two_decimal_places(self):
         response = self.client.post(
@@ -160,11 +157,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
-
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_zero_withdrawal_is_rejected(self):
         response = self.client.post(
@@ -179,10 +172,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_negative_withdrawal_is_rejected(self):
         response = self.client.post(
@@ -197,10 +187,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_empty_withdrawal_is_rejected(self):
         response = self.client.post(
@@ -215,10 +202,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_non_numeric_withdrawal_is_rejected(self):
         response = self.client.post(
@@ -233,10 +217,7 @@ class WithdrawalFlowTests(TestCase):
         )
 
         self.profile.refresh_from_db()
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
 
 class WithdrawalModelTests(TestCase):
@@ -259,6 +240,10 @@ class WithdrawalAdminActionTests(TestCase):
         self.user = User.objects.create_user(
             username="admin_flow_worker",
             password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=self.user,
+            entity_type=AccountEntity.EntityType.WORKER,
         )
         self.profile = WorkerProfile.objects.create(
             user=self.user,
@@ -296,16 +281,13 @@ class WithdrawalAdminActionTests(TestCase):
 
     def test_approve_withdrawal_keeps_reservation(self):
         withdrawal = self.create_withdrawal()
-
         approve_withdrawals(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "approved")
         self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
         self.assertEqual(self.profile.balance, Decimal("200.00"))
@@ -313,69 +295,54 @@ class WithdrawalAdminActionTests(TestCase):
     def test_approve_withdrawal_requires_reserved_balance(self):
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["reserved_balance"])
-
         withdrawal = self.create_withdrawal()
-
         approve_withdrawals(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.assertEqual(withdrawal.status, "pending")
 
     def test_reject_withdrawal_releases_reservation(self):
         withdrawal = self.create_withdrawal()
-
         reject_withdrawals(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "rejected")
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
         self.assertEqual(self.profile.balance, Decimal("200.00"))
 
     def test_paid_withdrawal_deducts_balance_and_reservation(self):
         withdrawal = self.create_withdrawal(status="approved")
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         transaction = WalletTransaction.objects.get(
             user=self.user,
             transaction_type="withdrawal",
         )
-
         self.assertEqual(withdrawal.status, "paid")
         self.assertEqual(self.profile.balance, Decimal("150.00"))
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
         self.assertEqual(transaction.amount, Decimal("50.00"))
-        self.assertEqual(
-            transaction.description,
-            f"Withdrawal #{withdrawal.id}",
-        )
+        self.assertEqual(transaction.description, f"Withdrawal #{withdrawal.id}")
 
     def test_paid_withdrawal_is_idempotent(self):
         withdrawal = self.create_withdrawal(status="approved")
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         self.profile.refresh_from_db()
         first_balance = self.profile.balance
         first_reserved = self.profile.reserved_balance
@@ -383,15 +350,12 @@ class WithdrawalAdminActionTests(TestCase):
             user=self.user,
             transaction_type="withdrawal",
         ).count()
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         self.profile.refresh_from_db()
-
         self.assertEqual(self.profile.balance, first_balance)
         self.assertEqual(self.profile.reserved_balance, first_reserved)
         self.assertEqual(
@@ -403,32 +367,23 @@ class WithdrawalAdminActionTests(TestCase):
         )
 
     def test_paid_withdrawal_with_existing_matching_transaction_is_completed(self):
-        # Simulate a previously committed payment: the wallet balances have
-        # already been updated and the matching ledger transaction exists.
         self.profile.balance = Decimal("150.00")
         self.profile.reserved_balance = Decimal("0.00")
-        self.profile.save(
-            update_fields=["balance", "reserved_balance"]
-        )
-
+        self.profile.save(update_fields=["balance", "reserved_balance"])
         withdrawal = self.create_withdrawal(status="approved")
-
         WalletTransaction.objects.create(
             user=self.user,
             amount=withdrawal.amount,
             transaction_type="withdrawal",
             description=f"Withdrawal #{withdrawal.id}",
         )
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "paid")
         self.assertEqual(self.profile.balance, Decimal("150.00"))
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
@@ -443,48 +398,31 @@ class WithdrawalAdminActionTests(TestCase):
     def test_reject_withdrawal_without_reservation_keeps_pending(self):
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["reserved_balance"])
-
         withdrawal = self.create_withdrawal()
-
         reject_withdrawals(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "pending")
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_paid_withdrawal_without_reservation_stays_approved(self):
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["reserved_balance"])
-
         withdrawal = self.create_withdrawal(status="approved")
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "approved")
-        self.assertEqual(
-            self.profile.balance,
-            Decimal("200.00"),
-        )
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("0.00"),
-        )
+        self.assertEqual(self.profile.balance, Decimal("200.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
         self.assertEqual(
             WalletTransaction.objects.filter(
                 user=self.user,
@@ -496,30 +434,18 @@ class WithdrawalAdminActionTests(TestCase):
     def test_paid_withdrawal_without_enough_balance_stays_approved(self):
         self.profile.balance = Decimal("40.00")
         self.profile.reserved_balance = Decimal("50.00")
-        self.profile.save(
-            update_fields=["balance", "reserved_balance"]
-        )
-
+        self.profile.save(update_fields=["balance", "reserved_balance"])
         withdrawal = self.create_withdrawal(status="approved")
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "approved")
-        self.assertEqual(
-            self.profile.balance,
-            Decimal("40.00"),
-        )
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("50.00"),
-        )
+        self.assertEqual(self.profile.balance, Decimal("40.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
         self.assertEqual(
             WalletTransaction.objects.filter(
                 user=self.user,
@@ -529,33 +455,20 @@ class WithdrawalAdminActionTests(TestCase):
         )
 
     def test_already_paid_with_wrong_amount_stays_approved(self):
-        withdrawal = self.create_withdrawal(
-            status="approved",
-            amount="50.00",
-        )
-
+        withdrawal = self.create_withdrawal(status="approved", amount="50.00")
         WalletTransaction.objects.create(
             user=self.user,
             amount=Decimal("40.00"),
             transaction_type="withdrawal",
             description=f"Withdrawal #{withdrawal.id}",
         )
-
         mark_withdrawals_paid(
             self.modeladmin,
             self.request,
             WithdrawalRequest.objects.filter(pk=withdrawal.pk),
         )
-
         withdrawal.refresh_from_db()
         self.profile.refresh_from_db()
-
         self.assertEqual(withdrawal.status, "approved")
-        self.assertEqual(
-            self.profile.balance,
-            Decimal("200.00"),
-        )
-        self.assertEqual(
-            self.profile.reserved_balance,
-            Decimal("50.00"),
-        )
+        self.assertEqual(self.profile.balance, Decimal("200.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
