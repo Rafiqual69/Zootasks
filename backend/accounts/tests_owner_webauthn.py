@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 from datetime import timedelta
 
@@ -44,13 +44,20 @@ class OwnerWebAuthnTests(TestCase):
         session = self.client.session
         session["owner_reauthenticated_at"] = timezone.now().timestamp()
         session.save()
+        self.factory = RequestFactory()
+
+    def owner_request(self):
+        request = self.factory.get("/")
+        request.user = self.owner
+        request.session = self.client.session
+        return request
 
     def test_registration_requires_recent_reauthentication(self):
         session = self.client.session
         session.pop("owner_reauthenticated_at", None)
         session.save()
         with self.assertRaises(PermissionError):
-            issue_owner_webauthn_registration(self.client.request(), self.owner)
+            issue_owner_webauthn_registration(self.owner_request(), self.owner)
 
     def test_registration_options_create_short_lived_single_use_challenge(self):
         request = self.client.request()
@@ -103,6 +110,7 @@ class OwnerWebAuthnTests(TestCase):
             0,
         )
         verify.assert_called_once()
+        self.entity.refresh_from_db()
         self.assertEqual(stored.user_handle, self.entity.webauthn_user_handle)
         self.assertTrue(raw_challenge)
 
@@ -124,7 +132,7 @@ class OwnerWebAuthnTests(TestCase):
     def test_authentication_options_require_active_credential(self):
         with self.assertRaises(ValidationError):
             issue_owner_webauthn_authentication(
-                self.client.request(), self.owner
+                self.owner_request(), self.owner
             )
 
     @patch("accounts.owner_webauthn.verify_authentication_response")
