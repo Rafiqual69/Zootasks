@@ -1,3 +1,8 @@
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+from django.db.models.deletion import ProtectedError
+from .models import AccountEntity
 from base64 import b32encode
 
 import pyotp
@@ -136,3 +141,82 @@ class OwnerMFATests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ZooTasks Owner Secure Login")
         self.assertContains(response, "Secure Owner Login")
+
+class AccountEntitySecurityTests(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(
+            username="entity_test_user1",
+            password="Strong-Test-Password-1",
+        )
+        self.user2 = User.objects.create_user(
+            username="entity_test_user2",
+            password="Strong-Test-Password-2",
+        )
+
+    def test_account_entity_is_one_to_one_and_protected(self):
+        entity = AccountEntity.objects.create(
+            user=self.user1,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                AccountEntity.objects.create(
+                    user=self.user1,
+                    entity_type=AccountEntity.EntityType.WORKER,
+                )
+
+        with self.assertRaises(ProtectedError):
+            self.user1.delete()
+
+        entity.delete()
+
+    def test_only_one_active_owner_is_allowed(self):
+        AccountEntity.objects.create(
+            user=self.user1,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        )
+
+        with self.assertRaises(IntegrityError):
+            AccountEntity.objects.create(
+                user=self.user2,
+                entity_type=AccountEntity.EntityType.OWNER,
+                is_active=True,
+            )
+
+    def test_inactive_owner_can_be_historical(self):
+        AccountEntity.objects.create(
+            user=self.user1,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=False,
+        )
+
+        active_owner = AccountEntity.objects.create(
+            user=self.user2,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        )
+
+        self.assertTrue(active_owner.is_active)
+
+    def test_multiple_workers_are_allowed_for_different_users(self):
+        first = AccountEntity.objects.create(
+            user=self.user1,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+        second = AccountEntity.objects.create(
+            user=self.user2,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+
+        self.assertNotEqual(first.user_id, second.user_id)
+
+    def test_invalid_entity_type_is_rejected_by_model_validation(self):
+        entity = AccountEntity(
+            user=self.user1,
+            entity_type="invalid",
+        )
+
+        with self.assertRaises(ValidationError):
+            entity.full_clean()
