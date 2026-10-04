@@ -188,6 +188,21 @@ OWNER_INSTAGRAM_OAUTH_REDIRECT_URI = config(
     "OWNER_INSTAGRAM_OAUTH_REDIRECT_URI", default=""
 )
 OWNER_INSTAGRAM_OAUTH_SCOPES = config("OWNER_INSTAGRAM_OAUTH_SCOPES", default="")
+OWNER_WEBAUTHN_RP_ID = config("OWNER_WEBAUTHN_RP_ID", default="localhost")
+OWNER_WEBAUTHN_ORIGINS = tuple(
+    origin.strip()
+    for origin in config(
+        "OWNER_WEBAUTHN_ORIGINS",
+        default="http://localhost:8000,http://127.0.0.1:8000",
+    ).split(",")
+    if origin.strip()
+)
+OWNER_WEBAUTHN_REAUTH_TTL_SECONDS = config(
+    "OWNER_WEBAUTHN_REAUTH_TTL_SECONDS", default=600, cast=int
+)
+OWNER_WEBAUTHN_CHALLENGE_TTL_SECONDS = config(
+    "OWNER_WEBAUTHN_CHALLENGE_TTL_SECONDS", default=120, cast=int
+)
 
 LOGOUT_REDIRECT_URL = "/"
 
