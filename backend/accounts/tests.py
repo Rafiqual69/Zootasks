@@ -50,12 +50,13 @@ class OwnerMFATests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/accounts/dashboard/")
+        self.assertEqual(response["Location"], "/admin/")
         self.assertEqual(
             self.client.session.get("_auth_user_id"),
             str(self.owner.pk),
         )
         self.assertTrue(self.client.session.get("otp_device_id"))
+        self.assertTrue(self.client.session.get("owner_reauthenticated_at"))
 
     def test_owner_login_rejects_wrong_totp(self):
         response = self.client.post(
