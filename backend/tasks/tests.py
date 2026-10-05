@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from accounts.models import AccountEntity
 from .models import Task, TaskClaim
 
 
@@ -14,6 +15,14 @@ class TaskMarketplaceTests(TestCase):
         self.other_user = User.objects.create_user(
             username="worker2",
             password="StrongTestPass123!",
+        )
+        AccountEntity.objects.create(
+            user=self.user,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+        AccountEntity.objects.create(
+            user=self.other_user,
+            entity_type=AccountEntity.EntityType.WORKER,
         )
 
         self.active_task = Task.objects.create(
@@ -39,6 +48,21 @@ class TaskMarketplaceTests(TestCase):
     def test_marketplace_requires_login(self):
         response = self.client.get(reverse("task_marketplace"))
         self.assertEqual(response.status_code, 302)
+
+    def test_non_worker_is_denied(self):
+        owner = User.objects.create_user(
+            username="task-owner",
+            password="StrongTestPass123!",
+        )
+        AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.client.force_login(owner)
+
+        response = self.client.get(reverse("task_marketplace"))
+
+        self.assertEqual(response.status_code, 403)
 
     def test_marketplace_shows_active_tasks(self):
         self.login()

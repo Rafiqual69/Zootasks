@@ -1,12 +1,12 @@
 from decimal import Decimal, InvalidOperation
 
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import F, Sum
 from django.shortcuts import redirect, render
 
-from .models import WalletTransaction, WithdrawalRequest
+from accounts.authorization import worker_required
 from accounts.models import WorkerProfile
+from .models import WalletTransaction, WithdrawalRequest
 
 
 MIN_WITHDRAWAL = Decimal("50.00")
@@ -49,7 +49,7 @@ def get_wallet_summary(user):
     }
 
 
-@login_required
+@worker_required
 def wallet(request):
     summary = get_wallet_summary(request.user)
 
@@ -77,7 +77,7 @@ def wallet(request):
     )
 
 
-@login_required
+@worker_required
 @transaction.atomic
 def request_withdrawal(request):
     summary = get_wallet_summary(request.user)
@@ -99,17 +99,11 @@ def request_withdrawal(request):
         elif amount.as_tuple().exponent < -2:
             error = "Withdrawal amount can have at most 2 decimal places."
         elif amount < MIN_WITHDRAWAL:
-            error = (
-                f"Minimum withdrawal is "
-                f"৳{MIN_WITHDRAWAL:.2f}."
-            )
-
+            error = f"Minimum withdrawal is ৳{MIN_WITHDRAWAL:.2f}."
         elif amount > summary["available_balance"]:
             error = "Insufficient available balance."
-
         elif not bank_name or not account_holder or not bank_account:
             error = "Please complete all payment information."
-
         else:
             reserved = (
                 WorkerProfile.objects
@@ -126,14 +120,13 @@ def request_withdrawal(request):
                 error = "Insufficient available balance."
             else:
                 WithdrawalRequest.objects.create(
-                user=request.user,
-                amount=amount,
-                bank_name=bank_name,
-                account_holder=account_holder,
-                bank_account=bank_account,
-            )
-
-            return redirect("withdrawal_success")
+                    user=request.user,
+                    amount=amount,
+                    bank_name=bank_name,
+                    account_holder=account_holder,
+                    bank_account=bank_account,
+                )
+                return redirect("withdrawal_success")
 
     return render(
         request,
@@ -146,7 +139,7 @@ def request_withdrawal(request):
     )
 
 
-@login_required
+@worker_required
 def withdrawal_success(request):
     summary = get_wallet_summary(request.user)
 
@@ -159,7 +152,7 @@ def withdrawal_success(request):
     )
 
 
-@login_required
+@worker_required
 def withdrawal_history(request):
     withdrawals = (
         WithdrawalRequest.objects

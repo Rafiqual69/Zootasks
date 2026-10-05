@@ -1,10 +1,12 @@
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
+from accounts.authorization import worker_required
 from .models import Task, TaskClaim
 
-@login_required
+
+@worker_required
 def marketplace(request):
     category = request.GET.get("category", "").strip()
 
@@ -49,13 +51,21 @@ def marketplace(request):
 
     return render(request, "tasks/marketplace.html", context)
 
-@login_required
+
+@worker_required
 @transaction.atomic
 def claim_task(request, task_id):
     if request.method != "POST":
         return redirect("task_marketplace")
-    task = get_object_or_404(Task.objects.select_for_update(), id=task_id, status="active")
-    existing = TaskClaim.objects.filter(task=task, worker=request.user).first()
+    task = get_object_or_404(
+        Task.objects.select_for_update(),
+        id=task_id,
+        status="active",
+    )
+    existing = TaskClaim.objects.filter(
+        task=task,
+        worker=request.user,
+    ).first()
     if existing or task.completed_workers >= task.max_workers:
         return redirect("task_marketplace")
     TaskClaim.objects.create(task=task, worker=request.user)
@@ -65,13 +75,19 @@ def claim_task(request, task_id):
     task.save(update_fields=["completed_workers", "status"])
     return redirect("task_marketplace")
 
-@login_required
+
+@worker_required
 def task_detail(request, task_id):
     return redirect("task_marketplace")
 
-@login_required
+
+@worker_required
 def submit_task(request, task_id):
-    claim = get_object_or_404(TaskClaim, task_id=task_id, worker=request.user)
+    claim = get_object_or_404(
+        TaskClaim,
+        task_id=task_id,
+        worker=request.user,
+    )
     if claim.status != "claimed":
         return redirect("task_marketplace")
     if request.method == "POST":
