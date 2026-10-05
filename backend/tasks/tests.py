@@ -256,3 +256,14 @@ class AdminWriteBoundaryTests(TestCase):
             set(model_admin.readonly_fields),
             {"reward", "max_workers", "completed_workers", "status"},
         )
+
+
+class AdminReadBoundaryTests(TestCase):
+    def test_task_claim_admin_does_not_search_submission_proof(self):
+        from django.contrib import admin
+        from tasks.admin import TaskClaimAdmin
+
+        model_admin = TaskClaimAdmin(TaskClaim, admin.site)
+        self.assertNotIn("proof", model_admin.search_fields)
+        self.assertIn("task__title", model_admin.search_fields)
+        self.assertIn("worker__username", model_admin.search_fields)
