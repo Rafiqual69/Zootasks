@@ -1,7 +1,7 @@
 {
   "$schema": "./read_write_policy.schema.json",
   "policy_id": "ZT-READ-WRITE-POLICY",
-  "policy_version": "1.0.0",
+  "policy_version": "1.1.0",
   "schema_version": "1.0.0",
   "status": "normative-baseline",
   "enforcement": {
@@ -370,6 +370,130 @@
       "decision": "deny",
       "conditions": [
         "policy_changes_require_reviewed_deployment"
+      ]
+    },
+    {
+      "rule_id": "ZT-WORKER-PROMOTION-READ-001",
+      "actor": "worker",
+      "resource": "promotion",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "account_entity.active_worker"
+      ]
+    },
+    {
+      "rule_id": "ZT-WORKER-PROMOTION-START-001",
+      "actor": "worker",
+      "resource": "promotion",
+      "action": "claim",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "account_entity.active_worker",
+        "promotion.active",
+        "promotion.capacity_available",
+        "request.method.POST"
+      ]
+    },
+    {
+      "rule_id": "ZT-WORKER-PROMOTION-CLAIM-SUBMIT-001",
+      "actor": "worker",
+      "resource": "promotion_claim",
+      "action": "submit",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": [
+        "account_entity.active_worker",
+        "object.owner_is_actor",
+        "claim.status.claimed",
+        "request.method.POST"
+      ]
+    },
+    {
+      "rule_id": "ZT-WORKER-PROMOTION-CLAIM-READ-001",
+      "actor": "worker",
+      "resource": "promotion_claim",
+      "action": "read",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": [
+        "account_entity.active_worker",
+        "object.owner_is_actor"
+      ]
+    },
+    {
+      "rule_id": "ZT-WORKER-WITHDRAWAL-CREATE-001",
+      "actor": "worker",
+      "resource": "withdrawal",
+      "action": "create",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": [
+        "account_entity.active_worker",
+        "request.method.POST",
+        "business_rules.valid_withdrawal"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-TASK-APPROVE-001",
+      "actor": "finance",
+      "resource": "task_claim",
+      "action": "approve",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.task_approve",
+        "business_rules.valid_task_claim"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-TASK-REJECT-001",
+      "actor": "finance",
+      "resource": "task_claim",
+      "action": "reject",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.task_reject",
+        "business_rules.valid_task_claim"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-PROMOTION-APPROVE-001",
+      "actor": "finance",
+      "resource": "promotion_claim",
+      "action": "approve",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.promotion_approve",
+        "business_rules.valid_promotion_claim"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-PROMOTION-REJECT-001",
+      "actor": "finance",
+      "resource": "promotion_claim",
+      "action": "reject",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.promotion_reject",
+        "business_rules.valid_promotion_claim"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-WITHDRAWAL-REJECT-001",
+      "actor": "finance",
+      "resource": "withdrawal",
+      "action": "reject",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.withdrawal_reject",
+        "business_rules.pending_withdrawal"
       ]
     }
   ],
