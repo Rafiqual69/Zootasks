@@ -86,7 +86,6 @@ def request_withdrawal(request):
         facts={
             "account_entity.active_worker": True,
             "request.method.POST": request.method == "POST",
-            "business_rules.valid_withdrawal": request.method == "POST",
         },
     )
     summary = get_wallet_summary(request.user)
