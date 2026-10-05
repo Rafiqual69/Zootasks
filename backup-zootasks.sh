@@ -28,6 +28,7 @@ trap cleanup ERR INT TERM
 # Never include secrets, databases, local backups, logs,
 # virtual environments or Git metadata.
 tar \
+  --exclude='./backend/venv'  \
   --exclude='./venv' \
   --exclude='./venv-zootasks' \
   --exclude='./.git' \
