@@ -48,7 +48,7 @@ class TaskAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             return ()
-        return self.financial_immutable_fields
+        return self.financial_immutable_fields + ("status",)
 
     # Protected task fields are never directly writable through generic Django
     # admin forms. Financial/state changes must use an explicit policy-bound workflow.
