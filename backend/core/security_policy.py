@@ -134,10 +134,12 @@ def validate_policy(
     for name, fields in policy["protected_fields"].items():
         if name not in resources:
             raise SecurityPolicyError("protected_fields references unknown resource")
-        for field in fields:
-            lowered = field.casefold()
-            if any(marker in lowered for marker in SECRET_MARKERS):
-                raise SecurityPolicyError("secret-like field appears in policy")
+        # Field *names* such as password_hash or otp_secret are metadata, not
+        # secret values. They must be representable in the policy so the
+        # boundary can explicitly protect them. Secret-value leakage is
+        # governed by data_handling and audit forbidden_payloads instead.
+        if not all(isinstance(field, str) and field for field in fields):
+            raise SecurityPolicyError("protected field names must be non-empty strings")
 
     financial_classes = {"financial_critical"}
     for resource in resources.values():
