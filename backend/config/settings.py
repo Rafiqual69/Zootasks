@@ -91,9 +91,35 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = "ZooTasks <noreply@zootasks.com>"
 
 # =============== SECURITY ===============
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# Keep local development usable over HTTP, while making production security
+# explicit and environment-controlled. Never hard-code production secrets or
+# transport-security decisions into source.
+PRODUCTION_MODE = config("PRODUCTION_MODE", default=False, cast=bool)
+SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
+SECURE_SSL_REDIRECT = config(
+    "SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cast=bool
+)
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+SECURE_HSTS_SECONDS = config(
+    "SECURE_HSTS_SECONDS",
+    default=31536000 if PRODUCTION_MODE else 0,
+    cast=int,
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    default=PRODUCTION_MODE,
+    cast=bool,
+)
+SECURE_HSTS_PRELOAD = config(
+    "SECURE_HSTS_PRELOAD",
+    default=PRODUCTION_MODE,
+    cast=bool,
+)
+TRUST_PROXY_SSL = config("TRUST_PROXY_SSL", default=False, cast=bool)
+if TRUST_PROXY_SSL:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 WSGI_APPLICATION = "config.wsgi.application"
 
 ASGI_APPLICATION = "config.asgi.application"
