@@ -5,6 +5,7 @@ from django.db.models import F, Sum
 from django.shortcuts import redirect, render
 
 from accounts.authorization import worker_required
+from core.security_policy_engine import require_authorized
 from accounts.models import WorkerProfile
 from .models import WalletTransaction, WithdrawalRequest
 
@@ -51,6 +52,7 @@ def get_wallet_summary(user):
 
 @worker_required
 def wallet(request):
+    require_authorized(actor="worker", resource="wallet", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     summary = get_wallet_summary(request.user)
 
     transactions = (
@@ -59,6 +61,7 @@ def wallet(request):
         .order_by("-created_at")[:20]
     )
 
+    require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     withdrawals = (
         WithdrawalRequest.objects
         .filter(user=request.user)
@@ -105,6 +108,7 @@ def request_withdrawal(request):
         elif not bank_name or not account_holder or not bank_account:
             error = "Please complete all payment information."
         else:
+            require_authorized(actor="worker", resource="withdrawal", action="create", scope="own", facts={"account_entity.active_worker": True, "request.method.POST": True, "business_rules.valid_withdrawal": True})
             reserved = (
                 WorkerProfile.objects
                 .filter(
@@ -141,6 +145,7 @@ def request_withdrawal(request):
 
 @worker_required
 def withdrawal_success(request):
+    require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     summary = get_wallet_summary(request.user)
 
     return render(
@@ -154,6 +159,7 @@ def withdrawal_success(request):
 
 @worker_required
 def withdrawal_history(request):
+    require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     withdrawals = (
         WithdrawalRequest.objects
         .filter(user=request.user)
