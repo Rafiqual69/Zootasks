@@ -3,8 +3,19 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Promotion, PromotionClaim
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
+
+
+def _owner_authorized(user):
+    return (
+        bool(user and user.is_authenticated and user.is_staff and user.is_superuser)
+        and AccountEntity.objects.filter(
+            user=user,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        ).exists()
+    )
 
 
 @admin.register(Promotion)
@@ -21,6 +32,29 @@ class PromotionAdmin(admin.ModelAdmin):
     )
     list_filter = ("status",)
     search_fields = ("title", "advertiser_name")
+
+    financial_immutable_fields = (
+        "reward",
+        "budget",
+        "max_workers",
+        "completed_workers",
+    )
+
+    def has_add_permission(self, request):
+        return _owner_authorized(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return _owner_authorized(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        # Promotion deletion cascades into claims and can erase financial
+        # history; destructive deletion is intentionally unavailable.
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        return self.financial_immutable_fields
 
 
 @admin.register(PromotionClaim)
