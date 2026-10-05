@@ -1,0 +1,351 @@
+{
+  "$schema": "./read_write_policy.schema.json",
+  "policy_id": "ZT-READ-WRITE-POLICY",
+  "policy_version": "1.0.0",
+  "schema_version": "1.0.0",
+  "status": "normative-baseline",
+  "enforcement": {
+    "mode": "server-side-only",
+    "default_decision": "deny",
+    "unknown_actor": "deny",
+    "unknown_resource": "deny",
+    "unknown_action": "deny",
+    "unknown_scope": "deny",
+    "policy_parse_failure": "deny",
+    "policy_conflict": "deny",
+    "client_assertion_is_authority": false
+  },
+  "security": {
+    "allow_secret_values": false,
+    "allow_raw_credentials": false,
+    "allow_raw_tokens": false,
+    "allow_production_data": false,
+    "financial_writes_require_explicit_rule": true,
+    "destructive_actions_require_explicit_rule": true,
+    "object_scope_must_be_checked": true,
+    "field_scope_must_be_checked_for_sensitive_resources": true
+  },
+  "classification": {
+    "public": 1,
+    "internal": 2,
+    "confidential": 3,
+    "financial_critical": 4,
+    "security_critical": 5
+  },
+  "actors": [
+    "anonymous",
+    "worker",
+    "owner",
+    "finance",
+    "finance_payer",
+    "ai",
+    "system"
+  ],
+  "actions": [
+    "read",
+    "create",
+    "update",
+    "delete",
+    "claim",
+    "submit",
+    "approve",
+    "reject",
+    "pay",
+    "manage_access",
+    "manage_authentication",
+    "export"
+  ],
+  "scopes": [
+    "public",
+    "own",
+    "assigned",
+    "role_scope",
+    "global",
+    "none"
+  ],
+  "resources": [
+    {
+      "resource": "worker_profile",
+      "classification": "confidential",
+      "financial_effect": false
+    },
+    {
+      "resource": "task",
+      "classification": "internal",
+      "financial_effect": true
+    },
+    {
+      "resource": "task_claim",
+      "classification": "confidential",
+      "financial_effect": true
+    },
+    {
+      "resource": "promotion",
+      "classification": "internal",
+      "financial_effect": true
+    },
+    {
+      "resource": "promotion_claim",
+      "classification": "confidential",
+      "financial_effect": true
+    },
+    {
+      "resource": "wallet",
+      "classification": "financial_critical",
+      "financial_effect": true
+    },
+    {
+      "resource": "wallet_transaction",
+      "classification": "financial_critical",
+      "financial_effect": true
+    },
+    {
+      "resource": "withdrawal",
+      "classification": "financial_critical",
+      "financial_effect": true
+    },
+    {
+      "resource": "account_entity",
+      "classification": "security_critical",
+      "financial_effect": false
+    },
+    {
+      "resource": "authentication_state",
+      "classification": "security_critical",
+      "financial_effect": false
+    },
+    {
+      "resource": "security_policy",
+      "classification": "security_critical",
+      "financial_effect": false
+    },
+    {
+      "resource": "ai_evidence",
+      "classification": "security_critical",
+      "financial_effect": false
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "ZT-WORKER-TASK-READ-001",
+      "actor": "worker",
+      "resource": "task",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": ["account_entity.active_worker"]
+    },
+    {
+      "rule_id": "ZT-WORKER-TASK-CLAIM-001",
+      "actor": "worker",
+      "resource": "task",
+      "action": "claim",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": ["account_entity.active_worker", "task.active", "task.capacity_available", "request.method.POST"]
+    },
+    {
+      "rule_id": "ZT-WORKER-CLAIM-READ-001",
+      "actor": "worker",
+      "resource": "task_claim",
+      "action": "read",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": ["account_entity.active_worker", "object.owner_is_actor"]
+    },
+    {
+      "rule_id": "ZT-WORKER-CLAIM-SUBMIT-001",
+      "actor": "worker",
+      "resource": "task_claim",
+      "action": "submit",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": ["account_entity.active_worker", "object.owner_is_actor", "claim.status.claimed", "request.method.POST"]
+    },
+    {
+      "rule_id": "ZT-WORKER-WALLET-READ-001",
+      "actor": "worker",
+      "resource": "wallet",
+      "action": "read",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": ["account_entity.active_worker", "object.owner_is_actor"]
+    },
+    {
+      "rule_id": "ZT-WORKER-WALLET-UPDATE-DENY-001",
+      "actor": "worker",
+      "resource": "wallet",
+      "action": "update",
+      "scope": "own",
+      "decision": "deny",
+      "conditions": ["financial_integrity_protected"]
+    },
+    {
+      "rule_id": "ZT-WORKER-WALLET-TX-UPDATE-DENY-001",
+      "actor": "worker",
+      "resource": "wallet_transaction",
+      "action": "update",
+      "scope": "own",
+      "decision": "deny",
+      "conditions": ["ledger_immutable"]
+    },
+    {
+      "rule_id": "ZT-WORKER-WITHDRAWAL-READ-001",
+      "actor": "worker",
+      "resource": "withdrawal",
+      "action": "read",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": ["account_entity.active_worker", "object.owner_is_actor"]
+    },
+    {
+      "rule_id": "ZT-FINANCE-WITHDRAWAL-APPROVE-001",
+      "actor": "finance",
+      "resource": "withdrawal",
+      "action": "approve",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": ["permission.withdrawal_approve", "business_rules.valid_withdrawal"]
+    },
+    {
+      "rule_id": "ZT-FINANCE-WITHDRAWAL-PAY-DENY-001",
+      "actor": "finance",
+      "resource": "withdrawal",
+      "action": "pay",
+      "scope": "role_scope",
+      "decision": "deny",
+      "conditions": ["separation_of_duties"]
+    },
+    {
+      "rule_id": "ZT-PAYER-WITHDRAWAL-PAY-001",
+      "actor": "finance_payer",
+      "resource": "withdrawal",
+      "action": "pay",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": ["permission.withdrawal_pay", "business_rules.approved_withdrawal", "idempotency.required"]
+    },
+    {
+      "rule_id": "ZT-PAYER-WITHDRAWAL-APPROVE-DENY-001",
+      "actor": "finance_payer",
+      "resource": "withdrawal",
+      "action": "approve",
+      "scope": "role_scope",
+      "decision": "deny",
+      "conditions": ["separation_of_duties"]
+    },
+    {
+      "rule_id": "ZT-AI-FINANCIAL-WRITE-DENY-001",
+      "actor": "ai",
+      "resource": "wallet",
+      "action": "update",
+      "scope": "none",
+      "decision": "deny",
+      "conditions": ["ai_financial_boundary"]
+    },
+    {
+      "rule_id": "ZT-AI-LEDGER-WRITE-DENY-001",
+      "actor": "ai",
+      "resource": "wallet_transaction",
+      "action": "create",
+      "scope": "none",
+      "decision": "deny",
+      "conditions": ["ai_financial_boundary", "ledger_immutable"]
+    },
+    {
+      "rule_id": "ZT-AI-WITHDRAWAL-APPROVE-DENY-001",
+      "actor": "ai",
+      "resource": "withdrawal",
+      "action": "approve",
+      "scope": "none",
+      "decision": "deny",
+      "conditions": ["ai_financial_boundary"]
+    },
+    {
+      "rule_id": "ZT-AI-WITHDRAWAL-PAY-DENY-001",
+      "actor": "ai",
+      "resource": "withdrawal",
+      "action": "pay",
+      "scope": "none",
+      "decision": "deny",
+      "conditions": ["ai_financial_boundary"]
+    },
+    {
+      "rule_id": "ZT-AI-PROMOTION-PAY-DENY-001",
+      "actor": "ai",
+      "resource": "promotion",
+      "action": "pay",
+      "scope": "none",
+      "decision": "deny",
+      "conditions": ["ai_financial_boundary"]
+    },
+    {
+      "rule_id": "ZT-AI-ACCESS-MANAGE-DENY-001",
+      "actor": "ai",
+      "resource": "account_entity",
+      "action": "manage_access",
+      "scope": "none",
+      "decision": "deny",
+      "conditions": ["privilege_boundary"]
+    },
+    {
+      "rule_id": "ZT-OWNER-ENTITY-MANAGE-001",
+      "actor": "owner",
+      "resource": "account_entity",
+      "action": "manage_access",
+      "scope": "global",
+      "decision": "allow",
+      "conditions": ["owner_authenticated", "privileged_reauth_required", "canonical_owner_boundary"]
+    },
+    {
+      "rule_id": "ZT-SYSTEM-POLICY-READ-001",
+      "actor": "system",
+      "resource": "security_policy",
+      "action": "read",
+      "scope": "global",
+      "decision": "allow",
+      "conditions": ["trusted_execution_context"]
+    },
+    {
+      "rule_id": "ZT-SYSTEM-POLICY-WRITE-DENY-001",
+      "actor": "system",
+      "resource": "security_policy",
+      "action": "update",
+      "scope": "global",
+      "decision": "deny",
+      "conditions": ["policy_changes_require_reviewed_deployment"]
+    }
+  ],
+  "protected_fields": {
+    "task": ["reward", "completed_workers", "max_workers", "status"],
+    "promotion": ["reward", "budget", "completed_workers", "max_workers", "status"],
+    "wallet": ["balance", "reserved_balance", "total_earned"],
+    "wallet_transaction": ["amount", "transaction_type", "worker_id", "task_claim_id", "promotion_claim_id"],
+    "withdrawal": ["amount", "status", "worker_id", "paid_at", "payment_reference"],
+    "account_entity": ["user_id", "entity_type", "is_active"],
+    "authentication_state": ["password_hash", "mfa_state", "session_binding_state"]
+  },
+  "audit": {
+    "required_for": ["deny", "approve", "reject", "pay", "manage_access", "manage_authentication", "export"],
+    "forbidden_payloads": [
+      "password",
+      "secret",
+      "api_key",
+      "api_secret",
+      "session_cookie",
+      "otp_secret",
+      "webauthn_challenge",
+      "private_key",
+      "bank_account_number"
+    ]
+  },
+  "change_control": {
+    "constitution_path": "docs/security/READ_WRITE_SECURITY_CONSTITUTION.md",
+    "schema_path": "docs/security/read_write_policy.schema.json",
+    "policy_path": "docs/security/read_write_policy.json",
+    "breaking_policy_change_requires_major_version": true,
+    "new_rule_requires_tests": true,
+    "financial_rule_change_requires_financial_regression": true,
+    "policy_parser_must_fail_closed": true
+  }
+}
