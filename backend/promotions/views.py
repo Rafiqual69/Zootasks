@@ -17,6 +17,10 @@ def marketplace(request):
     search = request.GET.get("search", "").strip()
     if search:
         promotions = promotions.filter(title__icontains=search)
+    require_authorized(
+        actor="worker", resource="promotion_claim", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
     cards = ""
     for promotion in promotions:
         claim = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
