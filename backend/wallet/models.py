@@ -26,6 +26,37 @@ class WalletTransaction(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(task_claim__isnull=True)
+                    | models.Q(transaction_type="earning")
+                ),
+                name="wallet_tx_task_identity_type",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(promotion_claim__isnull=True)
+                    | models.Q(transaction_type="earning")
+                ),
+                name="wallet_tx_promotion_identity_type",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(withdrawal__isnull=True)
+                    | models.Q(transaction_type="withdrawal")
+                ),
+                name="wallet_tx_withdrawal_identity_type",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(task_claim__isnull=True, promotion_claim__isnull=True)
+                    | models.Q(task_claim__isnull=True, withdrawal__isnull=True)
+                    | models.Q(promotion_claim__isnull=True, withdrawal__isnull=True)
+                ),
+                name="wallet_tx_single_operation_identity",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - ৳{self.amount}"
