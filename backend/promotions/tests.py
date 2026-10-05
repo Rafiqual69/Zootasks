@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from django.urls import reverse
 from unittest.mock import patch
 
@@ -108,7 +108,7 @@ class PromotionRewardValidationTests(TestCase):
             promotion.full_clean()
 
 
-class PromotionApprovalNotificationTests(TransactionTestCase):
+class PromotionApprovalNotificationTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username="notification-worker",
