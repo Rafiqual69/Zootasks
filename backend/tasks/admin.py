@@ -2,9 +2,9 @@ from django.contrib import admin, messages
 from django.db import transaction
 
 from .models import Task, TaskClaim
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
-from core.security_policy_engine import require_authorized
+from core.security_policy_engine import authorize, require_authorized
 
 
 @admin.register(Task)
@@ -23,9 +23,59 @@ class TaskAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     ordering = ("-created_at",)
 
+    financial_immutable_fields = ("reward", "max_workers", "completed_workers")
+
     # Protected task fields are never directly writable through generic Django
     # admin forms. Financial/state changes must use an explicit policy-bound workflow.
     readonly_fields = ("reward", "max_workers", "completed_workers", "status")
+
+    def _owner_policy_facts(self, request, obj=None):
+        user = request.user
+        owner_boundary = (
+            bool(user and user.is_authenticated and user.is_staff and user.is_superuser)
+            and AccountEntity.objects.filter(
+                user=user,
+                entity_type=AccountEntity.EntityType.OWNER,
+                is_active=True,
+            ).exists()
+        )
+        facts = {
+            "owner_authenticated": bool(user and user.is_authenticated),
+            "canonical_owner_boundary": owner_boundary,
+            "admin_request": True,
+        }
+        if obj is not None:
+            facts["admin_protected_fields_immutable"] = (
+                set(self.get_readonly_fields(request, obj))
+                >= set(self.financial_immutable_fields + ("status",))
+            )
+        return facts
+
+    def has_add_permission(self, request):
+        return authorize(
+            actor="owner",
+            resource="task",
+            action="create",
+            scope="global",
+            facts=self._owner_policy_facts(request),
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return authorize(
+            actor="owner",
+            resource="task",
+            action="update",
+            scope="global",
+            facts=self._owner_policy_facts(request, obj),
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        return self.financial_immutable_fields + ("status",)
 
 
 @admin.action(description="✅ Approve selected submissions & pay reward")

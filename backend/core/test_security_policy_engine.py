@@ -141,6 +141,37 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
             )
         )
 
+    def test_owner_financial_admin_writes_require_canonical_boundary(self):
+        base = {
+            "owner_authenticated": True,
+            "canonical_owner_boundary": True,
+            "admin_request": True,
+        }
+        self.assertTrue(authorize(
+            actor="owner", resource="task", action="create", scope="global", facts=base,
+        ))
+        self.assertTrue(authorize(
+            actor="owner", resource="promotion", action="create", scope="global", facts=base,
+        ))
+        self.assertFalse(authorize(
+            actor="owner", resource="task", action="create", scope="global",
+            facts={**base, "canonical_owner_boundary": False},
+        ))
+        self.assertTrue(authorize(
+            actor="owner", resource="task", action="update", scope="global",
+            facts={**base, "admin_protected_fields_immutable": True},
+        ))
+        self.assertFalse(authorize(
+            actor="owner", resource="task", action="update", scope="global", facts=base,
+        ))
+        self.assertTrue(authorize(
+            actor="owner", resource="promotion", action="update", scope="global",
+            facts={**base, "admin_protected_fields_immutable": True},
+        ))
+        self.assertFalse(authorize(
+            actor="owner", resource="promotion", action="update", scope="global", facts=base,
+        ))
+
     def test_owner_access_is_not_granted_by_partial_facts(self):
         self.assertFalse(
             authorize(
