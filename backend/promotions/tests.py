@@ -257,3 +257,46 @@ class PromotionRewardOperationIntegrityTests(TestCase):
         self.assertEqual(self.claim.status, "submitted")
         self.assertEqual(profile.balance, Decimal("100.00"))
         self.assertEqual(profile.total_earned, Decimal("100.00"))
+
+
+class PromotionAdminAuthorizationTests(TestCase):
+    def setUp(self):
+        from django.contrib import admin
+        from promotions.admin import PromotionAdmin
+
+        self.owner = get_user_model().objects.create_user(
+            username="promotion-admin-owner", password="StrongTestPass123!",
+            is_staff=True, is_superuser=True,
+        )
+        AccountEntity.objects.create(
+            user=self.owner, entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.staff_without_owner = get_user_model().objects.create_user(
+            username="promotion-admin-non-owner", password="StrongTestPass123!",
+            is_staff=True, is_superuser=True,
+        )
+        self.model_admin = PromotionAdmin(Promotion, admin.site)
+
+    def request_for(self, user):
+        return type("Request", (), {"user": user})()
+
+    def test_only_active_owner_can_add_change(self):
+        self.assertTrue(self.model_admin.has_add_permission(self.request_for(self.owner)))
+        self.assertTrue(self.model_admin.has_change_permission(self.request_for(self.owner)))
+        self.assertFalse(self.model_admin.has_add_permission(self.request_for(self.staff_without_owner)))
+        self.assertFalse(self.model_admin.has_change_permission(self.request_for(self.staff_without_owner)))
+
+    def test_promotion_admin_delete_is_disabled(self):
+        self.assertFalse(self.model_admin.has_delete_permission(self.request_for(self.owner)))
+
+    def test_existing_financial_fields_are_readonly(self):
+        request = self.request_for(self.owner)
+        promotion = Promotion(
+            title="Existing", description="Existing promotion", advertiser_name="Advertiser",
+            reward="10.00", budget="100.00", max_workers=10,
+        )
+        self.assertEqual(
+            set(self.model_admin.get_readonly_fields(request, promotion)),
+            {"reward", "budget", "max_workers", "completed_workers"},
+        )
+        self.assertEqual(self.model_admin.get_readonly_fields(request, None), ())
