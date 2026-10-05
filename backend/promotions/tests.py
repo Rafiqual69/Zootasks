@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.db import transaction
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from unittest.mock import patch
 
@@ -107,7 +108,7 @@ class PromotionRewardValidationTests(TestCase):
             promotion.full_clean()
 
 
-class PromotionApprovalNotificationTests(TestCase):
+class PromotionApprovalNotificationTests(TransactionTestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username="notification-worker",
@@ -130,9 +131,10 @@ class PromotionApprovalNotificationTests(TestCase):
 
     @patch("promotions.signals.send_mail")
     def test_approval_sends_notification_only_after_commit(self, send_mail_mock):
-        with self.captureOnCommitCallbacks(execute=False) as callbacks:
-            self.claim.status = "approved"
-            self.claim.save(update_fields=["status"])
+        with transaction.atomic():
+            with self.captureOnCommitCallbacks(execute=False) as callbacks:
+                self.claim.status = "approved"
+                self.claim.save(update_fields=["status"])
             send_mail_mock.assert_not_called()
             self.assertEqual(len(callbacks), 1)
 
@@ -143,14 +145,16 @@ class PromotionApprovalNotificationTests(TestCase):
 
     @patch("promotions.signals.send_mail")
     def test_repeated_approved_save_does_not_duplicate_notification(self, send_mail_mock):
-        self.claim.status = "approved"
-        with self.captureOnCommitCallbacks(execute=True):
-            self.claim.save(update_fields=["status"])
+        with transaction.atomic():
+            self.claim.status = "approved"
+            with self.captureOnCommitCallbacks(execute=True):
+                self.claim.save(update_fields=["status"])
 
         send_mail_mock.assert_called_once()
 
-        with self.captureOnCommitCallbacks(execute=True):
-            self.claim.save(update_fields=["status"])
+        with transaction.atomic():
+            with self.captureOnCommitCallbacks(execute=True):
+                self.claim.save(update_fields=["status"])
 
         send_mail_mock.assert_called_once()
 
@@ -158,9 +162,10 @@ class PromotionApprovalNotificationTests(TestCase):
     def test_notification_failure_is_observable_without_rolling_back(self, send_mail_mock):
         send_mail_mock.side_effect = RuntimeError("smtp unavailable")
 
-        with self.captureOnCommitCallbacks(execute=True):
+        with transaction.atomic():
             self.claim.status = "approved"
-            self.claim.save(update_fields=["status"])
+            with self.captureOnCommitCallbacks(execute=True):
+                self.claim.save(update_fields=["status"])
 
         self.claim.refresh_from_db()
         self.assertEqual(self.claim.status, "approved")
