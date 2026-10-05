@@ -10,6 +10,84 @@ from wallet.models import WalletTransaction, WithdrawalRequest
 from wallet.admin import approve_withdrawals, reject_withdrawals, mark_withdrawals_paid
 
 
+
+class WalletTransactionAdminReadBoundaryTests(TestCase):
+    def setUp(self):
+        from django.test import RequestFactory
+        from wallet.admin import WalletTransactionAdmin
+
+        self.factory = RequestFactory()
+        self.model_admin = WalletTransactionAdmin(
+            WalletTransaction,
+            admin.site,
+        )
+        self.worker = User.objects.create_user(
+            username="ledger_worker",
+            password="test-password-123",
+        )
+        self.tx = WalletTransaction.objects.create(
+            user=self.worker,
+            amount=Decimal("25.00"),
+            transaction_type="earning",
+            description="Test ledger entry",
+        )
+
+    def request_for(self, user):
+        request = self.factory.get("/admin/wallet/wallettransaction/")
+        request.user = user
+        return request
+
+    def test_unprivileged_staff_cannot_view_wallet_ledger(self):
+        staff = User.objects.create_user(
+            username="limited_ledger_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+        self.assertFalse(
+            self.model_admin.has_view_permission(
+                self.request_for(staff),
+                self.tx,
+            )
+        )
+
+    def test_finance_can_view_wallet_ledger(self):
+        finance = User.objects.create_user(
+            username="ledger_finance",
+            password="test-password-123",
+            is_staff=True,
+        )
+        finance.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="wallet",
+                codename="approve_withdrawal",
+            )
+        )
+        self.assertTrue(
+            self.model_admin.has_view_permission(
+                self.request_for(finance),
+                self.tx,
+            )
+        )
+
+    def test_payer_can_view_wallet_ledger(self):
+        payer = User.objects.create_user(
+            username="ledger_payer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        payer.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="wallet",
+                codename="mark_withdrawal_paid",
+            )
+        )
+        self.assertTrue(
+            self.model_admin.has_view_permission(
+                self.request_for(payer),
+                self.tx,
+            )
+        )
+
 class WithdrawalFlowTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
