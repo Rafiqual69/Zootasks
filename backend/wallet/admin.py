@@ -75,11 +75,14 @@ def approve_withdrawals(modeladmin, request, queryset):
                 .get(id=withdrawal_id)
             )
 
-            require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": withdrawal.status == "pending"})
-
+            # Terminal/replayed states are safe no-ops. Check state before
+            # policy evaluation so a replay does not require an authorization
+            # context for an operation that will not execute.
             if withdrawal.status != "pending":
                 skipped += 1
                 continue
+
+            require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True})
 
             profile = (
                 WorkerProfile.objects
@@ -140,6 +143,9 @@ def reject_withdrawals(modeladmin, request, queryset):
                 .get(id=withdrawal_id)
             )
 
+            if withdrawal.status != "pending":
+                continue
+
             require_authorized(
                 actor="finance",
                 resource="withdrawal",
@@ -147,12 +153,9 @@ def reject_withdrawals(modeladmin, request, queryset):
                 scope="role_scope",
                 facts={
                     "permission.withdrawal_reject": True,
-                    "business_rules.pending_withdrawal": withdrawal.status == "pending",
+                    "business_rules.pending_withdrawal": True,
                 },
             )
-
-            if withdrawal.status != "pending":
-                continue
 
             profile = (
                 WorkerProfile.objects
