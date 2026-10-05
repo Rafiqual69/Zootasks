@@ -56,6 +56,47 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
                 )
             )
 
+    def test_worker_promotion_and_withdrawal_paths_require_facts(self):
+        self.assertTrue(authorize(
+            actor="worker", resource="promotion", action="claim", scope="role_scope",
+            facts={
+                "account_entity.active_worker": True,
+                "promotion.active": True,
+                "promotion.capacity_available": True,
+                "request.method.POST": True,
+            },
+        ))
+        self.assertFalse(authorize(
+            actor="worker", resource="withdrawal", action="create", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "request.method.POST": True,
+                "business_rules.valid_withdrawal": False,
+            },
+        ))
+
+    def test_financial_approval_and_payer_are_separated(self):
+        self.assertTrue(authorize(
+            actor="finance", resource="withdrawal", action="approve", scope="role_scope",
+            facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True},
+        ))
+        self.assertTrue(authorize(
+            actor="finance_payer", resource="withdrawal", action="pay", scope="role_scope",
+            facts={
+                "permission.withdrawal_pay": True,
+                "business_rules.approved_withdrawal": True,
+                "idempotency.required": True,
+            },
+        ))
+        self.assertFalse(authorize(
+            actor="finance_payer", resource="withdrawal", action="pay", scope="role_scope",
+            facts={
+                "permission.withdrawal_pay": True,
+                "business_rules.approved_withdrawal": True,
+                "idempotency.required": False,
+            },
+        ))
+
     def test_worker_claim_requires_role_fact(self):
         self.assertFalse(
             authorize(
