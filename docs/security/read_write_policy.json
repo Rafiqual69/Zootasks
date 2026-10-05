@@ -1,7 +1,7 @@
 {
   "$schema": "./read_write_policy.schema.json",
   "policy_id": "ZT-READ-WRITE-POLICY",
-  "policy_version": "1.1.0",
+  "policy_version": "1.1.1",
   "schema_version": "1.0.0",
   "status": "normative-baseline",
   "enforcement": {
@@ -514,21 +514,24 @@
     "wallet": [
       "balance",
       "reserved_balance",
-      "total_earned"
+      "total_earned",
+      "completed_tasks"
     ],
     "wallet_transaction": [
       "amount",
       "transaction_type",
-      "worker_id",
+      "user_id",
       "task_claim_id",
       "promotion_claim_id"
     ],
     "withdrawal": [
       "amount",
       "status",
-      "worker_id",
-      "paid_at",
-      "payment_reference"
+      "user_id",
+      "bank_account",
+      "bank_name",
+      "account_holder",
+      "processed_at"
     ],
     "account_entity": [
       "user_id",
@@ -560,7 +563,10 @@
       "otp_secret",
       "webauthn_challenge",
       "private_key",
-      "bank_account_number"
+      "bank_account_number",
+      "bank_account",
+      "account_holder",
+      "telegram_user_id"
     ]
   },
   "change_control": {
@@ -583,6 +589,13 @@
     "exports_require_explicit_rule": true,
     "collection_reads_must_apply_authorization_filter": true,
     "authorization_failure_must_not_reveal_resource_existence": true,
-    "policy_failure_denies_protected_operations": true
+    "policy_failure_denies_protected_operations": true,
+    "actual_model_field_alignment": true,
+    "protected_financial_identity_fields": [
+      "user_id",
+      "bank_account",
+      "bank_name",
+      "account_holder"
+    ]
   }
 }
