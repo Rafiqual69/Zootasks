@@ -48,8 +48,6 @@ def approve_withdrawals(modeladmin, request, queryset):
         )
         return
 
-    require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True})
-
     updated = 0
     skipped = 0
 
@@ -60,6 +58,8 @@ def approve_withdrawals(modeladmin, request, queryset):
                 .select_for_update()
                 .get(id=withdrawal_id)
             )
+
+            require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": withdrawal.status == "pending"})
 
             if withdrawal.status != "pending":
                 skipped += 1
@@ -165,8 +165,6 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
         )
         return
 
-    require_authorized(actor="finance_payer", resource="withdrawal", action="pay", scope="role_scope", facts={"permission.withdrawal_pay": True, "business_rules.approved_withdrawal": True, "idempotency.required": True})
-
     paid_count = 0
     skipped_count = 0
 
@@ -180,6 +178,9 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 .select_related("user")
                 .get(id=withdrawal_id)
             )
+
+            is_payer = request.user.has_perm("wallet.mark_withdrawal_paid") and not request.user.has_perm("wallet.approve_withdrawal")
+            require_authorized(actor="finance_payer", resource="withdrawal", action="pay", scope="role_scope", facts={"permission.withdrawal_pay": is_payer, "business_rules.approved_withdrawal": withdrawal.status == "approved", "idempotency.required": True})
 
             if withdrawal.status != "approved":
                 skipped_count += 1
