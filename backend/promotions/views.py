@@ -8,8 +8,9 @@ from django.utils import timezone
 from .models import Promotion, PromotionClaim
 from wallet.models import WalletTransaction
 from core.security_policy_engine import require_authorized
+from accounts.authorization import worker_required
 
-@login_required
+@worker_required
 def marketplace(request):
     require_authorized(actor="worker", resource="promotion", action="read", scope="role_scope", facts={"account_entity.active_worker": True})
     promotions = Promotion.objects.filter(status__in=["active", "approved", "paused"]).order_by("-created_at")
@@ -57,7 +58,7 @@ def marketplace(request):
 </body></html>"""
     return HttpResponse(html)
 
-@login_required
+@worker_required
 @transaction.atomic
 def start_promotion(request, promotion_id):
     if request.method != "POST":
@@ -82,18 +83,27 @@ def start_promotion(request, promotion_id):
     promotion.save(update_fields=["completed_workers", "status"])
     return redirect("promotion_marketplace")
 
-@login_required
+@worker_required
 def submit_promotion(request, promotion_id):
     claim = get_object_or_404(PromotionClaim, promotion_id=promotion_id, worker=request.user)
-    require_authorized(
-        actor="worker", resource="promotion_claim", action="submit", scope="own",
-        facts={
-            "account_entity.active_worker": True,
-            "object.owner_is_actor": claim.worker_id == request.user.id,
-            "claim.status.claimed": claim.status == "claimed",
-            "request.method.POST": request.method == "POST",
-        },
-    )
+    if request.method == "POST":
+        require_authorized(
+            actor="worker", resource="promotion_claim", action="submit", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+                "claim.status.claimed": claim.status == "claimed",
+                "request.method.POST": True,
+            },
+        )
+    else:
+        require_authorized(
+            actor="worker", resource="promotion_claim", action="read", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+            },
+        )
     if claim.status != "claimed":
         return redirect("promotion_marketplace")
     if request.method == "POST":
