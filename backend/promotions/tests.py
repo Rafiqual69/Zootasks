@@ -1,11 +1,14 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.test import TestCase
+from decimal import Decimal
 from django.urls import reverse
 from unittest.mock import patch
 
 from accounts.models import AccountEntity
 from .models import Promotion, PromotionClaim
+from accounts.models import WorkerProfile
+from wallet.models import WalletTransaction
 
 
 class PromotionXSSTests(TestCase):
@@ -224,3 +227,31 @@ class PromotionClaimAdminReadBoundaryTests(TestCase):
         request.user = reviewer
 
         self.assertTrue(model_admin.has_view_permission(request))
+
+
+class PromotionRewardOperationIntegrityTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="promotion_integrity_worker", password="test-password-123")
+        AccountEntity.objects.create(user=self.user, entity_type=AccountEntity.EntityType.WORKER)
+        WorkerProfile.objects.create(user=self.user, balance=Decimal("100.00"), reserved_balance=Decimal("0.00"), total_earned=Decimal("100.00"))
+        self.promotion = Promotion.objects.create(title="Integrity Promotion", description="Test", advertiser_name="Advertiser", reward=Decimal("25.00"), budget=Decimal("100.00"), max_workers=1, status="approved")
+        self.claim = PromotionClaim.objects.create(promotion=self.promotion, worker=self.user, status="submitted")
+
+        class ModelAdminStub:
+            def message_user(self, request, message, level=None):
+                pass
+        self.modeladmin = ModelAdminStub()
+        self.request = type("RequestStub", (), {})()
+        self.request.user = get_user_model().objects.create_superuser(username="promotion_integrity_admin", password="test-admin-password")
+
+    def test_mismatched_existing_payment_does_not_approve_claim(self):
+        WalletTransaction.objects.create(user=self.user, amount=Decimal("20.00"), transaction_type="earning", description="Integrity mismatch", promotion_claim=self.claim)
+        from promotions.admin import PromotionClaimAdmin
+        from django.contrib import admin
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.approve_claims(self.request, PromotionClaim.objects.filter(pk=self.claim.pk))
+        self.claim.refresh_from_db()
+        profile = WorkerProfile.objects.get(user=self.user)
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(profile.balance, Decimal("100.00"))
+        self.assertEqual(profile.total_earned, Decimal("100.00"))
