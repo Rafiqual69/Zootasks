@@ -19,13 +19,13 @@ jobs:
       SECRET_KEY: ci-only-zootasks-security-gate-2026-rotate-for-ci-only-9f4e8d7c6b5a
       ALLOWED_HOSTS: localhost,127.0.0.1
       OWNER_USERNAME: ci-owner
-      PRODUCTION_MODE: "true"
-      SECURE_SSL_REDIRECT: "true"
-      SECURE_COOKIES: "true"
-      TRUST_PROXY_SSL: "true"
-      SECURE_HSTS_SECONDS: "31536000"
-      SECURE_HSTS_INCLUDE_SUBDOMAINS: "true"
-      SECURE_HSTS_PRELOAD: "true"
+      PRODUCTION_MODE: "false"
+      SECURE_SSL_REDIRECT: "false"
+      SECURE_COOKIES: "false"
+      TRUST_PROXY_SSL: "false"
+      SECURE_HSTS_SECONDS: "0"
+      SECURE_HSTS_INCLUDE_SUBDOMAINS: "false"
+      SECURE_HSTS_PRELOAD: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -44,9 +44,19 @@ jobs:
 
       - name: Django checks
         working-directory: backend
-        run: |
-          python manage.py check
-          python manage.py check --deploy
+        run: python manage.py check
+
+      - name: Production deployment checks
+        working-directory: backend
+        env:
+          PRODUCTION_MODE: "true"
+          SECURE_SSL_REDIRECT: "true"
+          SECURE_COOKIES: "true"
+          TRUST_PROXY_SSL: "true"
+          SECURE_HSTS_SECONDS: "31536000"
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: "true"
+          SECURE_HSTS_PRELOAD: "true"
+        run: python manage.py check --deploy
 
       - name: Read/Write policy contract
         working-directory: backend
