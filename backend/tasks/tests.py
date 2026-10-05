@@ -244,3 +244,15 @@ class TaskMarketplaceTests(TestCase):
         self.assertEqual(claim.status, "claimed")
         self.assertEqual(claim.proof, "")
         self.assertIsNone(claim.submitted_at)
+
+
+class AdminWriteBoundaryTests(TestCase):
+    def test_task_protected_fields_are_read_only(self):
+        from django.contrib import admin
+        from tasks.admin import TaskAdmin
+
+        model_admin = TaskAdmin(Task, admin.site)
+        self.assertEqual(
+            set(model_admin.readonly_fields),
+            {"reward", "max_workers", "completed_workers", "status"},
+        )
