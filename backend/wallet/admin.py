@@ -37,6 +37,21 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "created_at",
     )
 
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "wallet.approve_withdrawal",
+                "wallet.reject_withdrawal",
+                "wallet.mark_withdrawal_paid",
+            )
+        )
+
 
 @admin.action(description="✅ Approve selected withdrawals")
 def approve_withdrawals(modeladmin, request, queryset):
@@ -323,14 +338,13 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
 
 @admin.register(WithdrawalRequest)
 class WithdrawalRequestAdmin(admin.ModelAdmin):
-
     list_display = (
         "id",
         "user",
         "amount",
         "bank_name",
-        "account_holder",
-        "bank_account",
+        "masked_account_holder",
+        "masked_bank_account",
         "status",
         "requested_at",
         "processed_at",
@@ -342,11 +356,12 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         "requested_at",
     )
 
+    # Never support exact searching over sensitive payment identifiers.
+    # Username/bank name are sufficient operational filters without exposing
+    # raw account numbers or account-holder names through the admin search UX.
     search_fields = (
         "user__username",
         "bank_name",
-        "account_holder",
-        "bank_account",
     )
 
     ordering = (
@@ -363,9 +378,44 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         "user",
         "amount",
         "bank_name",
-        "account_holder",
-        "bank_account",
+        "masked_account_holder",
+        "masked_bank_account",
         "status",
         "requested_at",
         "processed_at",
     )
+
+    @staticmethod
+    def _mask(value: str, visible_suffix: int = 0) -> str:
+        if not value:
+            return "—"
+        value = str(value)
+        if visible_suffix and len(value) > visible_suffix:
+            return f"••••{value[-visible_suffix:]}"
+        return "•" * min(max(len(value), 1), 12)
+
+    @admin.display(description="Account holder")
+    def masked_account_holder(self, obj):
+        value = obj.account_holder or ""
+        if not value:
+            return "—"
+        return f"{value[0]}•••"
+
+    @admin.display(description="Bank account")
+    def masked_bank_account(self, obj):
+        return self._mask(obj.bank_account, visible_suffix=4)
+
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "wallet.approve_withdrawal",
+                "wallet.reject_withdrawal",
+                "wallet.mark_withdrawal_paid",
+            )
+        )

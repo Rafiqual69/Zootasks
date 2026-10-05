@@ -170,7 +170,6 @@ class TaskClaimAdmin(admin.ModelAdmin):
     search_fields = (
         "task__title",
         "worker__username",
-        "proof",
     )
 
     ordering = ("-claimed_at",)
@@ -188,6 +187,20 @@ class TaskClaimAdmin(admin.ModelAdmin):
         "claimed_at",
         "submitted_at",
     )
+
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "tasks.approve_task_submission",
+                "tasks.reject_task_submission",
+            )
+        )
 
     @admin.display(description="Reward")
     def reward_amount(self, obj):
