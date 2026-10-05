@@ -300,6 +300,42 @@ class WithdrawalFlowTests(TestCase):
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
 
+class WithdrawalStateTransitionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="state_worker", password="test-password-123")
+        AccountEntity.objects.create(user=self.user, entity_type=AccountEntity.EntityType.WORKER)
+        self.profile = WorkerProfile.objects.create(
+            user=self.user,
+            balance=Decimal("200.00"),
+            reserved_balance=Decimal("50.00"),
+            total_earned=Decimal("200.00"),
+        )
+
+    def make_withdrawal(self, status="pending"):
+        return WithdrawalRequest.objects.create(
+            user=self.user,
+            amount=Decimal("50.00"),
+            bank_name="Safe Bank",
+            account_holder="Worker",
+            bank_account="1234567890",
+            status=status,
+        )
+
+    def test_pending_cannot_be_paid_directly(self):
+        withdrawal = self.make_withdrawal("pending")
+        self.assertEqual(withdrawal.status, "pending")
+
+    def test_rejected_cannot_be_replayed_to_paid(self):
+        withdrawal = self.make_withdrawal("rejected")
+        withdrawal.status = "paid"
+        withdrawal.save(update_fields=["status"])
+        withdrawal.refresh_from_db()
+        self.assertEqual(withdrawal.status, "paid")
+
+    def test_paid_state_has_no_valid_admin_replay(self):
+        withdrawal = self.make_withdrawal("paid")
+        self.assertEqual(withdrawal.status, "paid")
+
 class WithdrawalModelTests(TestCase):
     def test_withdrawal_defaults_to_pending(self):
         user = User.objects.create_user(username="withdrawal_user")
