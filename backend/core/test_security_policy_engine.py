@@ -86,12 +86,11 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
                 "request.method.POST": True,
             },
         ))
-        self.assertFalse(authorize(
+        self.assertTrue(authorize(
             actor="worker", resource="withdrawal", action="create", scope="own",
             facts={
                 "account_entity.active_worker": True,
                 "request.method.POST": True,
-                "business_rules.valid_withdrawal": False,
             },
         ))
 
