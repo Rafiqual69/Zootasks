@@ -102,16 +102,26 @@ def submit_task(request, task_id):
         task_id=task_id,
         worker=request.user,
     )
-    require_authorized(
-        actor="worker", resource="task_claim", action="submit",
-        scope="own",
-        facts={
-            "account_entity.active_worker": True,
-            "object.owner_is_actor": claim.worker_id == request.user.id,
-            "claim.status.claimed": claim.status == "claimed",
-            "request.method.POST": request.method == "POST",
-        },
-    )
+    if request.method == "POST":
+        require_authorized(
+            actor="worker", resource="task_claim", action="submit",
+            scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+                "claim.status.claimed": claim.status == "claimed",
+                "request.method.POST": True,
+            },
+        )
+    else:
+        require_authorized(
+            actor="worker", resource="task_claim", action="read",
+            scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+            },
+        )
     if claim.status != "claimed":
         return redirect("task_marketplace")
     if request.method == "POST":
