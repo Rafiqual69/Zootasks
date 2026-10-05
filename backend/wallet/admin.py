@@ -34,6 +34,7 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "description",
         "task_claim",
         "promotion_claim",
+        "withdrawal",
         "created_at",
     )
 
@@ -226,13 +227,13 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 },
             )
 
+            # The ledger entry must be bound to this exact withdrawal
+            # operation by a DB-enforced OneToOne identity. Do not fall back
+            # to description matching: descriptions are human-readable data,
+            # not an authorization or idempotency key.
             existing_transaction = (
                 WalletTransaction.objects
-                .filter(
-                    user=withdrawal.user,
-                    transaction_type="withdrawal",
-                    description=f"Withdrawal #{withdrawal.id}",
-                )
+                .filter(withdrawal=withdrawal)
                 .first()
             )
 
@@ -298,6 +299,7 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 amount=amount,
                 transaction_type="withdrawal",
                 description=f"Withdrawal #{withdrawal.id}",
+                withdrawal=withdrawal,
             )
 
             profile.balance -= amount
