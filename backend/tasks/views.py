@@ -30,6 +30,10 @@ def marketplace(request):
 
     task_list = list(tasks)
 
+    require_authorized(
+        actor="worker", resource="task_claim", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
     claims = TaskClaim.objects.filter(
         task_id__in=[task.id for task in task_list],
         worker=request.user,
