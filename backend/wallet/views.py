@@ -34,9 +34,7 @@ def get_wallet_summary(user):
         or Decimal("0.00")
     )
 
-    profile = WorkerProfile.objects.get_or_create(
-        user=user
-    )[0]
+    profile = WorkerProfile.objects.get(user=user)
 
     pending_withdrawals = profile.reserved_balance
 
@@ -83,6 +81,14 @@ def wallet(request):
 @worker_required
 @transaction.atomic
 def request_withdrawal(request):
+    require_authorized(
+        actor="worker", resource="withdrawal", action="create", scope="own",
+        facts={
+            "account_entity.active_worker": True,
+            "request.method.POST": request.method == "POST",
+            "business_rules.valid_withdrawal": request.method == "POST",
+        },
+    )
     summary = get_wallet_summary(request.user)
     error = ""
 
@@ -108,7 +114,6 @@ def request_withdrawal(request):
         elif not bank_name or not account_holder or not bank_account:
             error = "Please complete all payment information."
         else:
-            require_authorized(actor="worker", resource="withdrawal", action="create", scope="own", facts={"account_entity.active_worker": True, "request.method.POST": True, "business_rules.valid_withdrawal": True})
             reserved = (
                 WorkerProfile.objects
                 .filter(
