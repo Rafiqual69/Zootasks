@@ -237,6 +237,37 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 .first()
             )
 
+            # Transitional reconciliation for legacy rows created before
+            # operation identity existed. The human-readable description is
+            # accepted only as a migration bridge, never as the sole
+            # authority: exact withdrawal id, user, type, and amount must all
+            # match before the row is bound to this operation.
+            if existing_transaction is None:
+                legacy_transaction = (
+                    WalletTransaction.objects
+                    .filter(
+                        user=withdrawal.user,
+                        transaction_type="withdrawal",
+                        description=f"Withdrawal #{withdrawal.id}",
+                        withdrawal__isnull=True,
+                    )
+                    .first()
+                )
+                if legacy_transaction is not None:
+                    if legacy_transaction.amount != withdrawal.amount:
+                        skipped_count += 1
+                        modeladmin.message_user(
+                            request,
+                            f"❌ Withdrawal #{withdrawal.id} skipped: "
+                            "legacy ledger amount does not match withdrawal amount. "
+                            "Manual reconciliation required.",
+                            messages.ERROR,
+                        )
+                        continue
+                    legacy_transaction.withdrawal = withdrawal
+                    legacy_transaction.save(update_fields=["withdrawal"])
+                    existing_transaction = legacy_transaction
+
             if existing_transaction:
                 if existing_transaction.amount != withdrawal.amount:
                     skipped_count += 1
