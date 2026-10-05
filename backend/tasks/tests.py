@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from decimal import Decimal
 
-from accounts.models import AccountEntity
+from accounts.models import AccountEntity, WorkerProfile
+from wallet.models import WalletTransaction
 from .models import Task, TaskClaim
 
 
@@ -308,3 +310,48 @@ class TaskClaimAdminReadBoundaryTests(TestCase):
         request.user = reviewer
 
         self.assertTrue(model_admin.has_view_permission(request))
+
+
+class TaskRewardOperationIntegrityTests(TestCase):
+    def setUp(self):
+        self.worker = User.objects.create_user(username="task_reward_worker", password="test-password-123")
+        AccountEntity.objects.create(user=self.worker, entity_type=AccountEntity.EntityType.WORKER)
+        WorkerProfile.objects.create(
+            user=self.worker,
+            balance=Decimal("100.00"),
+            reserved_balance=Decimal("0.00"),
+            total_earned=Decimal("100.00"),
+        )
+        self.task = Task.objects.create(
+            title="Integrity Task",
+            description="Test",
+            category="Testing",
+            reward=Decimal("25.00"),
+            max_workers=1,
+        )
+        self.claim = TaskClaim.objects.create(task=self.task, worker=self.worker, status="submitted")
+
+        class ModelAdminStub:
+            def message_user(self, request, message, level=None):
+                pass
+        self.modeladmin = ModelAdminStub()
+        self.request = type("RequestStub", (), {})()
+        self.request.user = User.objects.create_superuser(username="task_integrity_admin", password="test-admin-password")
+
+    def test_mismatched_existing_payment_does_not_approve_claim(self):
+        WalletTransaction.objects.create(
+            user=self.worker,
+            amount=Decimal("20.00"),
+            transaction_type="earning",
+            description="Integrity mismatch",
+            task_claim=self.claim,
+        )
+
+        from tasks.admin import approve_submissions
+        approve_submissions(self.modeladmin, self.request, TaskClaim.objects.filter(pk=self.claim.pk))
+
+        self.claim.refresh_from_db()
+        profile = WorkerProfile.objects.get(user=self.worker)
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(profile.balance, Decimal("100.00"))
+        self.assertEqual(profile.total_earned, Decimal("100.00"))
