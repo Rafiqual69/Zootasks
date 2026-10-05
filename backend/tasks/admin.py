@@ -34,8 +34,6 @@ def approve_submissions(modeladmin, request, queryset):
         )
         return
 
-    require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": True})
-
     approved = 0
     already_paid = 0
 
@@ -47,6 +45,8 @@ def approve_submissions(modeladmin, request, queryset):
                 .select_related("task", "worker")
                 .get(id=claim_id)
             )
+
+            require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": claim.status == "submitted"})
 
             if claim.status != "submitted":
                 continue
