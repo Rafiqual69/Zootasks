@@ -81,18 +81,19 @@ class SecurityPolicyContractTests(unittest.TestCase):
         with self.assertRaises(SecurityPolicyError):
             validate_policy(policy, self.schema)
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_model_field_alignment_is_required(self):
-        policy = load_policy()
+        policy = copy.deepcopy(self.policy)
         policy["data_handling"]["actual_model_field_alignment"] = False
         with self.assertRaises(SecurityPolicyError):
-            validate_policy(policy, load_schema())
+            validate_policy(policy, self.schema)
 
     def test_financial_identity_fields_are_complete(self):
-        policy = load_policy()
+        policy = copy.deepcopy(self.policy)
         policy["data_handling"]["protected_financial_identity_fields"] = ["user_id"]
         with self.assertRaises(SecurityPolicyError):
-            validate_policy(policy, load_schema())
+            validate_policy(policy, self.schema)
+
+
+if __name__ == "__main__":
+    unittest.main()
 
