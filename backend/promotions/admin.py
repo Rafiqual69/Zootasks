@@ -62,8 +62,6 @@ class PromotionClaimAdmin(admin.ModelAdmin):
             )
             return
 
-        require_authorized(actor="finance", resource="promotion_claim", action="approve", scope="role_scope", facts={"permission.promotion_approve": True, "business_rules.valid_promotion_claim": True})
-
         paid = 0
         already_paid = 0
         failed = 0
@@ -77,6 +75,8 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                         .select_related("promotion", "worker")
                         .get(id=claim_id)
                     )
+
+                    require_authorized(actor="finance", resource="promotion_claim", action="approve", scope="role_scope", facts={"permission.promotion_approve": True, "business_rules.valid_promotion_claim": locked.status == "submitted"})
 
                     if locked.status != "submitted":
                         continue
