@@ -168,12 +168,39 @@ def withdrawal_history(request):
         WithdrawalRequest.objects
         .filter(user=request.user)
         .order_by("-requested_at")
+        .values(
+            "id",
+            "amount",
+            "bank_name",
+            "status",
+            "requested_at",
+            "processed_at",
+            "account_holder",
+            "bank_account",
+        )
     )
+
+    # Data-minimization boundary: do not pass raw payment identifiers to the
+    # template context. The template receives only masked representations.
+    safe_withdrawals = []
+    for withdrawal in withdrawals:
+        account_holder = withdrawal["account_holder"] or ""
+        bank_account = str(withdrawal["bank_account"] or "")
+        safe_withdrawals.append({
+            "id": withdrawal["id"],
+            "amount": withdrawal["amount"],
+            "bank_name": withdrawal["bank_name"],
+            "status": withdrawal["status"],
+            "requested_at": withdrawal["requested_at"],
+            "processed_at": withdrawal["processed_at"],
+            "masked_account_holder": f"{account_holder[0]}•••" if account_holder else "—",
+            "masked_bank_account": f"••••{bank_account[-4:]}" if len(bank_account) >= 4 else "••••",
+        })
 
     return render(
         request,
         "wallet/withdrawal_history.html",
         {
-            "withdrawals": withdrawals,
+            "withdrawals": safe_withdrawals,
         },
     )
