@@ -355,3 +355,50 @@ class TaskRewardOperationIntegrityTests(TestCase):
         self.assertEqual(self.claim.status, "submitted")
         self.assertEqual(profile.balance, Decimal("100.00"))
         self.assertEqual(profile.total_earned, Decimal("100.00"))
+
+
+class TaskAdminAuthorizationTests(TestCase):
+    def setUp(self):
+        from django.contrib import admin
+        from tasks.admin import TaskAdmin
+
+        self.owner = User.objects.create_user(
+            username="task-admin-owner", password="StrongTestPass123!",
+            is_staff=True, is_superuser=True,
+        )
+        AccountEntity.objects.create(
+            user=self.owner, entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.staff_without_owner = User.objects.create_user(
+            username="task-admin-non-owner", password="StrongTestPass123!",
+            is_staff=True, is_superuser=True,
+        )
+        self.worker = User.objects.create_user(
+            username="task-admin-worker", password="StrongTestPass123!",
+        )
+        AccountEntity.objects.create(
+            user=self.worker, entity_type=AccountEntity.EntityType.WORKER,
+        )
+        self.model_admin = TaskAdmin(Task, admin.site)
+
+    def request_for(self, user):
+        return type("Request", (), {"user": user})()
+
+    def test_only_active_owner_can_add_change(self):
+        self.assertTrue(self.model_admin.has_add_permission(self.request_for(self.owner)))
+        self.assertTrue(self.model_admin.has_change_permission(self.request_for(self.owner)))
+        self.assertFalse(self.model_admin.has_add_permission(self.request_for(self.staff_without_owner)))
+        self.assertFalse(self.model_admin.has_change_permission(self.request_for(self.staff_without_owner)))
+        self.assertFalse(self.model_admin.has_add_permission(self.request_for(self.worker)))
+
+    def test_task_admin_delete_is_disabled(self):
+        self.assertFalse(self.model_admin.has_delete_permission(self.request_for(self.owner)))
+
+    def test_existing_financial_fields_are_readonly(self):
+        request = self.request_for(self.owner)
+        task = Task(title="Existing", description="Existing task", reward="10.00", max_workers=2)
+        self.assertEqual(
+            set(self.model_admin.get_readonly_fields(request, task)),
+            {"reward", "max_workers", "completed_workers"},
+        )
+        self.assertEqual(self.model_admin.get_readonly_fields(request, None), ())
