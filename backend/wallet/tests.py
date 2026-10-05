@@ -8,6 +8,8 @@ from django.urls import reverse
 
 from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction, WithdrawalRequest
+from tasks.models import Task, TaskClaim
+from promotions.models import Promotion, PromotionClaim
 from wallet.admin import approve_withdrawals, reject_withdrawals, mark_withdrawals_paid
 
 
@@ -788,6 +790,81 @@ class WithdrawalOperationIdentityTests(TestCase):
 
         self.assertEqual(transaction.withdrawal_id, self.withdrawal.id)
         self.assertEqual(self.withdrawal.wallet_transaction.pk, transaction.pk)
+
+    def test_task_identity_requires_earning_transaction_type(self):
+        task = Task.objects.create(
+            title="Identity Task",
+            description="Test task",
+            reward=Decimal("25.00"),
+        )
+        claim = TaskClaim.objects.create(
+            task=task,
+            worker=self.user,
+            status="approved",
+        )
+
+        with self.assertRaises(IntegrityError):
+            WalletTransaction.objects.create(
+                user=self.user,
+                amount=Decimal("25.00"),
+                transaction_type="withdrawal",
+                description="Invalid task identity",
+                task_claim=claim,
+            )
+
+    def test_promotion_identity_requires_earning_transaction_type(self):
+        promotion = Promotion.objects.create(
+            title="Identity Promotion",
+            description="Test promotion",
+            advertiser_name="Test Advertiser",
+            reward=Decimal("25.00"),
+        )
+        claim = PromotionClaim.objects.create(
+            promotion=promotion,
+            worker=self.user,
+            status="approved",
+        )
+
+        with self.assertRaises(IntegrityError):
+            WalletTransaction.objects.create(
+                user=self.user,
+                amount=Decimal("25.00"),
+                transaction_type="withdrawal",
+                description="Invalid promotion identity",
+                promotion_claim=claim,
+            )
+
+    def test_withdrawal_identity_requires_withdrawal_transaction_type(self):
+        with self.assertRaises(IntegrityError):
+            WalletTransaction.objects.create(
+                user=self.user,
+                amount=Decimal("75.00"),
+                transaction_type="earning",
+                description="Invalid withdrawal identity",
+                withdrawal=self.withdrawal,
+            )
+
+    def test_multiple_operation_identities_are_rejected(self):
+        task = Task.objects.create(
+            title="Multi Identity Task",
+            description="Test task",
+            reward=Decimal("25.00"),
+        )
+        claim = TaskClaim.objects.create(
+            task=task,
+            worker=self.user,
+            status="approved",
+        )
+
+        with self.assertRaises(IntegrityError):
+            WalletTransaction.objects.create(
+                user=self.user,
+                amount=Decimal("75.00"),
+                transaction_type="withdrawal",
+                description="Multiple operation identities",
+                task_claim=claim,
+                withdrawal=self.withdrawal,
+            )
 
     def test_second_ledger_entry_for_same_withdrawal_is_rejected(self):
         WalletTransaction.objects.create(
