@@ -161,12 +161,18 @@ class PromotionClaimAdmin(admin.ModelAdmin):
 
                     paid += 1
 
-            except Exception:
-                # Keep operational logs free of claim proof, payment identifiers,
-                # credentials, and other request/object payloads.
-                logger.exception(
-                    "Promotion claim approval failed safely",
-                    extra={"security_event": "promotion_claim_approval_failure", "claim_id": claim_id},
+            except Exception as exc:
+                # Never emit exception tracebacks here: traceback/local-variable
+                # rendering can expose sensitive request or object data. Keep the
+                # operational event bounded to non-sensitive metadata only.
+                logger.error(
+                    "Promotion claim approval failed safely: %s",
+                    type(exc).__name__,
+                    extra={
+                        "security_event": "promotion_claim_approval_failure",
+                        "claim_id": claim_id,
+                    },
+                    exc_info=False,
                 )
                 failed += 1
 
