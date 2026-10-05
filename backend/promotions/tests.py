@@ -183,3 +183,44 @@ class PromotionAdminWriteBoundaryTests(TestCase):
             set(model_admin.readonly_fields),
             {"reward", "budget", "max_workers", "completed_workers", "status"},
         )
+
+
+class PromotionClaimAdminReadBoundaryTests(TestCase):
+    def test_unprivileged_staff_cannot_view_promotion_claim_admin(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from promotions.admin import PromotionClaimAdmin
+
+        staff = get_user_model().objects.create_user(
+            username="limited_promotion_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        request = RequestFactory().get("/admin/promotions/promotionclaim/")
+        request.user = staff
+
+        self.assertFalse(model_admin.has_view_permission(request))
+
+    def test_promotion_reviewer_can_view_promotion_claim_admin(self):
+        from django.contrib import admin
+        from django.contrib.auth.models import Permission
+        from django.test import RequestFactory
+        from promotions.admin import PromotionClaimAdmin
+
+        reviewer = get_user_model().objects.create_user(
+            username="promotion_reviewer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        reviewer.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="promotions",
+                codename="approve_promotion_claim",
+            )
+        )
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        request = RequestFactory().get("/admin/promotions/promotionclaim/")
+        request.user = reviewer
+
+        self.assertTrue(model_admin.has_view_permission(request))
