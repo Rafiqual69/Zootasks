@@ -1,6 +1,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.contrib import admin
 from django.contrib.auth.models import Permission, User
 from django.test import TestCase, RequestFactory
 
@@ -48,7 +49,7 @@ class OperationIdentityOwnerIntegrityTests(TestCase):
         )
         request = self.factory.post("/admin/wallet/withdrawalrequest/")
         request.user = self.payer
-        modeladmin = WithdrawalRequestAdmin(WithdrawalRequest, __import__("django.contrib").contrib.admin.site)
+        modeladmin = WithdrawalRequestAdmin(WithdrawalRequest, admin.site)
 
         with patch("wallet.admin.require_authorized"):
             mark_withdrawals_paid(modeladmin, request, WithdrawalRequest.objects.filter(pk=withdrawal.pk))
