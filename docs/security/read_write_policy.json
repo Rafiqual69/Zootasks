@@ -507,6 +507,18 @@
         "permission.withdrawal_reject",
         "business_rules.pending_withdrawal"
       ]
+    },
+    {
+      "rule_id": "ZT-WORKER-PROFILE-READ-001",
+      "actor": "worker",
+      "resource": "worker_profile",
+      "action": "read",
+      "scope": "own",
+      "decision": "allow",
+      "conditions": [
+        "account_entity.active_worker",
+        "object.owner_is_actor"
+      ]
     }
   ],
   "protected_fields": {
