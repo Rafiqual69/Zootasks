@@ -1,7 +1,7 @@
 {
   "$schema": "./read_write_policy.schema.json",
   "policy_id": "ZT-READ-WRITE-POLICY",
-  "policy_version": "1.1.1",
+  "policy_version": "1.1.2",
   "schema_version": "1.0.0",
   "status": "normative-baseline",
   "enforcement": {
@@ -444,8 +444,7 @@
       "decision": "allow",
       "conditions": [
         "account_entity.active_worker",
-        "request.method.POST",
-        "business_rules.valid_withdrawal"
+        "request.method.POST"
       ]
     },
     {
