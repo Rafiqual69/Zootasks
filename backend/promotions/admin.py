@@ -1,11 +1,14 @@
 from django.contrib import admin, messages
 from django.db import transaction
 from django.utils import timezone
+import logging
 
 from .models import Promotion, PromotionClaim
 from accounts.models import WorkerProfile
 from wallet.models import WalletTransaction
 from core.security_policy_engine import require_authorized
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(Promotion)
@@ -142,6 +145,7 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     paid += 1
 
             except Exception:
+                logger.exception("Promotion claim approval failed safely")
                 failed += 1
 
         if paid:
