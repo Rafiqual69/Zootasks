@@ -104,9 +104,10 @@ def task_detail(request, task_id):
 
 
 @worker_required
+@transaction.atomic
 def submit_task(request, task_id):
     claim = get_object_or_404(
-        TaskClaim,
+        TaskClaim.objects.select_for_update(),
         task_id=task_id,
         worker=request.user,
     )
