@@ -50,9 +50,9 @@ class WalletTransaction(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(task_claim__isnull=True, promotion_claim__isnull=True)
-                    | models.Q(task_claim__isnull=True, withdrawal__isnull=True)
-                    | models.Q(promotion_claim__isnull=True, withdrawal__isnull=True)
+                    models.Q(task_claim__isnull=True)
+                    | models.Q(promotion_claim__isnull=True)
+                    | models.Q(withdrawal__isnull=True)
                 ),
                 name="wallet_tx_single_operation_identity",
             ),
