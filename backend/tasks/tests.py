@@ -399,6 +399,6 @@ class TaskAdminAuthorizationTests(TestCase):
         task = Task(title="Existing", description="Existing task", reward="10.00", max_workers=2)
         self.assertEqual(
             set(self.model_admin.get_readonly_fields(request, task)),
-            {"reward", "max_workers", "completed_workers"},
+            {"reward", "max_workers", "completed_workers", "status"},
         )
         self.assertEqual(self.model_admin.get_readonly_fields(request, None), ())
