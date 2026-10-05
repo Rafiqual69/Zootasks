@@ -312,3 +312,16 @@ Financial ambiguity = Stop and investigate.**
 ## 17. Change History
 
 - 1.0.0 — Initial normative Read/Write Security Constitution.
+
+
+## 18. Data Minimization and Read/Write Safety Boundary
+
+Read authorization is not only “may this actor access the object?” It also asks “which fields may this actor receive?”. Protected reads therefore use explicit response allowlists; generic model serialization and unrestricted admin/query output are not security boundaries.
+
+Write authorization is not only “may this actor update the object?” It also asks “which fields may this actor change?”. Client input is never treated as an authority over role, ownership, financial state, security state, or other protected fields. Sensitive fields require explicit server-side allowlisting and business invariants.
+
+Collection, search, export, aggregate, and direct-object reads must all apply the same authorization boundary. A missing filter is not permission to return unrestricted data.
+
+Security-sensitive values must not be placed in URLs, logs, analytics payloads, exception messages, or client-visible errors. Authorization failures should be safe and non-enumerating where resource existence is protected.
+
+These controls follow the principles of least privilege, deny-by-default, object/property-level authorization, and data minimization described by OWASP and NIST.
