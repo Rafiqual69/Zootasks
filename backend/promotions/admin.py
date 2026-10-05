@@ -185,14 +185,17 @@ class PromotionClaimAdmin(admin.ModelAdmin):
             )
             return
 
-        require_authorized(actor="finance", resource="promotion_claim", action="reject", scope="role_scope", facts={"permission.promotion_reject": True, "business_rules.valid_promotion_claim": True})
-
-        updated = queryset.filter(
-            status="submitted"
-        ).update(
-            status="rejected",
-            approved_at=None,
-        )
+        updated = 0
+        for claim_id in queryset.values_list("id", flat=True):
+            with transaction.atomic():
+                claim = PromotionClaim.objects.select_for_update().get(id=claim_id)
+                require_authorized(actor="finance", resource="promotion_claim", action="reject", scope="role_scope", facts={"permission.promotion_reject": True, "business_rules.valid_promotion_claim": claim.status == "submitted"})
+                if claim.status != "submitted":
+                    continue
+                claim.status = "rejected"
+                claim.approved_at = None
+                claim.save(update_fields=["status", "approved_at"])
+                updated += 1
 
         self.message_user(
             request,
