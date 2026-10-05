@@ -249,7 +249,9 @@ class PromotionRewardOperationIntegrityTests(TestCase):
         from promotions.admin import PromotionClaimAdmin
         from django.contrib import admin
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
-        model_admin.approve_claims(self.request, PromotionClaim.objects.filter(pk=self.claim.pk))
+        from unittest.mock import patch
+        with patch.object(model_admin, "message_user"):
+            model_admin.approve_claims(self.request, PromotionClaim.objects.filter(pk=self.claim.pk))
         self.claim.refresh_from_db()
         profile = WorkerProfile.objects.get(user=self.user)
         self.assertEqual(self.claim.status, "submitted")
