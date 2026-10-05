@@ -88,8 +88,9 @@ def start_promotion(request, promotion_id):
     return redirect("promotion_marketplace")
 
 @worker_required
+@transaction.atomic
 def submit_promotion(request, promotion_id):
-    claim = get_object_or_404(PromotionClaim, promotion_id=promotion_id, worker=request.user)
+    claim = get_object_or_404(PromotionClaim.objects.select_for_update(), promotion_id=promotion_id, worker=request.user)
     if request.method == "POST":
         require_authorized(
             actor="worker", resource="promotion_claim", action="submit", scope="own",
