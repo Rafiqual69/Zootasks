@@ -20,19 +20,6 @@ SCHEMA_PATH = BASE_DIR / "docs" / "security" / "read_write_policy.schema.json"
 SUPPORTED_POLICY_MAJOR = 1
 SUPPORTED_SCHEMA_MAJOR = 1
 FINANCIAL_ACTIONS = {"create", "update", "delete", "approve", "reject", "pay"}
-SECRET_MARKERS = {
-    "password",
-    "secret",
-    "token",
-    "api_key",
-    "api_secret",
-    "session_cookie",
-    "otp_secret",
-    "private_key",
-    "bank_account_number",
-    "webauthn_challenge",
-}
-
 
 class SecurityPolicyError(ValueError):
     """Raised when the policy cannot be trusted as a security contract."""
