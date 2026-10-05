@@ -12,11 +12,6 @@ logger = logging.getLogger(__name__)
 
 @receiver(pre_save, sender=PromotionClaim)
 def mark_promotion_approval_transition(sender, instance, **kwargs):
-    """Record only a real transition into approved state.
-
-    The marker is request-local model state and is not persisted. It prevents
-    repeated saves of an already-approved claim from sending duplicate mail.
-    """
     instance._promotion_just_approved = False
     if not instance.pk or instance.status != "approved":
         return
@@ -26,7 +21,6 @@ def mark_promotion_approval_transition(sender, instance, **kwargs):
 
 @receiver(post_save, sender=PromotionClaim)
 def send_promotion_notification(sender, instance, created, **kwargs):
-    """Notify only after the approval transaction commits successfully."""
     just_approved = getattr(instance, "_promotion_just_approved", False)
     if not just_approved and not (created and instance.status == "approved"):
         return
@@ -45,16 +39,8 @@ ZooTasks টিম
 
     def deliver():
         try:
-            send_mail(
-                subject,
-                message,
-                "noreply@zootasks.com",
-                [instance.worker.email],
-                fail_silently=True,
-            )
+            send_mail(subject, message, "noreply@zootasks.com", [instance.worker.email], fail_silently=True)
         except Exception:
-            # Notification failure must never roll back the financial commit,
-            # but it must remain observable to operators without exposing data.
             logger.exception("Promotion approval notification delivery failed")
 
     transaction.on_commit(deliver)
