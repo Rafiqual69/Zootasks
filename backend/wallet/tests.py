@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib import admin
 from django.contrib.auth.models import Permission, User
 from django.test import TestCase
 from django.urls import reverse
