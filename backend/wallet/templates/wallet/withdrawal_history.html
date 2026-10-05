@@ -230,12 +230,12 @@
                         <br>
 
                         Account:
-                        {{ withdrawal.bank_account }}
+                        ••••{{ withdrawal.bank_account|slice:"-4:" }}
 
                         <br>
 
                         Holder:
-                        {{ withdrawal.account_holder }}
+                        {% if withdrawal.account_holder %}{{ withdrawal.account_holder|slice:":1" }}•••{% else %}—{% endif %}
 
                         <br>
 
