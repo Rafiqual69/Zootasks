@@ -171,3 +171,15 @@ class PromotionApprovalNotificationTests(TestCase):
         self.assertEqual(self.claim.status, "approved")
         send_mail_mock.assert_called_once()
         self.assertFalse(send_mail_mock.call_args.kwargs["fail_silently"])
+
+
+class PromotionAdminWriteBoundaryTests(TestCase):
+    def test_promotion_protected_fields_are_read_only(self):
+        from django.contrib import admin
+        from promotions.admin import PromotionAdmin
+
+        model_admin = PromotionAdmin(Promotion, admin.site)
+        self.assertEqual(
+            set(model_admin.readonly_fields),
+            {"reward", "budget", "max_workers", "completed_workers", "status"},
+        )
