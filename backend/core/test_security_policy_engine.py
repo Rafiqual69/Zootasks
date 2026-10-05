@@ -56,6 +56,16 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
                 )
             )
 
+    def test_wallet_transaction_read_requires_owner(self):
+        self.assertTrue(authorize(
+            actor="worker", resource="wallet_transaction", action="read", scope="own",
+            facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+        ))
+        self.assertFalse(authorize(
+            actor="worker", resource="wallet_transaction", action="read", scope="own",
+            facts={"account_entity.active_worker": True, "object.owner_is_actor": False},
+        ))
+
     def test_worker_promotion_and_withdrawal_paths_require_facts(self):
         self.assertTrue(authorize(
             actor="worker", resource="promotion", action="claim", scope="role_scope",
