@@ -382,6 +382,57 @@ class WithdrawalAdminActionTests(TestCase):
         self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
         self.assertEqual(self.profile.balance, Decimal("200.00"))
 
+    def test_approve_already_approved_is_noop(self):
+        withdrawal = self.create_withdrawal(status="approved")
+        approve_withdrawals(
+            self.modeladmin,
+            self.request,
+            WithdrawalRequest.objects.filter(pk=withdrawal.pk),
+        )
+        withdrawal.refresh_from_db()
+        self.assertEqual(withdrawal.status, "approved")
+
+    def test_reject_already_approved_is_noop(self):
+        withdrawal = self.create_withdrawal(status="approved")
+        reject_withdrawals(
+            self.modeladmin,
+            self.request,
+            WithdrawalRequest.objects.filter(pk=withdrawal.pk),
+        )
+        withdrawal.refresh_from_db()
+        self.profile.refresh_from_db()
+        self.assertEqual(withdrawal.status, "approved")
+        self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
+
+    def test_reject_already_rejected_is_noop(self):
+        withdrawal = self.create_withdrawal(status="rejected")
+        self.profile.reserved_balance = Decimal("0.00")
+        self.profile.save(update_fields=["reserved_balance"])
+        reject_withdrawals(
+            self.modeladmin,
+            self.request,
+            WithdrawalRequest.objects.filter(pk=withdrawal.pk),
+        )
+        withdrawal.refresh_from_db()
+        self.assertEqual(withdrawal.status, "rejected")
+
+    def test_pay_pending_withdrawal_is_noop(self):
+        self._use_payer()
+        withdrawal = self.create_withdrawal(status="pending")
+        mark_withdrawals_paid(
+            self.modeladmin,
+            self.request,
+            WithdrawalRequest.objects.filter(pk=withdrawal.pk),
+        )
+        withdrawal.refresh_from_db()
+        self.profile.refresh_from_db()
+        self.assertEqual(withdrawal.status, "pending")
+        self.assertEqual(self.profile.balance, Decimal("200.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
+        self.assertFalse(
+            WalletTransaction.objects.filter(withdrawal=withdrawal).exists()
+        )
+
     def test_approve_withdrawal_requires_reserved_balance(self):
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["reserved_balance"])
