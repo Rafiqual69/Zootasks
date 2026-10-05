@@ -257,3 +257,57 @@ class PromotionRewardOperationIntegrityTests(TestCase):
         self.assertEqual(self.claim.status, "submitted")
         self.assertEqual(profile.balance, Decimal("100.00"))
         self.assertEqual(profile.total_earned, Decimal("100.00"))
+
+
+class FinancialAdminPolicyBoundaryTests(TestCase):
+    def setUp(self):
+        from django.contrib import admin
+        from promotions.admin import PromotionAdmin
+
+        self.owner = get_user_model().objects.create_user(
+            username="policy_promotion_owner", password="test-password-123",
+            is_staff=True, is_superuser=True,
+        )
+        AccountEntity.objects.create(
+            user=self.owner, entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.non_owner = get_user_model().objects.create_user(
+            username="policy_promotion_non_owner", password="test-password-123",
+            is_staff=True, is_superuser=True,
+        )
+        self.admin = PromotionAdmin(Promotion, admin.site)
+
+    def request_for(self, user):
+        return type("Request", (), {"user": user})()
+
+    def test_owner_policy_allows_create_and_change(self):
+        request = self.request_for(self.owner)
+        self.assertTrue(self.admin.has_add_permission(request))
+        promotion = Promotion(
+            title="Existing", description="Existing promotion",
+            advertiser_name="Advertiser", reward="10.00",
+            budget="100.00", max_workers=10,
+        )
+        self.assertTrue(self.admin.has_change_permission(request, promotion))
+
+    def test_non_owner_is_denied_by_policy(self):
+        request = self.request_for(self.non_owner)
+        self.assertFalse(self.admin.has_add_permission(request))
+        promotion = Promotion(
+            title="Existing", description="Existing promotion",
+            advertiser_name="Advertiser", reward="10.00",
+            budget="100.00", max_workers=10,
+        )
+        self.assertFalse(self.admin.has_change_permission(request, promotion))
+
+    def test_protected_fields_are_immutable_on_existing_objects(self):
+        request = self.request_for(self.owner)
+        promotion = Promotion(
+            title="Existing", description="Existing promotion",
+            advertiser_name="Advertiser", reward="10.00",
+            budget="100.00", max_workers=10,
+        )
+        self.assertEqual(
+            set(self.admin.get_readonly_fields(request, promotion)),
+            {"reward", "budget", "max_workers", "completed_workers", "status"},
+        )
