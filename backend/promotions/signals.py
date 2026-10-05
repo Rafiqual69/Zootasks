@@ -39,7 +39,13 @@ ZooTasks টিম
 
     def deliver():
         try:
-            send_mail(subject, message, "noreply@zootasks.com", [instance.worker.email], fail_silently=True)
+            send_mail(
+                subject,
+                message,
+                "noreply@zootasks.com",
+                [instance.worker.email],
+                fail_silently=False,
+            )
         except Exception:
             logger.exception("Promotion approval notification delivery failed")
 
