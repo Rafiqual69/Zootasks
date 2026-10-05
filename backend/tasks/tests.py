@@ -267,3 +267,44 @@ class AdminReadBoundaryTests(TestCase):
         self.assertNotIn("proof", model_admin.search_fields)
         self.assertIn("task__title", model_admin.search_fields)
         self.assertIn("worker__username", model_admin.search_fields)
+
+
+class TaskClaimAdminReadBoundaryTests(TestCase):
+    def test_unprivileged_staff_cannot_view_task_claim_admin(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from tasks.admin import TaskClaimAdmin
+
+        staff = User.objects.create_user(
+            username="limited_task_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+        model_admin = TaskClaimAdmin(TaskClaim, admin.site)
+        request = RequestFactory().get("/admin/tasks/taskclaim/")
+        request.user = staff
+
+        self.assertFalse(model_admin.has_view_permission(request))
+
+    def test_task_reviewer_can_view_task_claim_admin(self):
+        from django.contrib import admin
+        from django.contrib.auth.models import Permission
+        from django.test import RequestFactory
+        from tasks.admin import TaskClaimAdmin
+
+        reviewer = User.objects.create_user(
+            username="task_reviewer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        reviewer.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="tasks",
+                codename="approve_task_submission",
+            )
+        )
+        model_admin = TaskClaimAdmin(TaskClaim, admin.site)
+        request = RequestFactory().get("/admin/tasks/taskclaim/")
+        request.user = reviewer
+
+        self.assertTrue(model_admin.has_view_permission(request))
