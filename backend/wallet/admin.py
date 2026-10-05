@@ -114,8 +114,6 @@ def reject_withdrawals(modeladmin, request, queryset):
         )
         return
 
-    require_authorized(actor="finance", resource="withdrawal", action="reject", scope="role_scope", facts={"permission.withdrawal_reject": True, "business_rules.pending_withdrawal": True})
-
     updated = 0
 
     for withdrawal_id in queryset.values_list("id", flat=True):
@@ -124,6 +122,17 @@ def reject_withdrawals(modeladmin, request, queryset):
                 WithdrawalRequest.objects
                 .select_for_update()
                 .get(id=withdrawal_id)
+            )
+
+            require_authorized(
+                actor="finance",
+                resource="withdrawal",
+                action="reject",
+                scope="role_scope",
+                facts={
+                    "permission.withdrawal_reject": True,
+                    "business_rules.pending_withdrawal": withdrawal.status == "pending",
+                },
             )
 
             if withdrawal.status != "pending":
