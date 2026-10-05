@@ -46,7 +46,7 @@ class SecurityPolicyContractTests(unittest.TestCase):
 
     def test_ai_financial_allow_is_rejected(self):
         policy = copy.deepcopy(self.policy)
-        rule = copy.deepcopy(policy["rules"][12])
+        rule = copy.deepcopy(next(r for r in policy["rules"] if r["actor"] == "ai"))
         rule.update(
             rule_id="ZT-AI-FINANCIAL-ALLOW-TEST",
             decision="allow",
