@@ -4,6 +4,7 @@ from django.db import transaction
 from .models import Task, TaskClaim
 from accounts.models import WorkerProfile
 from wallet.models import WalletTransaction
+from core.security_policy_engine import require_authorized
 
 
 @admin.register(Task)
@@ -32,6 +33,8 @@ def approve_submissions(modeladmin, request, queryset):
             messages.ERROR,
         )
         return
+
+    require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": True})
 
     approved = 0
     already_paid = 0
@@ -123,6 +126,8 @@ def reject_submissions(modeladmin, request, queryset):
             messages.ERROR,
         )
         return
+
+    require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": True})
 
     updated = queryset.filter(
         status="submitted"
