@@ -708,3 +708,49 @@ class WithdrawalHistoryDataMinimizationTests(TestCase):
         self.assertNotIn("Sensitive Person", content)
         self.assertIn("••••3456", content)
         self.assertIn("S•••", content)
+
+
+class WithdrawalOperationIdentityTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="operation_identity_worker",
+            password="test-password-123",
+        )
+        self.withdrawal = WithdrawalRequest.objects.create(
+            user=self.user,
+            amount=Decimal("75.00"),
+            bank_name="Safe Bank",
+            account_holder="Worker",
+            bank_account="1234567890",
+            status="paid",
+        )
+
+    def test_withdrawal_ledger_entry_binds_to_exact_operation(self):
+        transaction = WalletTransaction.objects.create(
+            user=self.user,
+            amount=self.withdrawal.amount,
+            transaction_type="withdrawal",
+            description=f"Withdrawal #{self.withdrawal.id}",
+            withdrawal=self.withdrawal,
+        )
+
+        self.assertEqual(transaction.withdrawal_id, self.withdrawal.id)
+        self.assertEqual(self.withdrawal.wallet_transaction.pk, transaction.pk)
+
+    def test_second_ledger_entry_for_same_withdrawal_is_rejected(self):
+        WalletTransaction.objects.create(
+            user=self.user,
+            amount=self.withdrawal.amount,
+            transaction_type="withdrawal",
+            description=f"Withdrawal #{self.withdrawal.id}",
+            withdrawal=self.withdrawal,
+        )
+
+        with self.assertRaises(Exception):
+            WalletTransaction.objects.create(
+                user=self.user,
+                amount=self.withdrawal.amount,
+                transaction_type="withdrawal",
+                description=f"Withdrawal #{self.withdrawal.id}",
+                withdrawal=self.withdrawal,
+            )
