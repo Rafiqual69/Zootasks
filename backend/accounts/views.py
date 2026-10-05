@@ -6,6 +6,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from .authorization import worker_required
+from core.security_policy_engine import require_authorized
 from .forms import OwnerOTPAuthenticationForm, RegistrationForm
 from .models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
@@ -40,9 +41,19 @@ def register(request):
 
 @worker_required
 def dashboard(request):
-    profile, _ = WorkerProfile.objects.get_or_create(
-        user=request.user
+    require_authorized(
+        actor="worker", resource="worker_profile", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
     )
+    require_authorized(
+        actor="worker", resource="wallet", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
+    require_authorized(
+        actor="worker", resource="wallet_transaction", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
+    profile = WorkerProfile.objects.get(user=request.user)
 
     transactions = WalletTransaction.objects.filter(
         user=request.user

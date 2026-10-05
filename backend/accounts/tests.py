@@ -269,3 +269,16 @@ class RegistrationAccountEntityTests(TestCase):
                 entity_type=AccountEntity.EntityType.OWNER
             ).exists()
         )
+
+
+class WorkerProfileAdminWriteBoundaryTests(TestCase):
+    def test_financial_fields_are_read_only(self):
+        from django.contrib import admin
+        from accounts.admin import WorkerProfileAdmin
+        from .models import WorkerProfile
+
+        model_admin = WorkerProfileAdmin(WorkerProfile, admin.site)
+        self.assertEqual(
+            set(model_admin.readonly_fields),
+            {"user", "balance", "reserved_balance", "total_earned", "completed_tasks", "created_at"},
+        )

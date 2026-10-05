@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from decimal import Decimal
 
-from accounts.models import AccountEntity
+from accounts.models import AccountEntity, WorkerProfile
+from wallet.models import WalletTransaction
 from .models import Task, TaskClaim
 
 
@@ -244,3 +246,112 @@ class TaskMarketplaceTests(TestCase):
         self.assertEqual(claim.status, "claimed")
         self.assertEqual(claim.proof, "")
         self.assertIsNone(claim.submitted_at)
+
+
+class AdminWriteBoundaryTests(TestCase):
+    def test_task_protected_fields_are_read_only(self):
+        from django.contrib import admin
+        from tasks.admin import TaskAdmin
+
+        model_admin = TaskAdmin(Task, admin.site)
+        self.assertEqual(
+            set(model_admin.readonly_fields),
+            {"reward", "max_workers", "completed_workers", "status"},
+        )
+
+
+class AdminReadBoundaryTests(TestCase):
+    def test_task_claim_admin_does_not_search_submission_proof(self):
+        from django.contrib import admin
+        from tasks.admin import TaskClaimAdmin
+
+        model_admin = TaskClaimAdmin(TaskClaim, admin.site)
+        self.assertNotIn("proof", model_admin.search_fields)
+        self.assertIn("task__title", model_admin.search_fields)
+        self.assertIn("worker__username", model_admin.search_fields)
+
+
+class TaskClaimAdminReadBoundaryTests(TestCase):
+    def test_unprivileged_staff_cannot_view_task_claim_admin(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from tasks.admin import TaskClaimAdmin
+
+        staff = User.objects.create_user(
+            username="limited_task_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+        model_admin = TaskClaimAdmin(TaskClaim, admin.site)
+        request = RequestFactory().get("/admin/tasks/taskclaim/")
+        request.user = staff
+
+        self.assertFalse(model_admin.has_view_permission(request))
+
+    def test_task_reviewer_can_view_task_claim_admin(self):
+        from django.contrib import admin
+        from django.contrib.auth.models import Permission
+        from django.test import RequestFactory
+        from tasks.admin import TaskClaimAdmin
+
+        reviewer = User.objects.create_user(
+            username="task_reviewer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        reviewer.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="tasks",
+                codename="approve_task_submission",
+            )
+        )
+        model_admin = TaskClaimAdmin(TaskClaim, admin.site)
+        request = RequestFactory().get("/admin/tasks/taskclaim/")
+        request.user = reviewer
+
+        self.assertTrue(model_admin.has_view_permission(request))
+
+
+class TaskRewardOperationIntegrityTests(TestCase):
+    def setUp(self):
+        self.worker = User.objects.create_user(username="task_reward_worker", password="test-password-123")
+        AccountEntity.objects.create(user=self.worker, entity_type=AccountEntity.EntityType.WORKER)
+        WorkerProfile.objects.create(
+            user=self.worker,
+            balance=Decimal("100.00"),
+            reserved_balance=Decimal("0.00"),
+            total_earned=Decimal("100.00"),
+        )
+        self.task = Task.objects.create(
+            title="Integrity Task",
+            description="Test",
+            category="Testing",
+            reward=Decimal("25.00"),
+            max_workers=1,
+        )
+        self.claim = TaskClaim.objects.create(task=self.task, worker=self.worker, status="submitted")
+
+        class ModelAdminStub:
+            def message_user(self, request, message, level=None):
+                pass
+        self.modeladmin = ModelAdminStub()
+        self.request = type("RequestStub", (), {})()
+        self.request.user = User.objects.create_superuser(username="task_integrity_admin", password="test-admin-password")
+
+    def test_mismatched_existing_payment_does_not_approve_claim(self):
+        WalletTransaction.objects.create(
+            user=self.worker,
+            amount=Decimal("20.00"),
+            transaction_type="earning",
+            description="Integrity mismatch",
+            task_claim=self.claim,
+        )
+
+        from tasks.admin import approve_submissions
+        approve_submissions(self.modeladmin, self.request, TaskClaim.objects.filter(pk=self.claim.pk))
+
+        self.claim.refresh_from_db()
+        profile = WorkerProfile.objects.get(user=self.worker)
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(profile.balance, Decimal("100.00"))
+        self.assertEqual(profile.total_earned, Decimal("100.00"))

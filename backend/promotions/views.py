@@ -7,13 +7,20 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from .models import Promotion, PromotionClaim
 from wallet.models import WalletTransaction
+from core.security_policy_engine import require_authorized
+from accounts.authorization import worker_required
 
-@login_required
+@worker_required
 def marketplace(request):
+    require_authorized(actor="worker", resource="promotion", action="read", scope="role_scope", facts={"account_entity.active_worker": True})
     promotions = Promotion.objects.filter(status__in=["active", "approved", "paused"]).order_by("-created_at")
     search = request.GET.get("search", "").strip()
     if search:
         promotions = promotions.filter(title__icontains=search)
+    require_authorized(
+        actor="worker", resource="promotion_claim", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
     cards = ""
     for promotion in promotions:
         claim = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
@@ -55,12 +62,21 @@ def marketplace(request):
 </body></html>"""
     return HttpResponse(html)
 
-@login_required
+@worker_required
 @transaction.atomic
 def start_promotion(request, promotion_id):
     if request.method != "POST":
         return redirect("promotion_marketplace")
     promotion = get_object_or_404(Promotion.objects.select_for_update(), id=promotion_id, status__in=["active", "approved"])
+    require_authorized(
+        actor="worker", resource="promotion", action="claim", scope="role_scope",
+        facts={
+            "account_entity.active_worker": True,
+            "promotion.active": promotion.status in {"active", "approved"},
+            "promotion.capacity_available": promotion.completed_workers < promotion.max_workers,
+            "request.method.POST": True,
+        },
+    )
     existing = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
     if existing or promotion.completed_workers >= promotion.max_workers:
         return redirect("promotion_marketplace")
@@ -71,9 +87,28 @@ def start_promotion(request, promotion_id):
     promotion.save(update_fields=["completed_workers", "status"])
     return redirect("promotion_marketplace")
 
-@login_required
+@worker_required
+@transaction.atomic
 def submit_promotion(request, promotion_id):
-    claim = get_object_or_404(PromotionClaim, promotion_id=promotion_id, worker=request.user)
+    claim = get_object_or_404(PromotionClaim.objects.select_for_update(), promotion_id=promotion_id, worker=request.user)
+    if request.method == "POST":
+        require_authorized(
+            actor="worker", resource="promotion_claim", action="submit", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+                "claim.status.claimed": claim.status == "claimed",
+                "request.method.POST": True,
+            },
+        )
+    else:
+        require_authorized(
+            actor="worker", resource="promotion_claim", action="read", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+            },
+        )
     if claim.status != "claimed":
         return redirect("promotion_marketplace")
     if request.method == "POST":

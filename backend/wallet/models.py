@@ -15,10 +15,48 @@ class WalletTransaction(models.Model):
     description = models.CharField(max_length=255)
     task_claim = models.OneToOneField("tasks.TaskClaim", on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transaction")
     promotion_claim = models.OneToOneField("promotions.PromotionClaim", on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transaction")
+    withdrawal = models.OneToOneField(
+        "WithdrawalRequest",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="wallet_transaction",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(task_claim__isnull=True)
+                    | models.Q(transaction_type="earning")
+                ),
+                name="wallet_tx_task_identity_type",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(promotion_claim__isnull=True)
+                    | models.Q(transaction_type="earning")
+                ),
+                name="wallet_tx_promotion_identity_type",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(withdrawal__isnull=True)
+                    | models.Q(transaction_type="withdrawal")
+                ),
+                name="wallet_tx_withdrawal_identity_type",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(task_claim__isnull=True)
+                    | models.Q(promotion_claim__isnull=True)
+                    | models.Q(withdrawal__isnull=True)
+                ),
+                name="wallet_tx_single_operation_identity",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - ৳{self.amount}"

@@ -3,11 +3,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.authorization import worker_required
+from core.security_policy_engine import AuthorizationDenied, require_authorized
 from .models import Task, TaskClaim
 
 
 @worker_required
 def marketplace(request):
+    require_authorized(
+        actor="worker", resource="task", action="read", scope="role_scope",
+        facts={"account_entity.active_worker": True},
+    )
     category = request.GET.get("category", "").strip()
 
     tasks = Task.objects.filter(status="active").order_by("-created_at")
@@ -25,6 +30,10 @@ def marketplace(request):
 
     task_list = list(tasks)
 
+    require_authorized(
+        actor="worker", resource="task_claim", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
     claims = TaskClaim.objects.filter(
         task_id__in=[task.id for task in task_list],
         worker=request.user,
@@ -62,6 +71,19 @@ def claim_task(request, task_id):
         id=task_id,
         status="active",
     )
+    try:
+        require_authorized(
+            actor="worker", resource="task", action="claim", scope="role_scope",
+            facts={
+                "account_entity.active_worker": True,
+                "task.active": task.status == "active",
+                "task.capacity_available": task.completed_workers < task.max_workers,
+                "request.method.POST": request.method == "POST",
+            },
+        )
+    except AuthorizationDenied:
+        # Ineligible protected operations fail closed without exposing object state.
+        return redirect("task_marketplace")
     existing = TaskClaim.objects.filter(
         task=task,
         worker=request.user,
@@ -82,12 +104,33 @@ def task_detail(request, task_id):
 
 
 @worker_required
+@transaction.atomic
 def submit_task(request, task_id):
     claim = get_object_or_404(
-        TaskClaim,
+        TaskClaim.objects.select_for_update(),
         task_id=task_id,
         worker=request.user,
     )
+    if request.method == "POST":
+        require_authorized(
+            actor="worker", resource="task_claim", action="submit",
+            scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+                "claim.status.claimed": claim.status == "claimed",
+                "request.method.POST": True,
+            },
+        )
+    else:
+        require_authorized(
+            actor="worker", resource="task_claim", action="read",
+            scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": claim.worker_id == request.user.id,
+            },
+        )
     if claim.status != "claimed":
         return redirect("task_marketplace")
     if request.method == "POST":

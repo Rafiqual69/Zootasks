@@ -5,6 +5,7 @@ from django.db.models import F, Sum
 from django.shortcuts import redirect, render
 
 from accounts.authorization import worker_required
+from core.security_policy_engine import require_authorized
 from accounts.models import WorkerProfile
 from .models import WalletTransaction, WithdrawalRequest
 
@@ -33,9 +34,7 @@ def get_wallet_summary(user):
         or Decimal("0.00")
     )
 
-    profile = WorkerProfile.objects.get_or_create(
-        user=user
-    )[0]
+    profile = WorkerProfile.objects.get(user=user)
 
     pending_withdrawals = profile.reserved_balance
 
@@ -51,6 +50,7 @@ def get_wallet_summary(user):
 
 @worker_required
 def wallet(request):
+    require_authorized(actor="worker", resource="wallet", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     summary = get_wallet_summary(request.user)
 
     transactions = (
@@ -59,6 +59,7 @@ def wallet(request):
         .order_by("-created_at")[:20]
     )
 
+    require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     withdrawals = (
         WithdrawalRequest.objects
         .filter(user=request.user)
@@ -80,6 +81,13 @@ def wallet(request):
 @worker_required
 @transaction.atomic
 def request_withdrawal(request):
+    require_authorized(
+        actor="worker", resource="withdrawal", action="create", scope="own",
+        facts={
+            "account_entity.active_worker": True,
+            "request.method.POST": request.method == "POST",
+        },
+    )
     summary = get_wallet_summary(request.user)
     error = ""
 
@@ -141,6 +149,7 @@ def request_withdrawal(request):
 
 @worker_required
 def withdrawal_success(request):
+    require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     summary = get_wallet_summary(request.user)
 
     return render(
@@ -154,16 +163,44 @@ def withdrawal_success(request):
 
 @worker_required
 def withdrawal_history(request):
+    require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
     withdrawals = (
         WithdrawalRequest.objects
         .filter(user=request.user)
         .order_by("-requested_at")
+        .values(
+            "id",
+            "amount",
+            "bank_name",
+            "status",
+            "requested_at",
+            "processed_at",
+            "account_holder",
+            "bank_account",
+        )
     )
+
+    # Data-minimization boundary: do not pass raw payment identifiers to the
+    # template context. The template receives only masked representations.
+    safe_withdrawals = []
+    for withdrawal in withdrawals:
+        account_holder = withdrawal["account_holder"] or ""
+        bank_account = str(withdrawal["bank_account"] or "")
+        safe_withdrawals.append({
+            "id": withdrawal["id"],
+            "amount": withdrawal["amount"],
+            "bank_name": withdrawal["bank_name"],
+            "status": withdrawal["status"],
+            "requested_at": withdrawal["requested_at"],
+            "processed_at": withdrawal["processed_at"],
+            "masked_account_holder": f"{account_holder[0]}•••" if account_holder else "—",
+            "masked_bank_account": f"••••{bank_account[-4:]}" if len(bank_account) >= 4 else "••••",
+        })
 
     return render(
         request,
         "wallet/withdrawal_history.html",
         {
-            "withdrawals": withdrawals,
+            "withdrawals": safe_withdrawals,
         },
     )

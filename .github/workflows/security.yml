@@ -73,6 +73,10 @@ jobs:
           OWNER_USERNAME: "ci-owner"
         run: python manage.py makemigrations --check --dry-run
 
+      - name: Read/write security policy contract
+        working-directory: backend
+        run: python -m unittest core.test_security_policy -v
+
       - name: Full regression tests
         working-directory: backend
         env:

@@ -1,9 +1,14 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.test import TestCase
+from decimal import Decimal
 from django.urls import reverse
+from unittest.mock import patch
 
 from accounts.models import AccountEntity
 from .models import Promotion, PromotionClaim
+from accounts.models import WorkerProfile
+from wallet.models import WalletTransaction
 
 
 class PromotionXSSTests(TestCase):
@@ -104,3 +109,151 @@ class PromotionRewardValidationTests(TestCase):
 
         with self.assertRaises(ValidationError):
             promotion.full_clean()
+
+
+class PromotionApprovalNotificationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="notification-worker",
+            email="worker@example.com",
+        )
+        self.promotion = Promotion.objects.create(
+            title="Notification Promotion",
+            description="Test",
+            advertiser_name="Advertiser",
+            reward="25.00",
+            budget="100.00",
+            max_workers=4,
+            status="approved",
+        )
+        self.claim = PromotionClaim.objects.create(
+            promotion=self.promotion,
+            worker=self.user,
+            status="submitted",
+        )
+
+    @patch("promotions.signals.send_mail")
+    def test_approval_sends_notification_only_after_commit(self, send_mail_mock):
+        with transaction.atomic():
+            with self.captureOnCommitCallbacks(execute=False) as callbacks:
+                self.claim.status = "approved"
+                self.claim.save(update_fields=["status"])
+            send_mail_mock.assert_not_called()
+            self.assertEqual(len(callbacks), 1)
+
+        send_mail_mock.assert_not_called()
+        callbacks[0]()
+        send_mail_mock.assert_called_once()
+        self.assertFalse(send_mail_mock.call_args.kwargs["fail_silently"])
+
+    @patch("promotions.signals.send_mail")
+    def test_repeated_approved_save_does_not_duplicate_notification(self, send_mail_mock):
+        with transaction.atomic():
+            self.claim.status = "approved"
+            with self.captureOnCommitCallbacks(execute=True):
+                self.claim.save(update_fields=["status"])
+
+        send_mail_mock.assert_called_once()
+
+        with transaction.atomic():
+            with self.captureOnCommitCallbacks(execute=True):
+                self.claim.save(update_fields=["status"])
+
+        send_mail_mock.assert_called_once()
+
+    @patch("promotions.signals.send_mail")
+    def test_notification_failure_is_observable_without_rolling_back(self, send_mail_mock):
+        send_mail_mock.side_effect = RuntimeError("smtp unavailable")
+
+        with transaction.atomic():
+            self.claim.status = "approved"
+            with self.captureOnCommitCallbacks(execute=True):
+                self.claim.save(update_fields=["status"])
+
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.status, "approved")
+        send_mail_mock.assert_called_once()
+        self.assertFalse(send_mail_mock.call_args.kwargs["fail_silently"])
+
+
+class PromotionAdminWriteBoundaryTests(TestCase):
+    def test_promotion_protected_fields_are_read_only(self):
+        from django.contrib import admin
+        from promotions.admin import PromotionAdmin
+
+        model_admin = PromotionAdmin(Promotion, admin.site)
+        self.assertEqual(
+            set(model_admin.readonly_fields),
+            {"reward", "budget", "max_workers", "completed_workers", "status"},
+        )
+
+
+class PromotionClaimAdminReadBoundaryTests(TestCase):
+    def test_unprivileged_staff_cannot_view_promotion_claim_admin(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from promotions.admin import PromotionClaimAdmin
+
+        staff = get_user_model().objects.create_user(
+            username="limited_promotion_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        request = RequestFactory().get("/admin/promotions/promotionclaim/")
+        request.user = staff
+
+        self.assertFalse(model_admin.has_view_permission(request))
+
+    def test_promotion_reviewer_can_view_promotion_claim_admin(self):
+        from django.contrib import admin
+        from django.contrib.auth.models import Permission
+        from django.test import RequestFactory
+        from promotions.admin import PromotionClaimAdmin
+
+        reviewer = get_user_model().objects.create_user(
+            username="promotion_reviewer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        reviewer.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="promotions",
+                codename="approve_promotion_claim",
+            )
+        )
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        request = RequestFactory().get("/admin/promotions/promotionclaim/")
+        request.user = reviewer
+
+        self.assertTrue(model_admin.has_view_permission(request))
+
+
+class PromotionRewardOperationIntegrityTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="promotion_integrity_worker", password="test-password-123")
+        AccountEntity.objects.create(user=self.user, entity_type=AccountEntity.EntityType.WORKER)
+        WorkerProfile.objects.create(user=self.user, balance=Decimal("100.00"), reserved_balance=Decimal("0.00"), total_earned=Decimal("100.00"))
+        self.promotion = Promotion.objects.create(title="Integrity Promotion", description="Test", advertiser_name="Advertiser", reward=Decimal("25.00"), budget=Decimal("100.00"), max_workers=1, status="approved")
+        self.claim = PromotionClaim.objects.create(promotion=self.promotion, worker=self.user, status="submitted")
+
+        class ModelAdminStub:
+            def message_user(self, request, message, level=None):
+                pass
+        self.modeladmin = ModelAdminStub()
+        self.request = type("RequestStub", (), {})()
+        self.request.user = get_user_model().objects.create_superuser(username="promotion_integrity_admin", password="test-admin-password")
+
+    def test_mismatched_existing_payment_does_not_approve_claim(self):
+        WalletTransaction.objects.create(user=self.user, amount=Decimal("20.00"), transaction_type="earning", description="Integrity mismatch", promotion_claim=self.claim)
+        from promotions.admin import PromotionClaimAdmin
+        from django.contrib import admin
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        from unittest.mock import patch
+        with patch.object(model_admin, "message_user"):
+            model_admin.approve_claims(self.request, PromotionClaim.objects.filter(pk=self.claim.pk))
+        self.claim.refresh_from_db()
+        profile = WorkerProfile.objects.get(user=self.user)
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(profile.balance, Decimal("100.00"))
+        self.assertEqual(profile.total_earned, Decimal("100.00"))

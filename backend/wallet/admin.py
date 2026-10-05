@@ -4,6 +4,7 @@ from django.utils import timezone
 from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
+from core.security_policy_engine import require_authorized
 
 
 @admin.register(WalletTransaction)
@@ -33,8 +34,24 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "description",
         "task_claim",
         "promotion_claim",
+        "withdrawal",
         "created_at",
     )
+
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "wallet.approve_withdrawal",
+                "wallet.reject_withdrawal",
+                "wallet.mark_withdrawal_paid",
+            )
+        )
 
 
 @admin.action(description="✅ Approve selected withdrawals")
@@ -58,9 +75,14 @@ def approve_withdrawals(modeladmin, request, queryset):
                 .get(id=withdrawal_id)
             )
 
+            # Terminal/replayed states are safe no-ops. Check state before
+            # policy evaluation so a replay does not require an authorization
+            # context for an operation that will not execute.
             if withdrawal.status != "pending":
                 skipped += 1
                 continue
+
+            require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True})
 
             profile = (
                 WorkerProfile.objects
@@ -124,6 +146,17 @@ def reject_withdrawals(modeladmin, request, queryset):
             if withdrawal.status != "pending":
                 continue
 
+            require_authorized(
+                actor="finance",
+                resource="withdrawal",
+                action="reject",
+                scope="role_scope",
+                facts={
+                    "permission.withdrawal_reject": True,
+                    "business_rules.pending_withdrawal": True,
+                },
+            )
+
             profile = (
                 WorkerProfile.objects
                 .select_for_update()
@@ -174,19 +207,69 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 .get(id=withdrawal_id)
             )
 
+            # A replay of an already-completed state is a no-op, not a new
+            # protected payment operation. Never mutate it, but allow the
+            # idempotent action to be safely skipped.
             if withdrawal.status != "approved":
                 skipped_count += 1
                 continue
 
+            is_payer = (
+                request.user.has_perm("wallet.mark_withdrawal_paid")
+                and not request.user.has_perm("wallet.approve_withdrawal")
+            )
+            require_authorized(
+                actor="finance_payer",
+                resource="withdrawal",
+                action="pay",
+                scope="role_scope",
+                facts={
+                    "permission.withdrawal_pay": is_payer,
+                    "business_rules.approved_withdrawal": True,
+                    "idempotency.required": True,
+                },
+            )
+
+            # The ledger entry must be bound to this exact withdrawal
+            # operation by a DB-enforced OneToOne identity. Do not fall back
+            # to description matching: descriptions are human-readable data,
+            # not an authorization or idempotency key.
             existing_transaction = (
                 WalletTransaction.objects
-                .filter(
-                    user=withdrawal.user,
-                    transaction_type="withdrawal",
-                    description=f"Withdrawal #{withdrawal.id}",
-                )
+                .filter(withdrawal=withdrawal)
                 .first()
             )
+
+            # Transitional reconciliation for legacy rows created before
+            # operation identity existed. The human-readable description is
+            # accepted only as a migration bridge, never as the sole
+            # authority: exact withdrawal id, user, type, and amount must all
+            # match before the row is bound to this operation.
+            if existing_transaction is None:
+                legacy_transaction = (
+                    WalletTransaction.objects
+                    .filter(
+                        user=withdrawal.user,
+                        transaction_type="withdrawal",
+                        description=f"Withdrawal #{withdrawal.id}",
+                        withdrawal__isnull=True,
+                    )
+                    .first()
+                )
+                if legacy_transaction is not None:
+                    if legacy_transaction.amount != withdrawal.amount:
+                        skipped_count += 1
+                        modeladmin.message_user(
+                            request,
+                            f"❌ Withdrawal #{withdrawal.id} skipped: "
+                            "legacy ledger amount does not match withdrawal amount. "
+                            "Manual reconciliation required.",
+                            messages.ERROR,
+                        )
+                        continue
+                    legacy_transaction.withdrawal = withdrawal
+                    legacy_transaction.save(update_fields=["withdrawal"])
+                    existing_transaction = legacy_transaction
 
             if existing_transaction:
                 if existing_transaction.amount != withdrawal.amount:
@@ -250,6 +333,7 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 amount=amount,
                 transaction_type="withdrawal",
                 description=f"Withdrawal #{withdrawal.id}",
+                withdrawal=withdrawal,
             )
 
             profile.balance -= amount
@@ -290,14 +374,13 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
 
 @admin.register(WithdrawalRequest)
 class WithdrawalRequestAdmin(admin.ModelAdmin):
-
     list_display = (
         "id",
         "user",
         "amount",
         "bank_name",
-        "account_holder",
-        "bank_account",
+        "masked_account_holder",
+        "masked_bank_account",
         "status",
         "requested_at",
         "processed_at",
@@ -309,11 +392,12 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         "requested_at",
     )
 
+    # Never support exact searching over sensitive payment identifiers.
+    # Username/bank name are sufficient operational filters without exposing
+    # raw account numbers or account-holder names through the admin search UX.
     search_fields = (
         "user__username",
         "bank_name",
-        "account_holder",
-        "bank_account",
     )
 
     ordering = (
@@ -330,9 +414,44 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         "user",
         "amount",
         "bank_name",
-        "account_holder",
-        "bank_account",
+        "masked_account_holder",
+        "masked_bank_account",
         "status",
         "requested_at",
         "processed_at",
     )
+
+    @staticmethod
+    def _mask(value: str, visible_suffix: int = 0) -> str:
+        if not value:
+            return "—"
+        value = str(value)
+        if visible_suffix and len(value) > visible_suffix:
+            return f"••••{value[-visible_suffix:]}"
+        return "•" * min(max(len(value), 1), 12)
+
+    @admin.display(description="Account holder")
+    def masked_account_holder(self, obj):
+        value = obj.account_holder or ""
+        if not value:
+            return "—"
+        return f"{value[0]}•••"
+
+    @admin.display(description="Bank account")
+    def masked_bank_account(self, obj):
+        return self._mask(obj.bank_account, visible_suffix=4)
+
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "wallet.approve_withdrawal",
+                "wallet.reject_withdrawal",
+                "wallet.mark_withdrawal_paid",
+            )
+        )
