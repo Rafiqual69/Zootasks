@@ -611,3 +611,22 @@ class WithdrawalAdminDataMinimizationTests(TestCase):
         self.assertNotIn("account_holder", self.model_admin.readonly_fields)
         self.assertIn("masked_bank_account", self.model_admin.readonly_fields)
         self.assertIn("masked_account_holder", self.model_admin.readonly_fields)
+
+
+class WithdrawalHistoryDataMinimizationTests(TestCase):
+    def test_worker_history_does_not_render_raw_payment_identifiers(self):
+        user = User.objects.create_user(username="history_worker", password="test-password-123")
+        AccountEntity.objects.create(user=user, entity_type=AccountEntity.EntityType.WORKER)
+        WorkerProfile.objects.create(user=user, balance=Decimal("100.00"), reserved_balance=Decimal("50.00"), total_earned=Decimal("100.00"))
+        WithdrawalRequest.objects.create(
+            user=user, amount=Decimal("50.00"), bank_name="Safe Bank",
+            account_holder="Sensitive Person", bank_account="1234567890123456",
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("withdrawal_history"))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn("1234567890123456", content)
+        self.assertNotIn("Sensitive Person", content)
+        self.assertIn("••••3456", content)
+        self.assertIn("S•••", content)
