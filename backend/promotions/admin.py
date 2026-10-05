@@ -58,6 +58,20 @@ class PromotionClaimAdmin(admin.ModelAdmin):
 
     actions = ["approve_claims", "reject_claims"]
 
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "promotions.approve_promotion_claim",
+                "promotions.reject_promotion_claim",
+            )
+        )
+
     @admin.action(description="Approve selected promotion claims and pay reward")
     def approve_claims(self, request, queryset):
         if not request.user.has_perm("promotions.approve_promotion_claim"):
