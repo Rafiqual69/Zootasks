@@ -491,3 +491,116 @@ class WithdrawalAdminActionTests(TestCase):
         self.assertEqual(withdrawal.status, "approved")
         self.assertEqual(self.profile.balance, Decimal("200.00"))
         self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
+
+
+class WithdrawalAdminDataMinimizationTests(TestCase):
+    def setUp(self):
+        from django.test import RequestFactory
+        from wallet.admin import WithdrawalRequestAdmin
+
+        self.factory = RequestFactory()
+        self.admin_site = admin.site
+        self.model_admin = WithdrawalRequestAdmin(
+            WithdrawalRequest,
+            self.admin_site,
+        )
+        self.worker = User.objects.create_user(
+            username="sensitive_worker",
+            password="test-password-123",
+        )
+        self.withdrawal = WithdrawalRequest.objects.create(
+            user=self.worker,
+            amount=Decimal("75.00"),
+            bank_name="Safe Bank",
+            account_holder="Sensitive Person",
+            bank_account="1234567890123456",
+        )
+
+    def request_for(self, user):
+        request = self.factory.get("/admin/wallet/withdrawalrequest/")
+        request.user = user
+        return request
+
+    def test_unprivileged_staff_cannot_view_withdrawal_admin(self):
+        staff = User.objects.create_user(
+            username="limited_staff",
+            password="test-password-123",
+            is_staff=True,
+        )
+        staff.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="wallet",
+                codename="view_withdrawalrequest",
+            )
+        )
+        self.assertFalse(
+            self.model_admin.has_view_permission(
+                self.request_for(staff),
+                self.withdrawal,
+            )
+        )
+
+    def test_finance_can_view_withdrawal_admin(self):
+        finance = User.objects.create_user(
+            username="finance_viewer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        finance.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="wallet",
+                codename="approve_withdrawal",
+            )
+        )
+        self.assertTrue(
+            self.model_admin.has_view_permission(
+                self.request_for(finance),
+                self.withdrawal,
+            )
+        )
+
+    def test_payer_can_view_withdrawal_admin(self):
+        payer = User.objects.create_user(
+            username="payer_viewer",
+            password="test-password-123",
+            is_staff=True,
+        )
+        payer.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="wallet",
+                codename="mark_withdrawal_paid",
+            )
+        )
+        self.assertTrue(
+            self.model_admin.has_view_permission(
+                self.request_for(payer),
+                self.withdrawal,
+            )
+        )
+
+    def test_superuser_can_view_withdrawal_admin(self):
+        owner = User.objects.create_superuser(
+            username="withdrawal_owner",
+            password="test-password-123",
+        )
+        self.assertTrue(
+            self.model_admin.has_view_permission(
+                self.request_for(owner),
+                self.withdrawal,
+            )
+        )
+
+    def test_admin_list_masks_sensitive_payment_identity(self):
+        masked_account = self.model_admin.masked_bank_account(self.withdrawal)
+        masked_holder = self.model_admin.masked_account_holder(self.withdrawal)
+
+        self.assertNotEqual(masked_account, self.withdrawal.bank_account)
+        self.assertNotIn(self.withdrawal.bank_account, masked_account)
+        self.assertEqual(masked_account, "••••3456")
+        self.assertNotEqual(masked_holder, self.withdrawal.account_holder)
+        self.assertNotIn(self.withdrawal.account_holder, masked_holder)
+        self.assertEqual(masked_holder, "S•••")
+
+    def test_admin_search_excludes_raw_payment_identifiers(self):
+        self.assertNotIn("bank_account", self.model_admin.search_fields)
+        self.assertNotIn("account_holder", self.model_admin.search_fields)
