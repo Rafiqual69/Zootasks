@@ -162,7 +162,12 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     paid += 1
 
             except Exception:
-                logger.exception("Promotion claim approval failed safely")
+                # Keep operational logs free of claim proof, payment identifiers,
+                # credentials, and other request/object payloads.
+                logger.exception(
+                    "Promotion claim approval failed safely",
+                    extra={"security_event": "promotion_claim_approval_failure", "claim_id": claim_id},
+                )
                 failed += 1
 
         if paid:
