@@ -325,3 +325,13 @@ Collection, search, export, aggregate, and direct-object reads must all apply th
 Security-sensitive values must not be placed in URLs, logs, analytics payloads, exception messages, or client-visible errors. Authorization failures should be safe and non-enumerating where resource existence is protected.
 
 These controls follow the principles of least privilege, deny-by-default, object/property-level authorization, and data minimization described by OWASP and NIST.
+
+### 19. Model-Field Drift Prevention
+
+The machine policy is not considered authoritative if its protected-field vocabulary drifts from the actual Django domain models. Financial identity fields are explicitly protected, including the withdrawal owner's `user_id`, `bank_account`, `bank_name`, and `account_holder`. Policy validation therefore fails closed when the required financial identity field set is incomplete.
+
+This boundary follows OWASP object-property authorization and mass-assignment guidance: sensitive properties must not become readable or writable merely because a serializer, form, admin action, or future API exposes them. citeturn0search3turn1search1
+
+### 20. Security Logging Data Boundary
+
+Authorization and financial security events may be recorded for accountability, but secrets, authentication material, raw session identifiers, bank/payment details, and unnecessary personal data must not be copied into logs. Security events should retain safe metadata sufficient for investigation while minimizing sensitive content. OWASP specifically recommends excluding or sanitizing passwords, tokens, connection strings, encryption keys, bank/payment data and sensitive personal information from logs. citeturn1search0turn1search8
