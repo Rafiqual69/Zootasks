@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.authorization import worker_required
-from core.security_policy_engine import require_authorized
+from core.security_policy_engine import AuthorizationDenied, require_authorized
 from .models import Task, TaskClaim
 
 
@@ -67,15 +67,19 @@ def claim_task(request, task_id):
         id=task_id,
         status="active",
     )
-    require_authorized(
-        actor="worker", resource="task", action="claim", scope="role_scope",
-        facts={
-            "account_entity.active_worker": True,
-            "task.active": task.status == "active",
-            "task.capacity_available": task.completed_workers < task.max_workers,
-            "request.method.POST": request.method == "POST",
-        },
-    )
+    try:
+        require_authorized(
+            actor="worker", resource="task", action="claim", scope="role_scope",
+            facts={
+                "account_entity.active_worker": True,
+                "task.active": task.status == "active",
+                "task.capacity_available": task.completed_workers < task.max_workers,
+                "request.method.POST": request.method == "POST",
+            },
+        )
+    except AuthorizationDenied:
+        # Ineligible protected operations fail closed without exposing object state.
+        return redirect("task_marketplace")
     existing = TaskClaim.objects.filter(
         task=task,
         worker=request.user,
