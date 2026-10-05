@@ -2,8 +2,19 @@ from django.contrib import admin, messages
 from django.db import transaction
 
 from .models import Task, TaskClaim
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
+
+
+def _owner_authorized(user):
+    return (
+        bool(user and user.is_authenticated and user.is_staff and user.is_superuser)
+        and AccountEntity.objects.filter(
+            user=user,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        ).exists()
+    )
 
 
 @admin.register(Task)
@@ -21,6 +32,28 @@ class TaskAdmin(admin.ModelAdmin):
     list_filter = ("status", "category")
     search_fields = ("title", "description")
     ordering = ("-created_at",)
+
+    financial_immutable_fields = (
+        "reward",
+        "max_workers",
+        "completed_workers",
+    )
+
+    def has_add_permission(self, request):
+        return _owner_authorized(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return _owner_authorized(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        # Task deletion cascades into TaskClaim records; financial history
+        # must not be destructively removed through the admin.
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        return self.financial_immutable_fields
 
 
 @admin.action(description="✅ Approve selected submissions & pay reward")
