@@ -127,13 +127,16 @@ def reject_submissions(modeladmin, request, queryset):
         )
         return
 
-    require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": True})
-
-    updated = queryset.filter(
-        status="submitted"
-    ).update(
-        status="rejected"
-    )
+    updated = 0
+    for claim_id in queryset.values_list("id", flat=True):
+        with transaction.atomic():
+            claim = TaskClaim.objects.select_for_update().get(id=claim_id)
+            require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": claim.status == "submitted"})
+            if claim.status != "submitted":
+                continue
+            claim.status = "rejected"
+            claim.save(update_fields=["status"])
+            updated += 1
 
     modeladmin.message_user(
         request,
