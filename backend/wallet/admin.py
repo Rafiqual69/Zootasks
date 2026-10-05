@@ -4,6 +4,7 @@ from django.utils import timezone
 from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
+from core.security_policy_engine import require_authorized
 
 
 @admin.register(WalletTransaction)
@@ -46,6 +47,8 @@ def approve_withdrawals(modeladmin, request, queryset):
             messages.ERROR,
         )
         return
+
+    require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True})
 
     updated = 0
     skipped = 0
@@ -111,6 +114,8 @@ def reject_withdrawals(modeladmin, request, queryset):
         )
         return
 
+    require_authorized(actor="finance", resource="withdrawal", action="reject", scope="role_scope", facts={"permission.withdrawal_reject": True, "business_rules.pending_withdrawal": True})
+
     updated = 0
 
     for withdrawal_id in queryset.values_list("id", flat=True):
@@ -159,6 +164,8 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
             messages.ERROR,
         )
         return
+
+    require_authorized(actor="finance_payer", resource="withdrawal", action="pay", scope="role_scope", facts={"permission.withdrawal_pay": True, "business_rules.approved_withdrawal": True, "idempotency.required": True})
 
     paid_count = 0
     skipped_count = 0
