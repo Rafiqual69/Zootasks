@@ -272,6 +272,17 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                     existing_transaction = legacy_transaction
 
             if existing_transaction:
+                # Operation identity is necessary but not sufficient: the
+                # ledger actor must also match the withdrawal owner.
+                if existing_transaction.user_id != withdrawal.user_id:
+                    skipped_count += 1
+                    modeladmin.message_user(
+                        request,
+                        f"❌ Withdrawal #{withdrawal.id} skipped: ledger owner does not match withdrawal owner. Manual reconciliation required.",
+                        messages.ERROR,
+                    )
+                    continue
+
                 if existing_transaction.amount != withdrawal.amount:
                     skipped_count += 1
                     modeladmin.message_user(
