@@ -5,6 +5,7 @@ from django.utils import timezone
 from .models import Promotion, PromotionClaim
 from accounts.models import WorkerProfile
 from wallet.models import WalletTransaction
+from core.security_policy_engine import require_authorized
 
 
 @admin.register(Promotion)
@@ -60,6 +61,8 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                 messages.ERROR,
             )
             return
+
+        require_authorized(actor="finance", resource="promotion_claim", action="approve", scope="role_scope", facts={"permission.promotion_approve": True, "business_rules.valid_promotion_claim": True})
 
         paid = 0
         already_paid = 0
@@ -181,6 +184,8 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                 messages.ERROR,
             )
             return
+
+        require_authorized(actor="finance", resource="promotion_claim", action="reject", scope="role_scope", facts={"permission.promotion_reject": True, "business_rules.valid_promotion_claim": True})
 
         updated = queryset.filter(
             status="submitted"
