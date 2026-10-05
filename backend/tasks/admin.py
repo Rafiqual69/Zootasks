@@ -50,22 +50,29 @@ def approve_submissions(modeladmin, request, queryset):
                 .get(id=claim_id)
             )
 
-            require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": claim.status == "submitted"})
-
             if claim.status != "submitted":
                 continue
 
+            require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": True})
+
+            reward = claim.task.reward
             existing_payment = WalletTransaction.objects.filter(
-                task_claim=claim
+                task_claim=claim,
+                transaction_type="earning",
             ).first()
 
             if existing_payment:
+                if existing_payment.amount != reward:
+                    modeladmin.message_user(
+                        request,
+                        f"❌ Task claim #{claim.id} skipped: existing ledger amount does not match the current reward. Manual reconciliation required.",
+                        messages.ERROR,
+                    )
+                    continue
                 claim.status = "approved"
                 claim.save(update_fields=["status"])
                 already_paid += 1
                 continue
-
-            reward = claim.task.reward
 
             profile = (
                 WorkerProfile.objects
@@ -135,9 +142,9 @@ def reject_submissions(modeladmin, request, queryset):
     for claim_id in queryset.values_list("id", flat=True):
         with transaction.atomic():
             claim = TaskClaim.objects.select_for_update().get(id=claim_id)
-            require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": claim.status == "submitted"})
             if claim.status != "submitted":
                 continue
+            require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": True})
             claim.status = "rejected"
             claim.save(update_fields=["status"])
             updated += 1
