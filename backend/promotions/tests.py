@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from unittest.mock import patch
 
 from accounts.models import AccountEntity
 from .models import Promotion, PromotionClaim
@@ -104,3 +105,64 @@ class PromotionRewardValidationTests(TestCase):
 
         with self.assertRaises(ValidationError):
             promotion.full_clean()
+
+
+class PromotionApprovalNotificationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="notification-worker",
+            email="worker@example.com",
+        )
+        self.promotion = Promotion.objects.create(
+            title="Notification Promotion",
+            description="Test",
+            advertiser_name="Advertiser",
+            reward="25.00",
+            budget="100.00",
+            max_workers=4,
+            status="approved",
+        )
+        self.claim = PromotionClaim.objects.create(
+            promotion=self.promotion,
+            worker=self.user,
+            status="submitted",
+        )
+
+    @patch("promotions.signals.send_mail")
+    def test_approval_sends_notification_only_after_commit(self, send_mail_mock):
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            self.claim.status = "approved"
+            self.claim.save(update_fields=["status"])
+            send_mail_mock.assert_not_called()
+            self.assertEqual(len(callbacks), 1)
+
+        send_mail_mock.assert_not_called()
+        callbacks[0]()
+        send_mail_mock.assert_called_once()
+        self.assertFalse(send_mail_mock.call_args.kwargs["fail_silently"])
+
+    @patch("promotions.signals.send_mail")
+    def test_repeated_approved_save_does_not_duplicate_notification(self, send_mail_mock):
+        self.claim.status = "approved"
+        with self.captureOnCommitCallbacks(execute=True):
+            self.claim.save(update_fields=["status"])
+
+        send_mail_mock.assert_called_once()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.claim.save(update_fields=["status"])
+
+        send_mail_mock.assert_called_once()
+
+    @patch("promotions.signals.send_mail")
+    def test_notification_failure_is_observable_without_rolling_back(self, send_mail_mock):
+        send_mail_mock.side_effect = RuntimeError("smtp unavailable")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.claim.status = "approved"
+            self.claim.save(update_fields=["status"])
+
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.status, "approved")
+        send_mail_mock.assert_called_once()
+        self.assertFalse(send_mail_mock.call_args.kwargs["fail_silently"])
