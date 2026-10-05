@@ -13,7 +13,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 POLICY_PATH = BASE_DIR / "docs" / "security" / "read_write_policy.json"
 SCHEMA_PATH = BASE_DIR / "docs" / "security" / "read_write_policy.schema.json"
 
