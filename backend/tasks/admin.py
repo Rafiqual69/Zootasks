@@ -170,7 +170,6 @@ class TaskClaimAdmin(admin.ModelAdmin):
     search_fields = (
         "task__title",
         "worker__username",
-        "proof",
     )
 
     ordering = ("-claimed_at",)
