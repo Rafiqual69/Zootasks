@@ -188,12 +188,28 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 .get(id=withdrawal_id)
             )
 
-            is_payer = request.user.has_perm("wallet.mark_withdrawal_paid") and not request.user.has_perm("wallet.approve_withdrawal")
-            require_authorized(actor="finance_payer", resource="withdrawal", action="pay", scope="role_scope", facts={"permission.withdrawal_pay": is_payer, "business_rules.approved_withdrawal": withdrawal.status == "approved", "idempotency.required": True})
-
+            # A replay of an already-completed state is a no-op, not a new
+            # protected payment operation. Never mutate it, but allow the
+            # idempotent action to be safely skipped.
             if withdrawal.status != "approved":
                 skipped_count += 1
                 continue
+
+            is_payer = (
+                request.user.has_perm("wallet.mark_withdrawal_paid")
+                and not request.user.has_perm("wallet.approve_withdrawal")
+            )
+            require_authorized(
+                actor="finance_payer",
+                resource="withdrawal",
+                action="pay",
+                scope="role_scope",
+                facts={
+                    "permission.withdrawal_pay": is_payer,
+                    "business_rules.approved_withdrawal": True,
+                    "idempotency.required": True,
+                },
+            )
 
             existing_transaction = (
                 WalletTransaction.objects
