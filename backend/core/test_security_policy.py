@@ -69,6 +69,17 @@ class SecurityPolicyContractTests(unittest.TestCase):
         with self.assertRaises(SecurityPolicyError):
             validate_policy(policy, self.schema)
 
+    def test_data_disclosure_controls_cannot_be_weakened(self):
+        policy = copy.deepcopy(self.policy)
+        policy["data_handling"]["response_allowlist_only"] = False
+        with self.assertRaises(SecurityPolicyError):
+            validate_policy(policy, self.schema)
+
+    def test_client_cannot_control_sensitive_fields(self):
+        policy = copy.deepcopy(self.policy)
+        policy["data_handling"]["client_controls_sensitive_fields"] = True
+        with self.assertRaises(SecurityPolicyError):
+            validate_policy(policy, self.schema)
 
 if __name__ == "__main__":
     unittest.main()
