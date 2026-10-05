@@ -41,6 +41,18 @@ def register(request):
 
 @worker_required
 def dashboard(request):
+    require_authorized(
+        actor="worker", resource="worker_profile", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
+    require_authorized(
+        actor="worker", resource="wallet", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
+    require_authorized(
+        actor="worker", resource="wallet_transaction", action="read", scope="own",
+        facts={"account_entity.active_worker": True, "object.owner_is_actor": True},
+    )
     profile = WorkerProfile.objects.get(user=request.user)
 
     transactions = WalletTransaction.objects.filter(
