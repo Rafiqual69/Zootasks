@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.contrib import admin
 from django.contrib.auth.models import Permission, User
+from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -746,7 +747,7 @@ class WithdrawalOperationIdentityTests(TestCase):
             withdrawal=self.withdrawal,
         )
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             WalletTransaction.objects.create(
                 user=self.user,
                 amount=self.withdrawal.amount,
