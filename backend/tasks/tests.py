@@ -357,6 +357,144 @@ class TaskRewardOperationIntegrityTests(TestCase):
         self.assertEqual(profile.total_earned, Decimal("100.00"))
 
 
+class FinancialAdminHttpTamperingTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="http_task_owner",
+            password="test-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        AccountEntity.objects.create(
+            user=self.owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.task = Task.objects.create(
+            title="Protected Task",
+            description="Protected task",
+            category="Testing",
+            reward="25.00",
+            max_workers=5,
+            completed_workers=1,
+            status="active",
+        )
+        self.client.force_login(self.owner)
+
+    def test_change_post_cannot_tamper_protected_fields(self):
+        url = reverse("admin:tasks_task_change", args=[self.task.pk])
+        response = self.client.post(
+            url,
+            {
+                "title": "Updated Title",
+                "description": "Updated description",
+                "category": "Testing",
+                "reward": "9999.99",
+                "max_workers": "999",
+                "completed_workers": "999",
+                "status": "completed",
+                "deadline": "",
+                "_save": "Save",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.title, "Updated Title")
+        self.assertEqual(self.task.description, "Updated description")
+        self.assertEqual(self.task.reward, Decimal("25.00"))
+        self.assertEqual(self.task.max_workers, 5)
+        self.assertEqual(self.task.completed_workers, 1)
+        self.assertEqual(self.task.status, "active")
+
+    def test_owner_can_create_task_with_financial_fields(self):
+        url = reverse("admin:tasks_task_add")
+        response = self.client.post(
+            url,
+            {
+                "title": "Owner Created Task",
+                "description": "Created through authorized admin flow",
+                "category": "Testing",
+                "reward": "35.00",
+                "max_workers": "3",
+                "completed_workers": "0",
+                "status": "active",
+                "deadline": "",
+                "_save": "Save",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Owner Created Task")
+        self.assertEqual(task.reward, Decimal("35.00"))
+        self.assertEqual(task.max_workers, 3)
+        self.assertEqual(task.completed_workers, 0)
+        self.assertEqual(task.status, "active")
+
+    def test_non_owner_cannot_create_task(self):
+        non_owner = User.objects.create_user(
+            username="http_task_add_non_owner",
+            password="test-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(non_owner)
+
+        url = reverse("admin:tasks_task_add")
+        response = self.client.post(
+            url,
+            {
+                "title": "Unauthorized Created Task",
+                "description": "Must not be created",
+                "category": "Testing",
+                "reward": "9999.99",
+                "max_workers": "999",
+                "completed_workers": "999",
+                "status": "active",
+                "deadline": "",
+                "_save": "Save",
+            },
+        )
+
+        self.assertIn(response.status_code, (302, 403))
+        self.assertFalse(
+            Task.objects.filter(title="Unauthorized Created Task").exists()
+        )
+
+
+    def test_non_owner_cannot_post_task_change(self):
+        non_owner = User.objects.create_user(
+            username="http_task_non_owner",
+            password="test-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(non_owner)
+
+        url = reverse("admin:tasks_task_change", args=[self.task.pk])
+        response = self.client.post(
+            url,
+            {
+                "title": "Unauthorized Change",
+                "description": "Unauthorized",
+                "category": "Testing",
+                "reward": "9999.99",
+                "max_workers": "999",
+                "completed_workers": "999",
+                "status": "completed",
+                "deadline": "",
+                "_save": "Save",
+            },
+        )
+
+        self.assertIn(response.status_code, (302, 403))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.title, "Protected Task")
+        self.assertEqual(self.task.reward, Decimal("25.00"))
+        self.assertEqual(self.task.max_workers, 5)
+        self.assertEqual(self.task.completed_workers, 1)
+        self.assertEqual(self.task.status, "active")
+
+
 class FinancialAdminPolicyBoundaryTests(TestCase):
     def setUp(self):
         from django.contrib import admin
@@ -395,6 +533,23 @@ class FinancialAdminPolicyBoundaryTests(TestCase):
             reward="10.00", max_workers=2,
         )
         self.assertFalse(self.admin.has_change_permission(request, task))
+
+    def test_inactive_owner_entity_is_denied_by_policy(self):
+        request = self.request_for(self.owner)
+        entity = AccountEntity.objects.get(user=self.owner)
+        entity.is_active = False
+        entity.save(update_fields=["is_active"])
+
+        task = Task(
+            title="Existing",
+            description="Existing task",
+            reward="10.00",
+            max_workers=2,
+        )
+
+        self.assertFalse(self.admin.has_add_permission(request))
+        self.assertFalse(self.admin.has_change_permission(request, task))
+
 
     def test_protected_fields_are_immutable_on_existing_objects(self):
         request = self.request_for(self.owner)

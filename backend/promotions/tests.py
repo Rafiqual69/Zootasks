@@ -11,6 +11,166 @@ from accounts.models import WorkerProfile
 from wallet.models import WalletTransaction
 
 
+class FinancialAdminHttpTamperingTests(TestCase):
+    def setUp(self):
+        owner = get_user_model().objects.create_user(
+            username="http_promotion_owner",
+            password="test-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        AccountEntity.objects.create(
+            user=owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+        )
+        self.promotion = Promotion.objects.create(
+            title="Protected Promotion",
+            description="Protected promotion",
+            advertiser_name="Test Advertiser",
+            reward="15.00",
+            budget="100.00",
+            max_workers=5,
+            completed_workers=1,
+            status="active",
+        )
+        self.client.force_login(owner)
+
+    def test_change_post_cannot_tamper_protected_fields(self):
+        url = reverse(
+            "admin:promotions_promotion_change",
+            args=[self.promotion.pk],
+        )
+        response = self.client.post(
+            url,
+            {
+                "title": "Updated Promotion",
+                "description": "Updated description",
+                "advertiser_name": "Updated Advertiser",
+                "reward": "9999.99",
+                "budget": "99999.99",
+                "max_workers": "999",
+                "completed_workers": "999",
+                "status": "completed",
+                "_save": "Save",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.promotion.refresh_from_db()
+        self.assertEqual(self.promotion.title, "Updated Promotion")
+        self.assertEqual(
+            self.promotion.description,
+            "Updated description",
+        )
+        self.assertEqual(
+            self.promotion.advertiser_name,
+            "Updated Advertiser",
+        )
+        self.assertEqual(self.promotion.reward, Decimal("15.00"))
+        self.assertEqual(self.promotion.budget, Decimal("100.00"))
+        self.assertEqual(self.promotion.max_workers, 5)
+        self.assertEqual(self.promotion.completed_workers, 1)
+        self.assertEqual(self.promotion.status, "active")
+
+    def test_owner_can_create_promotion_with_financial_fields(self):
+        url = reverse("admin:promotions_promotion_add")
+        response = self.client.post(
+            url,
+            {
+                "title": "Owner Created Promotion",
+                "description": "Created through authorized admin flow",
+                "advertiser_name": "Authorized Advertiser",
+                "reward": "20.00",
+                "budget": "200.00",
+                "max_workers": "4",
+                "completed_workers": "0",
+                "status": "active",
+                "_save": "Save",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        promotion = Promotion.objects.get(title="Owner Created Promotion")
+        self.assertEqual(promotion.reward, Decimal("20.00"))
+        self.assertEqual(promotion.budget, Decimal("200.00"))
+        self.assertEqual(promotion.max_workers, 4)
+        self.assertEqual(promotion.completed_workers, 0)
+        self.assertEqual(promotion.status, "active")
+
+    def test_non_owner_cannot_create_promotion(self):
+        non_owner = get_user_model().objects.create_user(
+            username="http_promotion_add_non_owner",
+            password="test-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(non_owner)
+
+        url = reverse("admin:promotions_promotion_add")
+        response = self.client.post(
+            url,
+            {
+                "title": "Unauthorized Created Promotion",
+                "description": "Must not be created",
+                "advertiser_name": "Unauthorized Advertiser",
+                "reward": "9999.99",
+                "budget": "99999.99",
+                "max_workers": "999",
+                "completed_workers": "999",
+                "status": "active",
+                "_save": "Save",
+            },
+        )
+
+        self.assertIn(response.status_code, (302, 403))
+        self.assertFalse(
+            Promotion.objects.filter(
+                title="Unauthorized Created Promotion"
+            ).exists()
+        )
+
+
+    def test_non_owner_cannot_post_promotion_change(self):
+        non_owner = get_user_model().objects.create_user(
+            username="http_promotion_non_owner",
+            password="test-password-123",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(non_owner)
+
+        url = reverse(
+            "admin:promotions_promotion_change",
+            args=[self.promotion.pk],
+        )
+        response = self.client.post(
+            url,
+            {
+                "title": "Unauthorized Promotion Change",
+                "description": "Unauthorized",
+                "advertiser_name": "Unauthorized Advertiser",
+                "reward": "9999.99",
+                "budget": "99999.99",
+                "max_workers": "999",
+                "completed_workers": "999",
+                "status": "completed",
+                "_save": "Save",
+            },
+        )
+
+        self.assertIn(response.status_code, (302, 403))
+        self.promotion.refresh_from_db()
+        self.assertEqual(
+            self.promotion.title,
+            "Protected Promotion",
+        )
+        self.assertEqual(self.promotion.reward, Decimal("15.00"))
+        self.assertEqual(self.promotion.budget, Decimal("100.00"))
+        self.assertEqual(self.promotion.max_workers, 5)
+        self.assertEqual(self.promotion.completed_workers, 1)
+        self.assertEqual(self.promotion.status, "active")
+
+
 class PromotionXSSTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -299,6 +459,25 @@ class FinancialAdminPolicyBoundaryTests(TestCase):
             budget="100.00", max_workers=10,
         )
         self.assertFalse(self.admin.has_change_permission(request, promotion))
+
+    def test_inactive_owner_entity_is_denied_by_policy(self):
+        request = self.request_for(self.owner)
+        entity = AccountEntity.objects.get(user=self.owner)
+        entity.is_active = False
+        entity.save(update_fields=["is_active"])
+
+        promotion = Promotion(
+            title="Existing",
+            description="Existing promotion",
+            advertiser_name="Advertiser",
+            reward="10.00",
+            budget="100.00",
+            max_workers=10,
+        )
+
+        self.assertFalse(self.admin.has_add_permission(request))
+        self.assertFalse(self.admin.has_change_permission(request, promotion))
+
 
     def test_protected_fields_are_immutable_on_existing_objects(self):
         request = self.request_for(self.owner)
