@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "default_decision": "deny",
+  "actors": {
+    "worker": {
+      "wallet": [
+        "read_own"
+      ],
+      "withdrawal": [
+        "create_own",
+        "read_own"
+      ],
+      "task": [
+        "read",
+        "claim",
+        "submit_own_claim"
+      ],
+      "promotion": [
+        "read",
+        "claim",
+        "submit_own_claim"
+      ]
+    },
+    "finance": {
+      "withdrawal": [
+        "read_scoped",
+        "approve",
+        "reject"
+      ],
+      "wallet_transaction": [
+        "read_scoped"
+      ]
+    },
+    "finance_payer": {
+      "withdrawal": [
+        "read_scoped",
+        "pay"
+      ]
+    },
+    "owner": {
+      "account_entity": [
+        "read",
+        "lifecycle"
+      ],
+      "task": [
+        "create",
+        "policy_change"
+      ],
+      "promotion": [
+        "create",
+        "policy_change"
+      ],
+      "security_evidence": [
+        "read"
+      ]
+    },
+    "ai": {
+      "task": [
+        "classify"
+      ],
+      "promotion": [
+        "classify"
+      ],
+      "wallet": [],
+      "withdrawal": [],
+      "account_entity": []
+    }
+  },
+  "protected_data": [
+    "password",
+    "session_identifier",
+    "totp_secret",
+    "webauthn_credential",
+    "api_credential",
+    "smtp_credential",
+    "bank_account",
+    "raw_authentication_token"
+  ],
+  "financial_write_rule": "Only explicitly authorized server-side financial operations may mutate financial state.",
+  "ai_financial_write_rule": "AI has no direct financial write authority."
+}

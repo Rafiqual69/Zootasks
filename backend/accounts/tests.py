@@ -24,6 +24,12 @@ class OwnerMFATests(TestCase):
             is_superuser=True,
         )
 
+        AccountEntity.objects.create(
+            user=self.owner,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        )
+
         self.device = TOTPDevice.objects.create(
             user=self.owner,
             name="owner-primary",
@@ -75,6 +81,27 @@ class OwnerMFATests(TestCase):
         self.assertFalse(self.client.session.get("_auth_user_id"))
         self.assertContains(response, "Invalid token")
 
+    def test_owner_login_rejects_inactive_owner_entity(self):
+        entity = AccountEntity.objects.get(user=self.owner)
+        entity.is_active = False
+        entity.save(update_fields=["is_active"])
+
+        response = self.client.post(
+            reverse("owner_login"),
+            {
+                "username": self.owner.username,
+                "password": "Strong-Test-Password-123!",
+                "otp_device": self.device.persistent_id,
+                "otp_token": self.current_token(),
+                "otp_challenge": "",
+            },
+            HTTP_HOST="127.0.0.1",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.client.session.get("_auth_user_id"))
+        self.assertContains(response, "no active Owner security entity")
+
     def test_owner_login_rejects_unconfirmed_mfa(self):
         self.device.confirmed = False
         self.device.save(update_fields=["confirmed"])
@@ -94,6 +121,39 @@ class OwnerMFATests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(self.client.session.get("_auth_user_id"))
         self.assertContains(response, "MFA is not enrolled")
+
+    def test_owner_login_rejects_staff_superuser_without_owner_entity(self):
+        User = get_user_model()
+        other = User.objects.create_user(
+            username="staff-without-owner-entity",
+            password="Strong-Test-Password-123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        device = TOTPDevice.objects.create(
+            user=other,
+            name="other-device",
+            confirmed=True,
+        )
+        token = pyotp.TOTP(
+            b32encode(device.bin_key).decode("ascii")
+        ).now()
+
+        response = self.client.post(
+            reverse("owner_login"),
+            {
+                "username": other.username,
+                "password": "Strong-Test-Password-123!",
+                "otp_device": device.persistent_id,
+                "otp_token": token,
+                "otp_challenge": "",
+            },
+            HTTP_HOST="127.0.0.1",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.client.session.get("_auth_user_id"))
+        self.assertContains(response, "no active Owner security entity")
 
     def test_owner_login_rejects_non_owner(self):
         User = get_user_model()

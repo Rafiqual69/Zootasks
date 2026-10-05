@@ -2,6 +2,8 @@ from django import forms
 from django_otp.forms import OTPAuthenticationForm
 from django.contrib.auth.models import User
 
+from .models import AccountEntity
+
 
 class RegistrationForm(forms.ModelForm):
     password = forms.CharField(
@@ -61,6 +63,15 @@ class OwnerOTPAuthenticationForm(OTPAuthenticationForm):
         if not user.is_staff or not user.is_superuser:
             raise ValidationError(
                 "This account is not authorized for Owner access."
+            )
+
+        if not AccountEntity.objects.filter(
+            user=user,
+            entity_type=AccountEntity.EntityType.OWNER,
+            is_active=True,
+        ).exists():
+            raise ValidationError(
+                "This account has no active Owner security entity."
             )
 
         if not TOTPDevice.objects.filter(user=user, confirmed=True).exists():
