@@ -297,6 +297,6 @@ class PromotionAdminAuthorizationTests(TestCase):
         )
         self.assertEqual(
             set(self.model_admin.get_readonly_fields(request, promotion)),
-            {"reward", "budget", "max_workers", "completed_workers"},
+            {"reward", "budget", "max_workers", "completed_workers", "status"},
         )
         self.assertEqual(self.model_admin.get_readonly_fields(request, None), ())
