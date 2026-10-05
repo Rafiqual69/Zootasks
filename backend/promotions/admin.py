@@ -51,7 +51,7 @@ class PromotionAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             return ()
-        return self.financial_immutable_fields
+        return self.financial_immutable_fields + ("status",)
 
     # Protected promotion financial/state fields are read-only in generic admin forms.
     readonly_fields = ("reward", "budget", "max_workers", "completed_workers", "status")
