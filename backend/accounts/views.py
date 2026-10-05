@@ -40,9 +40,7 @@ def register(request):
 
 @worker_required
 def dashboard(request):
-    profile, _ = WorkerProfile.objects.get_or_create(
-        user=request.user
-    )
+    profile = WorkerProfile.objects.get(user=request.user)
 
     transactions = WalletTransaction.objects.filter(
         user=request.user
