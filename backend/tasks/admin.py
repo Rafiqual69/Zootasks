@@ -23,6 +23,10 @@ class TaskAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     ordering = ("-created_at",)
 
+    # Protected task fields are never directly writable through generic Django
+    # admin forms. Financial/state changes must use an explicit policy-bound workflow.
+    readonly_fields = ("reward", "max_workers", "completed_workers", "status")
+
 
 @admin.action(description="✅ Approve selected submissions & pay reward")
 def approve_submissions(modeladmin, request, queryset):
