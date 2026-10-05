@@ -161,6 +161,11 @@ def validate_policy(
         raise SecurityPolicyError("data disclosure safety invariant weakened")
     if data_handling.get("client_controls_sensitive_fields") is not False:
         raise SecurityPolicyError("client control over sensitive fields is forbidden")
+    if data_handling.get("actual_model_field_alignment") is not True:
+        raise SecurityPolicyError("policy/model field alignment is required")
+    required_financial_fields = {"user_id", "bank_account", "bank_name", "account_holder"}
+    if not required_financial_fields.issubset(set(data_handling.get("protected_financial_identity_fields", []))):
+        raise SecurityPolicyError("financial identity fields are incomplete")
 
     return copy.deepcopy(policy)
 
