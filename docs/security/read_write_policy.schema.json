@@ -20,65 +20,181 @@
     "rules",
     "protected_fields",
     "audit",
-    "change_control"
+    "change_control",
+    "data_handling"
   ],
   "properties": {
-    "$schema": {"type": "string"},
-    "policy_id": {"type": "string", "pattern": "^ZT-[A-Z0-9-]+$"},
-    "policy_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
-    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
-    "status": {"enum": ["normative-baseline", "active", "deprecated"]},
+    "$schema": {
+      "type": "string"
+    },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^ZT-[A-Z0-9-]+$"
+    },
+    "policy_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "status": {
+      "enum": [
+        "normative-baseline",
+        "active",
+        "deprecated"
+      ]
+    },
     "enforcement": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode", "default_decision", "unknown_actor", "unknown_resource", "unknown_action", "unknown_scope", "policy_parse_failure", "policy_conflict", "client_assertion_is_authority"],
+      "required": [
+        "mode",
+        "default_decision",
+        "unknown_actor",
+        "unknown_resource",
+        "unknown_action",
+        "unknown_scope",
+        "policy_parse_failure",
+        "policy_conflict",
+        "client_assertion_is_authority"
+      ],
       "properties": {
-        "mode": {"const": "server-side-only"},
-        "default_decision": {"const": "deny"},
-        "unknown_actor": {"const": "deny"},
-        "unknown_resource": {"const": "deny"},
-        "unknown_action": {"const": "deny"},
-        "unknown_scope": {"const": "deny"},
-        "policy_parse_failure": {"const": "deny"},
-        "policy_conflict": {"const": "deny"},
-        "client_assertion_is_authority": {"const": false}
+        "mode": {
+          "const": "server-side-only"
+        },
+        "default_decision": {
+          "const": "deny"
+        },
+        "unknown_actor": {
+          "const": "deny"
+        },
+        "unknown_resource": {
+          "const": "deny"
+        },
+        "unknown_action": {
+          "const": "deny"
+        },
+        "unknown_scope": {
+          "const": "deny"
+        },
+        "policy_parse_failure": {
+          "const": "deny"
+        },
+        "policy_conflict": {
+          "const": "deny"
+        },
+        "client_assertion_is_authority": {
+          "const": false
+        }
       }
     },
     "security": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["allow_secret_values", "allow_raw_credentials", "allow_raw_tokens", "allow_production_data", "financial_writes_require_explicit_rule", "destructive_actions_require_explicit_rule", "object_scope_must_be_checked", "field_scope_must_be_checked_for_sensitive_resources"],
+      "required": [
+        "allow_secret_values",
+        "allow_raw_credentials",
+        "allow_raw_tokens",
+        "allow_production_data",
+        "financial_writes_require_explicit_rule",
+        "destructive_actions_require_explicit_rule",
+        "object_scope_must_be_checked",
+        "field_scope_must_be_checked_for_sensitive_resources"
+      ],
       "properties": {
-        "allow_secret_values": {"const": false},
-        "allow_raw_credentials": {"const": false},
-        "allow_raw_tokens": {"const": false},
-        "allow_production_data": {"const": false},
-        "financial_writes_require_explicit_rule": {"const": true},
-        "destructive_actions_require_explicit_rule": {"const": true},
-        "object_scope_must_be_checked": {"const": true},
-        "field_scope_must_be_checked_for_sensitive_resources": {"const": true}
+        "allow_secret_values": {
+          "const": false
+        },
+        "allow_raw_credentials": {
+          "const": false
+        },
+        "allow_raw_tokens": {
+          "const": false
+        },
+        "allow_production_data": {
+          "const": false
+        },
+        "financial_writes_require_explicit_rule": {
+          "const": true
+        },
+        "destructive_actions_require_explicit_rule": {
+          "const": true
+        },
+        "object_scope_must_be_checked": {
+          "const": true
+        },
+        "field_scope_must_be_checked_for_sensitive_resources": {
+          "const": true
+        }
       }
     },
     "classification": {
       "type": "object",
-      "additionalProperties": false,
-      "propertyNames": {"enum": ["public", "internal", "confidential", "financial_critical", "security_critical"]},
-      "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 5}
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5
+      },
+      "propertyNames": {
+        "enum": [
+          "public",
+          "internal",
+          "confidential",
+          "financial_critical",
+          "security_critical"
+        ]
+      }
     },
-    "actors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-    "actions": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-    "scopes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "actors": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "scopes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
     "resources": {
       "type": "array",
       "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["resource", "classification", "financial_effect"],
+        "required": [
+          "resource",
+          "classification",
+          "financial_effect"
+        ],
         "properties": {
-          "resource": {"type": "string"},
-          "classification": {"enum": ["public", "internal", "confidential", "financial_critical", "security_critical"]},
-          "financial_effect": {"type": "boolean"}
+          "resource": {
+            "type": "string"
+          },
+          "classification": {
+            "enum": [
+              "public",
+              "internal",
+              "confidential",
+              "financial_critical",
+              "security_critical"
+            ]
+          },
+          "financial_effect": {
+            "type": "boolean"
+          }
         }
       }
     },
@@ -88,15 +204,46 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["rule_id", "actor", "resource", "action", "scope", "decision", "conditions"],
+        "required": [
+          "rule_id",
+          "actor",
+          "resource",
+          "action",
+          "scope",
+          "decision",
+          "conditions"
+        ],
         "properties": {
-          "rule_id": {"type": "string", "pattern": "^ZT-[A-Z0-9-]+$"},
-          "actor": {"type": "string"},
-          "resource": {"type": "string"},
-          "action": {"type": "string"},
-          "scope": {"type": "string"},
-          "decision": {"enum": ["allow", "deny"]},
-          "conditions": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+          "rule_id": {
+            "type": "string",
+            "pattern": "^ZT-[A-Z0-9-]+$"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "conditions": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -105,30 +252,121 @@
       "additionalProperties": {
         "type": "array",
         "uniqueItems": true,
-        "items": {"type": "string"}
+        "items": {
+          "type": "string"
+        }
       }
     },
     "audit": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["required_for", "forbidden_payloads"],
+      "required": [
+        "required_for",
+        "forbidden_payloads"
+      ],
       "properties": {
-        "required_for": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "forbidden_payloads": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+        "required_for": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_payloads": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "change_control": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["constitution_path", "schema_path", "policy_path", "breaking_policy_change_requires_major_version", "new_rule_requires_tests", "financial_rule_change_requires_financial_regression", "policy_parser_must_fail_closed"],
+      "required": [
+        "constitution_path",
+        "schema_path",
+        "policy_path",
+        "breaking_policy_change_requires_major_version",
+        "new_rule_requires_tests",
+        "financial_rule_change_requires_financial_regression",
+        "policy_parser_must_fail_closed"
+      ],
       "properties": {
-        "constitution_path": {"type": "string"},
-        "schema_path": {"type": "string"},
-        "policy_path": {"type": "string"},
-        "breaking_policy_change_requires_major_version": {"const": true},
-        "new_rule_requires_tests": {"const": true},
-        "financial_rule_change_requires_financial_regression": {"const": true},
-        "policy_parser_must_fail_closed": {"const": true}
+        "constitution_path": {
+          "type": "string"
+        },
+        "schema_path": {
+          "type": "string"
+        },
+        "policy_path": {
+          "type": "string"
+        },
+        "breaking_policy_change_requires_major_version": {
+          "const": true
+        },
+        "new_rule_requires_tests": {
+          "const": true
+        },
+        "financial_rule_change_requires_financial_regression": {
+          "const": true
+        },
+        "policy_parser_must_fail_closed": {
+          "const": true
+        }
+      }
+    },
+    "data_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_disclosure",
+        "response_allowlist_only",
+        "mass_assignment_forbidden",
+        "client_controls_sensitive_fields",
+        "sensitive_values_in_urls_forbidden",
+        "sensitive_values_in_logs_forbidden",
+        "sensitive_values_in_errors_forbidden",
+        "exports_require_explicit_rule",
+        "collection_reads_must_apply_authorization_filter",
+        "authorization_failure_must_not_reveal_resource_existence",
+        "policy_failure_denies_protected_operations"
+      ],
+      "properties": {
+        "minimum_disclosure": {
+          "const": true
+        },
+        "response_allowlist_only": {
+          "const": true
+        },
+        "mass_assignment_forbidden": {
+          "const": true
+        },
+        "client_controls_sensitive_fields": {
+          "const": false
+        },
+        "sensitive_values_in_urls_forbidden": {
+          "const": true
+        },
+        "sensitive_values_in_logs_forbidden": {
+          "const": true
+        },
+        "sensitive_values_in_errors_forbidden": {
+          "const": true
+        },
+        "exports_require_explicit_rule": {
+          "const": true
+        },
+        "collection_reads_must_apply_authorization_filter": {
+          "const": true
+        },
+        "authorization_failure_must_not_reveal_resource_existence": {
+          "const": true
+        },
+        "policy_failure_denies_protected_operations": {
+          "const": true
+        }
       }
     }
   }
