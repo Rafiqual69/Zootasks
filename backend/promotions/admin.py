@@ -26,6 +26,9 @@ class PromotionAdmin(admin.ModelAdmin):
     list_filter = ("status",)
     search_fields = ("title", "advertiser_name")
 
+    # Protected promotion financial/state fields are read-only in generic admin forms.
+    readonly_fields = ("reward", "budget", "max_workers", "completed_workers", "status")
+
 
 @admin.register(PromotionClaim)
 class PromotionClaimAdmin(admin.ModelAdmin):
