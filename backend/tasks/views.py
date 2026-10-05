@@ -60,21 +60,21 @@ def marketplace(request):
 @worker_required
 @transaction.atomic
 def claim_task(request, task_id):
-    require_authorized(
-        actor="worker", resource="task", action="claim", scope="role_scope",
-        facts={
-            "account_entity.active_worker": True,
-            "task.active": True,
-            "task.capacity_available": True,
-            "request.method.POST": request.method == "POST",
-        },
-    )
     if request.method != "POST":
         return redirect("task_marketplace")
     task = get_object_or_404(
         Task.objects.select_for_update(),
         id=task_id,
         status="active",
+    )
+    require_authorized(
+        actor="worker", resource="task", action="claim", scope="role_scope",
+        facts={
+            "account_entity.active_worker": True,
+            "task.active": task.status == "active",
+            "task.capacity_available": task.completed_workers < task.max_workers,
+            "request.method.POST": request.method == "POST",
+        },
     )
     existing = TaskClaim.objects.filter(
         task=task,
