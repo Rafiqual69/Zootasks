@@ -144,6 +144,24 @@ def validate_policy(
         if resource["classification"] in financial_classes and not resource["financial_effect"]:
             raise SecurityPolicyError("financial resource missing financial_effect")
 
+    data_handling = policy["data_handling"]
+    required_true = (
+        "minimum_disclosure",
+        "response_allowlist_only",
+        "mass_assignment_forbidden",
+        "sensitive_values_in_urls_forbidden",
+        "sensitive_values_in_logs_forbidden",
+        "sensitive_values_in_errors_forbidden",
+        "exports_require_explicit_rule",
+        "collection_reads_must_apply_authorization_filter",
+        "authorization_failure_must_not_reveal_resource_existence",
+        "policy_failure_denies_protected_operations",
+    )
+    if any(data_handling.get(key) is not True for key in required_true):
+        raise SecurityPolicyError("data disclosure safety invariant weakened")
+    if data_handling.get("client_controls_sensitive_fields") is not False:
+        raise SecurityPolicyError("client control over sensitive fields is forbidden")
+
     return copy.deepcopy(policy)
 
 
