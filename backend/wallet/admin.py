@@ -37,6 +37,21 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "created_at",
     )
 
+    def has_view_permission(self, request, obj=None):
+        user = request.user
+        if not user.is_authenticated or not user.is_staff:
+            return False
+        if user.is_superuser:
+            return True
+        return any(
+            user.has_perm(permission)
+            for permission in (
+                "wallet.approve_withdrawal",
+                "wallet.reject_withdrawal",
+                "wallet.mark_withdrawal_paid",
+            )
+        )
+
 
 @admin.action(description="✅ Approve selected withdrawals")
 def approve_withdrawals(modeladmin, request, queryset):
