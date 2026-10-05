@@ -15,6 +15,13 @@ class WalletTransaction(models.Model):
     description = models.CharField(max_length=255)
     task_claim = models.OneToOneField("tasks.TaskClaim", on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transaction")
     promotion_claim = models.OneToOneField("promotions.PromotionClaim", on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transaction")
+    withdrawal = models.OneToOneField(
+        "WithdrawalRequest",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="wallet_transaction",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
