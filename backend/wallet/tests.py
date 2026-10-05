@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
 from django.test import TestCase
 from django.urls import reverse
 
@@ -262,6 +262,16 @@ class WithdrawalAdminActionTests(TestCase):
             username="wallet_test_admin",
             password="test-admin-password-123",
         )
+        self.payer_user = User.objects.create_user(
+            username="wallet_test_payer",
+            password="test-payer-password-123",
+        )
+        self.payer_user.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="wallet",
+                codename="mark_withdrawal_paid",
+            )
+        )
 
         class RequestStub:
             pass
@@ -317,7 +327,11 @@ class WithdrawalAdminActionTests(TestCase):
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
         self.assertEqual(self.profile.balance, Decimal("200.00"))
 
+    def _use_payer(self):
+        self.request.user = self.payer_user
+
     def test_paid_withdrawal_deducts_balance_and_reservation(self):
+        self._use_payer()
         withdrawal = self.create_withdrawal(status="approved")
         mark_withdrawals_paid(
             self.modeladmin,
@@ -337,6 +351,7 @@ class WithdrawalAdminActionTests(TestCase):
         self.assertEqual(transaction.description, f"Withdrawal #{withdrawal.id}")
 
     def test_paid_withdrawal_is_idempotent(self):
+        self._use_payer()
         withdrawal = self.create_withdrawal(status="approved")
         mark_withdrawals_paid(
             self.modeladmin,
@@ -367,6 +382,7 @@ class WithdrawalAdminActionTests(TestCase):
         )
 
     def test_paid_withdrawal_with_existing_matching_transaction_is_completed(self):
+        self._use_payer()
         self.profile.balance = Decimal("150.00")
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["balance", "reserved_balance"])
@@ -410,6 +426,7 @@ class WithdrawalAdminActionTests(TestCase):
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
 
     def test_paid_withdrawal_without_reservation_stays_approved(self):
+        self._use_payer()
         self.profile.reserved_balance = Decimal("0.00")
         self.profile.save(update_fields=["reserved_balance"])
         withdrawal = self.create_withdrawal(status="approved")
@@ -432,6 +449,7 @@ class WithdrawalAdminActionTests(TestCase):
         )
 
     def test_paid_withdrawal_without_enough_balance_stays_approved(self):
+        self._use_payer()
         self.profile.balance = Decimal("40.00")
         self.profile.reserved_balance = Decimal("50.00")
         self.profile.save(update_fields=["balance", "reserved_balance"])
@@ -455,6 +473,7 @@ class WithdrawalAdminActionTests(TestCase):
         )
 
     def test_already_paid_with_wrong_amount_stays_approved(self):
+        self._use_payer()
         withdrawal = self.create_withdrawal(status="approved", amount="50.00")
         WalletTransaction.objects.create(
             user=self.user,
