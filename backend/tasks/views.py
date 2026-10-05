@@ -3,11 +3,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from accounts.authorization import worker_required
+from core.security_policy_engine import require_authorized
 from .models import Task, TaskClaim
 
 
 @worker_required
 def marketplace(request):
+    require_authorized(
+        actor="worker", resource="task", action="read", scope="role_scope",
+        facts={"account_entity.active_worker": True},
+    )
     category = request.GET.get("category", "").strip()
 
     tasks = Task.objects.filter(status="active").order_by("-created_at")
@@ -55,6 +60,15 @@ def marketplace(request):
 @worker_required
 @transaction.atomic
 def claim_task(request, task_id):
+    require_authorized(
+        actor="worker", resource="task", action="claim", scope="role_scope",
+        facts={
+            "account_entity.active_worker": True,
+            "task.active": True,
+            "task.capacity_available": True,
+            "request.method.POST": request.method == "POST",
+        },
+    )
     if request.method != "POST":
         return redirect("task_marketplace")
     task = get_object_or_404(
@@ -87,6 +101,16 @@ def submit_task(request, task_id):
         TaskClaim,
         task_id=task_id,
         worker=request.user,
+    )
+    require_authorized(
+        actor="worker", resource="task_claim", action="submit",
+        scope="own",
+        facts={
+            "account_entity.active_worker": True,
+            "object.owner_is_actor": claim.worker_id == request.user.id,
+            "claim.status.claimed": claim.status == "claimed",
+            "request.method.POST": request.method == "POST",
+        },
     )
     if claim.status != "claimed":
         return redirect("task_marketplace")
