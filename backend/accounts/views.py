@@ -6,6 +6,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from .authorization import worker_required
+from core.security_policy_engine import require_authorized
 from .forms import OwnerOTPAuthenticationForm, RegistrationForm
 from .models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
