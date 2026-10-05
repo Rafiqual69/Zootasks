@@ -62,6 +62,16 @@ def approve_submissions(modeladmin, request, queryset):
             ).first()
 
             if existing_payment:
+                # A claim-bound ledger row must belong to the same worker as
+                # the claim before it can authorize the already-paid path.
+                if existing_payment.user_id != claim.worker_id:
+                    modeladmin.message_user(
+                        request,
+                        f"❌ Task claim #{claim.id} skipped: ledger owner does not match claim worker. Manual reconciliation required.",
+                        messages.ERROR,
+                    )
+                    continue
+
                 if existing_payment.amount != reward:
                     modeladmin.message_user(
                         request,
