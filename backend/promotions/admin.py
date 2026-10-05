@@ -108,6 +108,17 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     ).first()
 
                     if existing_payment:
+                        # A claim-bound ledger row must belong to the same
+                        # worker as the promotion claim before it can authorize
+                        # the already-paid path.
+                        if existing_payment.user_id != locked.worker_id:
+                            self.message_user(
+                                request,
+                                f"❌ Promotion claim #{locked.id} skipped: ledger owner does not match claim worker. Manual reconciliation required.",
+                                messages.ERROR,
+                            )
+                            continue
+
                         if existing_payment.amount != reward:
                             self.message_user(
                                 request,
