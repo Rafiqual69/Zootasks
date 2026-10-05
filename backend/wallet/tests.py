@@ -605,3 +605,9 @@ class WithdrawalAdminDataMinimizationTests(TestCase):
     def test_admin_search_excludes_raw_payment_identifiers(self):
         self.assertNotIn("bank_account", self.model_admin.search_fields)
         self.assertNotIn("account_holder", self.model_admin.search_fields)
+
+    def test_admin_detail_excludes_raw_payment_identifiers(self):
+        self.assertNotIn("bank_account", self.model_admin.readonly_fields)
+        self.assertNotIn("account_holder", self.model_admin.readonly_fields)
+        self.assertIn("masked_bank_account", self.model_admin.readonly_fields)
+        self.assertIn("masked_account_holder", self.model_admin.readonly_fields)
