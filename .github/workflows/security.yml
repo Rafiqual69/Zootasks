@@ -57,6 +57,7 @@ jobs:
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
           PRODUCTION_MODE: "true"
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/zootasks_ci"
           SECURE_SSL_REDIRECT: "true"
           SECURE_COOKIES: "true"
           TRUST_PROXY_SSL: "true"

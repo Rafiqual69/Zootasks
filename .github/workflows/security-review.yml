@@ -54,6 +54,7 @@ jobs:
         working-directory: backend
         env:
           PRODUCTION_MODE: "true"
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/zootasks_ci"
           SECURE_SSL_REDIRECT: "true"
           SECURE_COOKIES: "true"
           TRUST_PROXY_SSL: "true"
