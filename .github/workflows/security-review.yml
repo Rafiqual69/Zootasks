@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   security-review:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       SECRET_KEY: ci-only-zootasks-security-gate-2026-rotate-for-ci-only-9f4e8d7c6b5a
       ALLOWED_HOSTS: localhost,127.0.0.1
@@ -28,12 +28,16 @@ jobs:
       SECURE_HSTS_PRELOAD: "false"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
         working-directory: backend
@@ -73,6 +77,25 @@ jobs:
       - name: Dependency audit
         working-directory: backend
         run: pip-audit
+
+      - name: Backup script syntax and isolation smoke test
+        run: |
+          bash -n backup-zootasks.sh
+          TMP_HOME="$(mktemp -d)"
+          SMOKE_DIR="$GITHUB_WORKSPACE/.security-backup-smoke"
+          cleanup_smoke() {
+            rm -rf "$TMP_HOME" "$SMOKE_DIR"
+          }
+          trap cleanup_smoke EXIT
+          mkdir -p "$TMP_HOME" "$SMOKE_DIR/nested/backups"
+          printf 'synthetic-secret' > "$SMOKE_DIR/nested/.env"
+          printf 'synthetic-recovery-data' > "$SMOKE_DIR/nested/backups/should-not-archive.txt"
+          ln -s "$GITHUB_WORKSPACE" "$TMP_HOME/ZooTasks"
+          HOME="$TMP_HOME" bash "$GITHUB_WORKSPACE/backup-zootasks.sh"
+          BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
+          test -n "$BACKUP_FILE"
+          test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
+          ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env|\.git/|db\.sqlite3$|backups/)'
 
       - name: Diff hygiene
         run: git diff --check
