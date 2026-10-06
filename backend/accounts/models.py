@@ -3,7 +3,7 @@ from django.db import models
 
 
 class WorkerProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.PROTECT)
     bio = models.TextField(blank=True)
     skills = models.CharField(max_length=500, blank=True)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
