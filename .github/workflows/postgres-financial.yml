@@ -79,6 +79,20 @@ jobs:
         working-directory: backend
         run: python manage.py test --verbosity=2
 
+      - name: Use PostgreSQL 16 client tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/postgres16-client"
+          cat > "$RUNNER_TEMP/postgres16-client/pg_dump" <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host -e PGPASSWORD="${PGPASSWORD:-}" postgres:16 pg_dump "$@"
+          EOF
+          cat > "$RUNNER_TEMP/postgres16-client/pg_restore" <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host -e PGPASSWORD="${PGPASSWORD:-}" postgres:16 pg_restore "$@"
+          EOF
+          chmod 700 "$RUNNER_TEMP/postgres16-client/pg_dump" "$RUNNER_TEMP/postgres16-client/pg_restore"
+          echo "$RUNNER_TEMP/postgres16-client" >> "$GITHUB_PATH"
+
       - name: Synthetic PostgreSQL dump and isolated restore drill
         env:
           PGHOST: 127.0.0.1
