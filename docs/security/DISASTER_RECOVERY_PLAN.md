@@ -82,10 +82,10 @@ Secrets belong in the production secret manager/provider secret store.
 - [x] Production deployment contract defined.
 - [ ] Scheduled provider-native PostgreSQL backups configured in production.
 - [ ] PITR enabled and recovery window documented.
-- [ ] Encrypted portable PostgreSQL dump implemented.
+- [ ] Encrypted portable PostgreSQL dump implemented (provider/runtime credential and storage integration pending).
 - [ ] Isolated/off-site backup storage configured.
 - [x] Automated backup integrity verification (archive/gzip/path/sensitive-artifact checks).
-- [ ] Automated restore sandbox.
+- [x] Fail-closed local PostgreSQL restore-drill helper; provider/runtime restore sandbox remains pending.
 - [ ] Financial reconciliation after restore.
 - [ ] Controlled failover automation.
 - [ ] First successful full restore drill.
