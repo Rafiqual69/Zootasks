@@ -95,6 +95,7 @@ jobs:
         run: |
           bash -n backup-zootasks.sh
           bash -n scripts/verify_zootasks_backup.sh
+          bash -n scripts/restore_drill_postgres.sh
           TMP_HOME="$(mktemp -d)"
           SMOKE_DIR="$GITHUB_WORKSPACE/.security-backup-smoke"
           cleanup_smoke() {
