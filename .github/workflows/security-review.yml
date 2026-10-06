@@ -82,8 +82,14 @@ jobs:
         run: |
           bash -n backup-zootasks.sh
           TMP_HOME="$(mktemp -d)"
-          trap 'rm -rf "$TMP_HOME"' EXIT
-          mkdir -p "$TMP_HOME"
+          SMOKE_DIR="$GITHUB_WORKSPACE/.security-backup-smoke"
+          cleanup_smoke() {
+            rm -rf "$TMP_HOME" "$SMOKE_DIR"
+          }
+          trap cleanup_smoke EXIT
+          mkdir -p "$TMP_HOME" "$SMOKE_DIR/nested/backups"
+          printf 'synthetic-secret' > "$SMOKE_DIR/nested/.env"
+          printf 'synthetic-recovery-data' > "$SMOKE_DIR/nested/backups/should-not-archive.txt"
           ln -s "$GITHUB_WORKSPACE" "$TMP_HOME/ZooTasks"
           HOME="$TMP_HOME" bash "$GITHUB_WORKSPACE/backup-zootasks.sh"
           BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
