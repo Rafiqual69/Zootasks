@@ -1,0 +1,64 @@
+{
+  "policy_id": "ZT-OWNER-DUAL-CONTROL",
+  "policy_version": "1.0.0",
+  "status": "proposed",
+  "activation": "production_readiness_gate",
+  "default_decision": "deny",
+  "approval_model": "two_independent_owner_devices",
+  "current_development_mode": {
+    "existing_owner_device_allowed": true,
+    "dual_control_required": false,
+    "scope": "non_production_development_operations_only"
+  },
+  "protected_operations": [
+    "production_deploy",
+    "production_rollback",
+    "security_policy_change",
+    "owner_privilege_change",
+    "authentication_control_change",
+    "production_security_configuration_change",
+    "migration_promotion",
+    "recovery_promotion",
+    "financial_write",
+    "withdrawal_approval",
+    "withdrawal_payment",
+    "secret_rotation_with_operational_impact",
+    "network_exposure_change",
+    "irreversible_deletion",
+    "break_glass_operation"
+  ],
+  "requirements": {
+    "independent_device_identities": true,
+    "phishing_resistant_authentication": true,
+    "action_binding": true,
+    "target_binding": true,
+    "parameter_binding": true,
+    "short_lived_approval": true,
+    "replay_protection": true,
+    "revocation": true,
+    "execution_time_reauthorization": true,
+    "audit_metadata_without_secrets": true
+  },
+  "deny_conditions": [
+    "missing_second_approval",
+    "expired_approval",
+    "revoked_device",
+    "duplicate_or_replayed_approval",
+    "approval_parameter_mismatch",
+    "ambiguous_device_identity",
+    "policy_validation_failure",
+    "failed_required_ci",
+    "failed_required_review",
+    "active_security_freeze",
+    "suspected_single_anchor_compromise",
+    "secret_exposure_risk"
+  ],
+  "automation": {
+    "may_prepare_request": true,
+    "may_validate_request": true,
+    "may_execute_dual_control_action_without_two_owner_approvals": false,
+    "may_create_or_replay_owner_approval": false
+  },
+  "human_approval_required": true,
+  "precedence": "most_restrictive_wins"
+}
