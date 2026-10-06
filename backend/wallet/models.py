@@ -9,7 +9,7 @@ class WalletTransaction(models.Model):
         ("adjustment", "Admin Adjustment"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="wallet_transactions")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="wallet_transactions")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_CHOICES)
     description = models.CharField(max_length=255)
@@ -70,7 +70,7 @@ class WithdrawalRequest(models.Model):
         ("paid", "Paid"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="withdrawal_requests")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="withdrawal_requests")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     bank_account = models.CharField(max_length=50)
     bank_name = models.CharField(max_length=100)
