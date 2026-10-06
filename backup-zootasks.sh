@@ -35,6 +35,8 @@ tar \
   --exclude='*.pyc' \
   --exclude='./.env' \
   --exclude='./.env.*' \
+  --exclude='*/.env' \
+  --exclude='*/.env.*' \
   --exclude='*.bak*' \
   --exclude='*.backup*' \
   --exclude='*.before-*' \
@@ -44,6 +46,8 @@ tar \
   --exclude='*.log*' \
   --exclude='./backups' \
   --exclude='./backup_*' \
+  --exclude='*/backups' \
+  --exclude='*/backup_*' \
   --exclude='*.tar.gz' \
   -czf "${TMP_BACKUP_FILE}" .
 
