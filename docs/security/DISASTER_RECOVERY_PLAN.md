@@ -86,6 +86,7 @@ Secrets belong in the production secret manager/provider secret store.
 - [ ] Isolated/off-site backup storage configured.
 - [x] Automated backup integrity verification (archive/gzip/path/sensitive-artifact checks).
 - [x] Fail-closed local PostgreSQL restore-drill helper; provider/runtime restore sandbox remains pending.
+- [x] Synthetic PostgreSQL dump + isolated restore drill wired into the protected PostgreSQL CI workflow (non-production data only).
 - [ ] Financial reconciliation after restore.
 - [ ] Controlled failover automation.
 - [ ] First successful full restore drill.
