@@ -84,11 +84,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/postgres16-client"
           cat > "$RUNNER_TEMP/postgres16-client/pg_dump" <<'EOF'
           #!/usr/bin/env bash
-          exec docker run --rm --network host -e PGPASSWORD="${PGPASSWORD:-}" postgres:16 pg_dump "$@"
+          exec docker run --rm --network host -v "$RUNNER_TEMP:$RUNNER_TEMP" -e PGPASSWORD="${PGPASSWORD:-}" postgres:16 pg_dump "$@"
           EOF
           cat > "$RUNNER_TEMP/postgres16-client/pg_restore" <<'EOF'
           #!/usr/bin/env bash
-          exec docker run --rm --network host -e PGPASSWORD="${PGPASSWORD:-}" postgres:16 pg_restore "$@"
+          exec docker run --rm --network host -v "$RUNNER_TEMP:$RUNNER_TEMP" -e PGPASSWORD="${PGPASSWORD:-}" postgres:16 pg_restore "$@"
           EOF
           chmod 700 "$RUNNER_TEMP/postgres16-client/pg_dump" "$RUNNER_TEMP/postgres16-client/pg_restore"
           echo "$RUNNER_TEMP/postgres16-client" >> "$GITHUB_PATH"
