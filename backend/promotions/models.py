@@ -57,7 +57,7 @@ class PromotionClaim(models.Model):
     )
     worker = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="promotion_claims",
     )
     proof = models.TextField(blank=True)
