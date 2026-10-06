@@ -78,5 +78,18 @@ jobs:
         working-directory: backend
         run: pip-audit
 
+      - name: Backup script syntax and isolation smoke test
+        run: |
+          bash -n backup-zootasks.sh
+          TMP_HOME="$(mktemp -d)"
+          trap 'rm -rf "$TMP_HOME"' EXIT
+          mkdir -p "$TMP_HOME"
+          ln -s "$GITHUB_WORKSPACE" "$TMP_HOME/ZooTasks"
+          HOME="$TMP_HOME" bash "$GITHUB_WORKSPACE/backup-zootasks.sh"
+          BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
+          test -n "$BACKUP_FILE"
+          test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
+          ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env|\.git/|db\.sqlite3$|backups/)'
+
       - name: Diff hygiene
         run: git diff --check
