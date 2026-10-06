@@ -22,6 +22,9 @@ INSTALLED_APPS = [
     "tasks",
     "promotions",
     "wallet",
+    # Core security models are a real Django app so migrations and ORM
+    # registration are enforced during every test/deployment.
+    "core",
 ]
 
 MIDDLEWARE = [
