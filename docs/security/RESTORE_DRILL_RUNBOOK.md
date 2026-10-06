@@ -11,6 +11,6 @@ Safety contract:
 - provider/PITR recovery remains a separate isolated sibling-service operation
 
 Usage:
-bash scripts/restore_drill_postgres.sh <dump-file> <local-admin-database-url> <restore-drill-database-name>
+PGADMIN_URL='<local-admin-url>' bash scripts/restore_drill_postgres.sh <dump-file> <restore-drill-database-name>
 
 Production promotion remains blocked until the restored candidate passes schema/migration checks, Django checks, policy/security tests, full regression, financial reconciliation, health checks, and privilege/configuration drift checks.
