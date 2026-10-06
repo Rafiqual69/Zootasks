@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 
 from .models import OwnerWebAuthnCredential
 from .owner_webauthn import OwnerWebAuthnDenied, verify_owner_webauthn_assertion
@@ -26,7 +29,7 @@ class OwnerWebAuthnBoundaryTests(TestCase):
             device_id="device-1",
             credential_id="AQ",
             public_key=b"not-a-real-key",
-            revoked_at="2026-10-06T00:00:00Z",
+            revoked_at=timezone.now() - timedelta(minutes=1),
         )
         with self.assertRaises(OwnerWebAuthnDenied):
             verify_owner_webauthn_assertion(
