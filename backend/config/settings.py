@@ -131,4 +131,6 @@ LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
 # High-assurance Owner access
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
+# Production security activation is explicit; missing state never silently enables critical operations.
+OWNER_CONTROL_STATE = config("OWNER_CONTROL_STATE", default="DEVELOPMENT_SINGLE_DEVICE")
 LOGOUT_REDIRECT_URL = "/"
