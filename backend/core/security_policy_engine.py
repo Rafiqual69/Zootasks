@@ -3,16 +3,79 @@
 The PDP only grants a permit when exactly one applicable policy rule allows
 the request and every declared condition is supplied by trusted server-side
 facts. Missing, unknown, conflicting, or malformed inputs deny.
+
+Production critical operations have an additional fail-closed dual-control
+overlay. The verified approval ceremony must set the trusted
+owner_dual_control_verified fact only after server-side verification and
+atomic consumption of two independent Owner approvals.
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Mapping
 
+from .owner_control_state import (
+    OwnerControlState,
+    OwnerControlStateDenied,
+    requires_dual_control,
+)
 from .security_policy import SecurityPolicyError, load_and_validate_policy
 
 
 class AuthorizationDenied(PermissionError):
     """Raised when a protected operation cannot be explicitly authorized."""
+
+
+CRITICAL_PRODUCTION_OPERATIONS = frozenset({
+    ("owner", "task", "create", "global"),
+    ("owner", "task", "update", "global"),
+    ("owner", "promotion", "create", "global"),
+    ("owner", "promotion", "update", "global"),
+    ("finance", "task_claim", "approve", "role_scope"),
+    ("finance", "task_claim", "reject", "role_scope"),
+    ("finance", "promotion_claim", "approve", "role_scope"),
+    ("finance", "promotion_claim", "reject", "role_scope"),
+    ("finance", "withdrawal", "approve", "role_scope"),
+    ("finance", "withdrawal", "reject", "role_scope"),
+    ("finance_payer", "withdrawal", "pay", "role_scope"),
+})
+
+
+def _production_mode() -> bool:
+    value = os.environ.get("PRODUCTION_MODE", "false").strip().lower()
+    if value not in {"true", "false"}:
+        return False
+    return value == "true"
+
+
+def _production_dual_control_allows(
+    *,
+    actor: str,
+    resource: str,
+    action: str,
+    scope: str,
+    facts: Mapping[str, bool],
+) -> bool:
+    if (actor, resource, action, scope) not in CRITICAL_PRODUCTION_OPERATIONS:
+        return True
+    if not _production_mode():
+        return True
+
+    state_value = os.environ.get(
+        "OWNER_CONTROL_STATE",
+        OwnerControlState.PRODUCTION_READINESS_PENDING.value,
+    )
+    try:
+        state = OwnerControlState(state_value)
+        if not requires_dual_control(state=state, protected_production=True):
+            return False
+    except (ValueError, OwnerControlStateDenied):
+        return False
+
+    # Trusted server-side fact only: the complete WebAuthn/passkey,
+    # exact-request-binding and atomic pair-consumption ceremony must have
+    # completed immediately before the protected operation.
+    return facts.get("owner_dual_control_verified") is True
 
 
 def _rule_matches(rule: Mapping[str, Any], *, actor: str, resource: str,
@@ -36,11 +99,7 @@ def authorize(
     scope: str,
     facts: Mapping[str, Any] | None = None,
 ) -> bool:
-    """Return True only for an explicit, fully satisfied allow rule.
-
-    facts must be produced by trusted server-side code. Client-supplied role,
-    ownership, financial state, or privilege claims must never be passed here.
-    """
+    """Return True only for an explicit, fully satisfied allow rule."""
     if not all(isinstance(value, str) and value for value in
                (actor, resource, action, scope)):
         return False
@@ -50,6 +109,15 @@ def authorize(
         return False
     if any(not isinstance(key, str) or not isinstance(value, bool)
            for key, value in trusted_facts.items()):
+        return False
+
+    if not _production_dual_control_allows(
+        actor=actor,
+        resource=resource,
+        action=action,
+        scope=scope,
+        facts=trusted_facts,
+    ):
         return False
 
     try:
