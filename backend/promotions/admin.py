@@ -108,6 +108,12 @@ class PromotionClaimAdmin(admin.ModelAdmin):
 
     actions = ["approve_claims", "reject_claims"]
 
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     def has_view_permission(self, request, obj=None):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
