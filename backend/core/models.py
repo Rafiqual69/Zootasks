@@ -26,17 +26,3 @@ class OwnerApproval(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
-        constraints = [
-            models.CheckConstraint(
-                condition=~models.Q(device_id=""),
-                name="ownerapproval_device_nonempty",
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(credential_id=""),
-                name="ownerapproval_credential_nonempty",
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(request_digest=""),
-                name="ownerapproval_digest_nonempty",
-            ),
-        ]
