@@ -81,6 +81,9 @@ jobs:
       - name: Backup script syntax and isolation smoke test
         run: |
           bash -n backup-zootasks.sh
+          bash -n scripts/verify_zootasks_backup.sh
+          bash -n scripts/restore_drill_postgres.sh
+          bash scripts/test_restore_drill_safety.sh
           TMP_HOME="$(mktemp -d)"
           SMOKE_DIR="$GITHUB_WORKSPACE/.security-backup-smoke"
           cleanup_smoke() {
@@ -95,6 +98,7 @@ jobs:
           BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
           test -n "$BACKUP_FILE"
           test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
+          bash "$GITHUB_WORKSPACE/scripts/verify_zootasks_backup.sh" "$BACKUP_FILE"
           ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env|\.git/|db\.sqlite3$|backups/)'
 
       - name: Diff hygiene

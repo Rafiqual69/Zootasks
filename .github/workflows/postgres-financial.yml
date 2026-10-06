@@ -78,3 +78,32 @@ jobs:
       - name: Full regression on PostgreSQL
         working-directory: backend
         run: python manage.py test --verbosity=2
+
+      - name: Use PostgreSQL 16 client tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/postgres16-client"
+          cat > "$RUNNER_TEMP/postgres16-client/pg_dump" <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host -v "$RUNNER_TEMP:$RUNNER_TEMP" --env PGHOST --env PGPORT --env PGUSER --env PGDATABASE --env PGPASSWORD postgres:16 pg_dump "$@"
+          EOF
+          cat > "$RUNNER_TEMP/postgres16-client/pg_restore" <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host -v "$RUNNER_TEMP:$RUNNER_TEMP" --env PGHOST --env PGPORT --env PGUSER --env PGDATABASE --env PGPASSWORD postgres:16 pg_restore "$@"
+          EOF
+          chmod 700 "$RUNNER_TEMP/postgres16-client/pg_dump" "$RUNNER_TEMP/postgres16-client/pg_restore"
+          echo "$RUNNER_TEMP/postgres16-client" >> "$GITHUB_PATH"
+
+      - name: Synthetic PostgreSQL dump and isolated restore drill
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: zootasks_ci
+          PGPASSWORD: zootasks_ci_password
+          PGDATABASE: zootasks_ci
+          PGADMIN_URL: postgresql://zootasks_ci:zootasks_ci_password@127.0.0.1:5432/postgres
+        run: |
+          pg_dump --version
+          pg_restore --version
+          pg_dump --format=custom --file="$RUNNER_TEMP/zootasks-ci.dump" "$PGDATABASE"
+          test -s "$RUNNER_TEMP/zootasks-ci.dump"
+          bash scripts/restore_drill_postgres.sh "$RUNNER_TEMP/zootasks-ci.dump" restore_drill_ci
