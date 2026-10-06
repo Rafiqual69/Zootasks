@@ -26,6 +26,12 @@ class FinancialAdminDeleteBoundaryTests(SimpleTestCase):
         self.assertFalse(model_admin.has_change_permission(request))
         self.assertFalse(model_admin.has_delete_permission(request))
 
+        fields = model_admin.get_fields(request)
+        self.assertIn("masked_bank_account", fields)
+        self.assertIn("masked_account_holder", fields)
+        self.assertNotIn("bank_account", fields)
+        self.assertNotIn("account_holder", fields)
+
     def test_task_claim_admin_blocks_add_and_delete(self):
         model_admin = TaskClaimAdmin(TaskClaim, admin.site)
         request = object()
