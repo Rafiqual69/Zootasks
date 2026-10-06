@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "status": "proposed",
+  "default_decision": "deny",
+  "principles": [
+    "least_privilege",
+    "zero_trust",
+    "separation_of_duties",
+    "data_minimization",
+    "human_accountability",
+    "auditability",
+    "fail_closed"
+  ],
+  "protected_operations": [
+    "financial_write",
+    "withdrawal_approval",
+    "withdrawal_payment",
+    "ledger_mutation",
+    "production_privilege_change",
+    "secret_access",
+    "recovery_promotion",
+    "security_policy_change",
+    "irreversible_deletion",
+    "consequential_person_action"
+  ],
+  "ai_permissions": {
+    "read_approved_source": true,
+    "run_approved_tests": true,
+    "create_security_branch": true,
+    "prepare_report": true,
+    "prepare_recovery_plan": true,
+    "financial_write": false,
+    "production_financial_write": false,
+    "secret_read": false,
+    "secret_exfiltration": false,
+    "direct_main_push": false,
+    "force_push": false,
+    "auto_merge": false,
+    "recovery_promotion": false
+  },
+  "mandatory_controls": {
+    "input_validation": true,
+    "output_validation": true,
+    "tool_allowlist": true,
+    "least_privilege": true,
+    "sensitive_data_minimization": true,
+    "security_event_audit": true,
+    "adversarial_testing": true,
+    "human_approval_for_high_impact_actions": true,
+    "independent_verification": true
+  },
+  "deny_conditions": [
+    "unknown_identity",
+    "ambiguous_authorization",
+    "stale_authorization",
+    "policy_parse_failure",
+    "policy_validation_failure",
+    "missing_required_review",
+    "failed_required_ci",
+    "unverified_recovery",
+    "secret_exposure_risk",
+    "financial_invariant_failure",
+    "unexpected_scope_change",
+    "unsafe_tool_output"
+  ],
+  "data_classes": {
+    "public": "normal_access",
+    "internal": "least_privilege",
+    "confidential": "minimum_required_access",
+    "financial": "minimum_required_access_plus_financial_controls",
+    "restricted": "explicit_approval_and_strong_controls",
+    "secret": "never_expose_to_model_or_logs"
+  },
+  "high_impact_actions": [
+    "money_movement",
+    "account_lock_or_termination",
+    "employee_or_worker_disciplinary_action",
+    "privilege_grant",
+    "production_data_change",
+    "recovery_promotion"
+  ],
+  "human_approval_required": true,
+  "policy_precedence": "most_restrictive_wins",
+  "owner_dual_control": {
+    "status": "proposed",
+    "production_activation_gate": true,
+    "critical_production_actions_require_two_independent_owner_devices": true,
+    "single_device_or_session_insufficient": true,
+    "automation_cannot_create_or_replay_owner_approval": true
+  }
+}
