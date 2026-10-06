@@ -80,5 +80,12 @@
     "recovery_promotion"
   ],
   "human_approval_required": true,
-  "policy_precedence": "most_restrictive_wins"
+  "policy_precedence": "most_restrictive_wins",
+  "owner_dual_control": {
+    "status": "proposed",
+    "production_activation_gate": true,
+    "critical_production_actions_require_two_independent_owner_devices": true,
+    "single_device_or_session_insufficient": true,
+    "automation_cannot_create_or_replay_owner_approval": true
+  }
 }
