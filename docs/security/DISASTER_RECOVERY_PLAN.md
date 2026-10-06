@@ -84,7 +84,7 @@ Secrets belong in the production secret manager/provider secret store.
 - [ ] PITR enabled and recovery window documented.
 - [ ] Encrypted portable PostgreSQL dump implemented.
 - [ ] Isolated/off-site backup storage configured.
-- [ ] Automated backup integrity verification.
+- [x] Automated backup integrity verification (archive/gzip/path/sensitive-artifact checks).
 - [ ] Automated restore sandbox.
 - [ ] Financial reconciliation after restore.
 - [ ] Controlled failover automation.
