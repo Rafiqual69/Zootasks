@@ -38,20 +38,6 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         "created_at",
     )
 
-    def get_fields(self, request, obj=None):
-        # View-only admin must never render raw payment identifiers.
-        return (
-            "id",
-            "user",
-            "amount",
-            "bank_name",
-            "masked_account_holder",
-            "masked_bank_account",
-            "status",
-            "requested_at",
-            "processed_at",
-        )
-
     def has_add_permission(self, request):
         return False
 
@@ -472,6 +458,20 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def get_fields(self, request, obj=None):
+        # View-only admin must never render raw payment identifiers.
+        return (
+            "id",
+            "user",
+            "amount",
+            "bank_name",
+            "masked_account_holder",
+            "masked_bank_account",
+            "status",
+            "requested_at",
+            "processed_at",
+        )
 
     def has_view_permission(self, request, obj=None):
         user = request.user
