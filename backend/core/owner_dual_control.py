@@ -6,7 +6,8 @@ and approval subsystem. Client-provided approval JSON must never be passed here
 without independent verification.
 
 The gate enforces the second layer: two distinct Owner device identities,
-exact request binding, expiry/revocation/replay checks, and incident freeze.
+exact request binding, expiry/revocation/replay checks, phishing-resistant
+verification, and incident freeze.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ class VerifiedOwnerApproval:
     """Trusted result of an independent device approval verification."""
 
     approval_id: str
+    owner_id: str
     device_id: str
     credential_id: str
     request_digest: str
@@ -36,15 +38,18 @@ class VerifiedOwnerApproval:
 def _valid_approval(
     approval: VerifiedOwnerApproval,
     *,
+    owner_id: str,
     request_digest: str,
     now: datetime,
 ) -> bool:
     """Check one already-verified approval without trusting client assertions."""
     return bool(
         approval.approval_id
+        and approval.owner_id == owner_id
         and approval.device_id
         and approval.credential_id
         and approval.request_digest == request_digest
+        and approval.expires_at.tzinfo is not None
         and approval.expires_at > now
         and not approval.revoked
         and not approval.replay_detected
@@ -55,25 +60,28 @@ def _valid_approval(
 
 def authorize_dual_control(
     *,
+    owner_id: str,
     request_digest: str,
     approvals: tuple[VerifiedOwnerApproval, ...],
     now: datetime,
     incident_freeze: bool = False,
 ) -> bool:
-    """Return True only when exactly two independent valid approvals exist.
+    """Return True only when exactly two independent valid Owner approvals exist.
 
-    Independence is enforced by both device and credential identity. A second
-    browser tab, duplicated credential, or repeated presentation of one device
-    cannot satisfy the two-person rule.
+    Independence is enforced by Owner, device, credential, and approval identity.
+    A second browser tab, duplicated credential, or repeated presentation of one
+    device cannot satisfy the two-person rule.
 
     The caller remains responsible for:
     - verifying WebAuthn/passkey assertions before constructing approvals;
     - atomically consuming approval IDs/nonces to prevent races/replay;
     - re-authorizing the exact request immediately before execution.
     """
+    if not isinstance(owner_id, str) or not owner_id:
+        return False
     if not isinstance(request_digest, str) or not request_digest:
         return False
-    if incident_freeze or len(approvals) != 2:
+    if now.tzinfo is None or incident_freeze or len(approvals) != 2:
         return False
     if any(not isinstance(item, VerifiedOwnerApproval) for item in approvals):
         return False
@@ -86,8 +94,10 @@ def authorize_dual_control(
     if first.approval_id == second.approval_id:
         return False
 
-    return _valid_approval(first, request_digest=request_digest, now=now) and _valid_approval(
-        second, request_digest=request_digest, now=now
+    return _valid_approval(
+        first, owner_id=owner_id, request_digest=request_digest, now=now
+    ) and _valid_approval(
+        second, owner_id=owner_id, request_digest=request_digest, now=now
     )
 
 
