@@ -52,7 +52,7 @@ class PromotionClaim(models.Model):
 
     promotion = models.ForeignKey(
         Promotion,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="claims",
     )
     worker = models.ForeignKey(
