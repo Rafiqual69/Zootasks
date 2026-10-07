@@ -1,7 +1,7 @@
 {
   "$schema": "./read_write_policy.schema.json",
   "policy_id": "ZT-READ-WRITE-POLICY",
-  "policy_version": "1.1.4",
+  "policy_version": "1.1.5",
   "schema_version": "1.0.0",
   "status": "normative-baseline",
   "enforcement": {
@@ -25,44 +25,10 @@
     "object_scope_must_be_checked": true,
     "field_scope_must_be_checked_for_sensitive_resources": true
   },
-  "classification": {
-    "public": 1,
-    "internal": 2,
-    "confidential": 3,
-    "financial_critical": 4,
-    "security_critical": 5
-  },
-  "actors": [
-    "anonymous",
-    "worker",
-    "owner",
-    "finance",
-    "finance_payer",
-    "ai",
-    "system"
-  ],
-  "actions": [
-    "read",
-    "create",
-    "update",
-    "delete",
-    "claim",
-    "submit",
-    "approve",
-    "reject",
-    "pay",
-    "manage_access",
-    "manage_authentication",
-    "export"
-  ],
-  "scopes": [
-    "public",
-    "own",
-    "assigned",
-    "role_scope",
-    "global",
-    "none"
-  ],
+  "classification": {"public": 1, "internal": 2, "confidential": 3, "financial_critical": 4, "security_critical": 5},
+  "actors": ["anonymous", "worker", "owner", "finance", "finance_payer", "ai", "system"],
+  "actions": ["read", "create", "update", "delete", "claim", "submit", "approve", "reject", "pay", "manage_access", "manage_authentication", "export"],
+  "scopes": ["public", "own", "assigned", "role_scope", "global", "none"],
   "resources": [
     {"resource":"worker_profile","classification":"confidential","financial_effect":false},
     {"resource":"task","classification":"internal","financial_effect":true},
@@ -116,7 +82,9 @@
     {"rule_id":"ZT-FINANCE-PROMOTION-APPROVE-001","actor":"finance","resource":"promotion_claim","action":"approve","scope":"role_scope","decision":"allow","conditions":["permission.promotion_approve","business_rules.valid_promotion_claim"]},
     {"rule_id":"ZT-FINANCE-PROMOTION-REJECT-001","actor":"finance","resource":"promotion_claim","action":"reject","scope":"role_scope","decision":"allow","conditions":["permission.promotion_reject","business_rules.valid_promotion_claim"]},
     {"rule_id":"ZT-FINANCE-WITHDRAWAL-REJECT-001","actor":"finance","resource":"withdrawal","action":"reject","scope":"role_scope","decision":"allow","conditions":["permission.withdrawal_reject","business_rules.pending_withdrawal"]},
-    {"rule_id":"ZT-WORKER-PROFILE-READ-001","actor":"worker","resource":"worker_profile","action":"read","scope":"own","decision":"allow","conditions":["account_entity.active_worker","object.owner_is_actor"]}
+    {"rule_id":"ZT-WORKER-PROFILE-READ-001","actor":"worker","resource":"worker_profile","action":"read","scope":"own","decision":"allow","conditions":["account_entity.active_worker","object.owner_is_actor"]},
+    {"rule_id":"ZT-SYSTEM-TASK-CREATE-001","actor":"system","resource":"task","action":"create","scope":"global","decision":"allow","conditions":["trusted_execution_context","automation.task_template_allowlisted","automation.reward_bounded"]},
+    {"rule_id":"ZT-SYSTEM-TASK-EXPIRE-001","actor":"system","resource":"task","action":"update","scope":"global","decision":"allow","conditions":["trusted_execution_context","automation.lifecycle_maintenance","automation.status_transition_bounded"]}
   ],
   "protected_fields": {
     "task":["reward","completed_workers","max_workers","status"],
