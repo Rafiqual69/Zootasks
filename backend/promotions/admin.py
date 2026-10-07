@@ -8,6 +8,7 @@ from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
 from core.security_policy_engine import authorize
 from core.execution_authorization import require_execution_authorized
+from core.security_policy_engine import authorize
 
 logger = logging.getLogger(__name__)
 
@@ -83,21 +84,6 @@ class PromotionAdmin(admin.ModelAdmin):
 
 @admin.register(PromotionClaim)
 class PromotionClaimAdmin(admin.ModelAdmin):
-    def has_change_permission(self, request, obj=None):
-        user = request.user
-        return bool(
-            user
-            and user.is_authenticated
-            and user.is_staff
-            and any(
-                user.has_perm(permission)
-                for permission in (
-                    "promotions.approve_promotion_claim",
-                    "promotions.reject_promotion_claim",
-                )
-            )
-        )
-
     def has_add_permission(self, request):
         return False
 
@@ -138,14 +124,15 @@ class PromotionClaimAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "promotions.approve_promotion_claim",
-                "promotions.reject_promotion_claim",
-            )
+        return authorize(
+            actor="finance",
+            resource="promotion_claim",
+            action="read",
+            scope="role_scope",
+            facts={
+                "permission.promotion_approve": user.has_perm("promotions.approve_promotion_claim"),
+                "permission.promotion_reject": user.has_perm("promotions.reject_promotion_claim"),
+            },
         )
 
     @admin.action(description="Approve selected promotion claims and pay reward")
