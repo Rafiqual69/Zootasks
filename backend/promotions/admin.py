@@ -130,8 +130,7 @@ class PromotionClaimAdmin(admin.ModelAdmin):
             action="read",
             scope="role_scope",
             facts={
-                "permission.promotion_approve": user.has_perm("promotions.approve_promotion_claim"),
-                "permission.promotion_reject": user.has_perm("promotions.reject_promotion_claim"),
+                "permission.promotion_review": (user.has_perm("promotions.approve_promotion_claim") or user.has_perm("promotions.reject_promotion_claim")),
             },
         )
 
