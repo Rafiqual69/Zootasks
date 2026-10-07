@@ -183,6 +183,39 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
             )
         )
 
+
+    def test_system_task_automation_requires_trusted_bounded_facts(self):
+        facts = {
+            "trusted_execution_context": True,
+            "automation.task_generation_bounded": True,
+            "automation.no_external_side_effect": True,
+        }
+        self.assertTrue(authorize(
+            actor="system",
+            resource="task",
+            action="create",
+            scope="automation",
+            facts=facts,
+        ))
+        self.assertFalse(authorize(
+            actor="system",
+            resource="task",
+            action="create",
+            scope="automation",
+            facts={**facts, "trusted_execution_context": False},
+        ))
+        self.assertFalse(authorize(
+            actor="system",
+            resource="task",
+            action="update",
+            scope="automation",
+            facts={
+                "trusted_execution_context": True,
+                "automation.task_lifecycle_bounded": True,
+                "automation.no_external_side_effect": False,
+            },
+        ))
+
     def test_require_authorized_raises_on_deny(self):
         with self.assertRaises(AuthorizationDenied):
             require_authorized(
