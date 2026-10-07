@@ -40,3 +40,23 @@ testing/evaluation, documentation, and appropriately configured human oversight.
 
 Production activation remains gated by CI, migration review, configuration
 verification, and the existing owner dual-control state.
+
+## Tool execution boundary
+
+`backend/core/ai_control_plane.py` adds a deterministic pre-execution
+boundary for AI proposals:
+
+- Tool names are a closed enum; unknown tools fail closed.
+- Each tool is bound to exactly one normalized action.
+- Targets and scopes must be explicit.
+- Plans are bounded to a small maximum step/tool-call count.
+- Retries are bounded to reduce runaway execution and Denial-of-Wallet risk.
+- Request parameters are passed through the existing secret-rejecting canonical
+  binding before a plan digest is produced.
+- Critical actions cannot enter the AI tool execution path.
+- Higher-impact actions must use a separate governed execution path; the AI
+  layer itself never upgrades its authority.
+
+This is intentionally a **proposal/control boundary**, not an authorization
+grant. The existing execution authorization and Owner dual-control mechanisms
+remain authoritative for protected mutations.
