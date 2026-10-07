@@ -43,7 +43,7 @@ class TaskClaim(models.Model):
         ("rejected", "Rejected"),
     ]
 
-        task = models.ForeignKey(
+    task = models.ForeignKey(
         Task,
         on_delete=models.PROTECT,
         related_name="claims",
