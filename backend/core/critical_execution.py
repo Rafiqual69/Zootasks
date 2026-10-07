@@ -11,6 +11,8 @@ from uuid import UUID
 
 from django.conf import settings
 
+from accounts.models import AccountEntity
+
 from .critical_operation import require_critical_operation_authorized
 from .security_policy import load_and_validate_policy
 from .security_policy_engine import AuthorizationDenied, require_authorized
@@ -59,8 +61,19 @@ def require_execution_authorized(
     if not isinstance(context, dict):
         raise AuthorizationDenied("Protected operation denied.")
 
+    owner_id_raw = context.get("owner_id")
     request_id = context.get("request_id")
     approval_ids_raw = context.get("approval_ids")
+    try:
+        owner_id = int(owner_id_raw)
+    except (TypeError, ValueError):
+        raise AuthorizationDenied("Protected operation denied.")
+    if not AccountEntity.objects.filter(
+        user_id=owner_id,
+        entity_type=AccountEntity.EntityType.OWNER,
+        is_active=True,
+    ).exists():
+        raise AuthorizationDenied("Protected operation denied.")
     if not isinstance(request_id, str) or not request_id:
         raise AuthorizationDenied("Protected operation denied.")
     if not isinstance(approval_ids_raw, (list, tuple)) or len(approval_ids_raw) != 2:
@@ -73,7 +86,7 @@ def require_execution_authorized(
 
     policy = load_and_validate_policy()
     digest = require_critical_operation_authorized(
-        owner_id=request.user.id,
+        owner_id=owner_id,
         approval_ids=approval_ids,  # type: ignore[arg-type]
         request_id=request_id,
         operation=operation,
