@@ -5,6 +5,7 @@ from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
 from core.security_policy_engine import require_authorized
+from core.execution_authorization import require_execution_authorized
 
 
 @admin.register(WalletTransaction)
@@ -82,7 +83,25 @@ def approve_withdrawals(modeladmin, request, queryset):
                 skipped += 1
                 continue
 
-            require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True})
+            require_execution_authorized(
+                request=request,
+                operation="withdrawal.approve",
+                target=f"withdrawal:{withdrawal.id}",
+                scope="role_scope",
+                material_parameters={
+                    "withdrawal_id": withdrawal.id,
+                    "amount": str(withdrawal.amount),
+                    "status": withdrawal.status,
+                },
+                actor="finance",
+                resource="withdrawal",
+                action="approve",
+                authorization_scope="role_scope",
+                authorization_facts={
+                    "permission.withdrawal_approve": True,
+                    "business_rules.valid_withdrawal": True,
+                },
+            )
 
             profile = (
                 WorkerProfile.objects
@@ -146,12 +165,21 @@ def reject_withdrawals(modeladmin, request, queryset):
             if withdrawal.status != "pending":
                 continue
 
-            require_authorized(
+            require_execution_authorized(
+                request=request,
+                operation="withdrawal.reject",
+                target=f"withdrawal:{withdrawal.id}",
+                scope="role_scope",
+                material_parameters={
+                    "withdrawal_id": withdrawal.id,
+                    "amount": str(withdrawal.amount),
+                    "status": withdrawal.status,
+                },
                 actor="finance",
                 resource="withdrawal",
                 action="reject",
-                scope="role_scope",
-                facts={
+                authorization_scope="role_scope",
+                authorization_facts={
                     "permission.withdrawal_reject": True,
                     "business_rules.pending_withdrawal": True,
                 },
@@ -218,12 +246,21 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 request.user.has_perm("wallet.mark_withdrawal_paid")
                 and not request.user.has_perm("wallet.approve_withdrawal")
             )
-            require_authorized(
+            require_execution_authorized(
+                request=request,
+                operation="withdrawal.pay",
+                target=f"withdrawal:{withdrawal.id}",
+                scope="role_scope",
+                material_parameters={
+                    "withdrawal_id": withdrawal.id,
+                    "amount": str(withdrawal.amount),
+                    "status": withdrawal.status,
+                },
                 actor="finance_payer",
                 resource="withdrawal",
                 action="pay",
-                scope="role_scope",
-                facts={
+                authorization_scope="role_scope",
+                authorization_facts={
                     "permission.withdrawal_pay": is_payer,
                     "business_rules.approved_withdrawal": True,
                     "idempotency.required": True,
