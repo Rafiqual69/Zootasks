@@ -344,7 +344,7 @@ class PromotionAdminWriteBoundaryTests(TestCase):
         model_admin = PromotionAdmin(Promotion, admin.site)
         self.assertEqual(
             set(model_admin.readonly_fields),
-            {"reward", "budget", "max_workers", "completed_workers", "status"},
+            {"reward", "budget", "max_workers", "reserved_workers", "completed_workers", "status"},
         )
 
 
@@ -488,5 +488,5 @@ class FinancialAdminPolicyBoundaryTests(TestCase):
         )
         self.assertEqual(
             set(self.admin.get_readonly_fields(request, promotion)),
-            {"reward", "budget", "max_workers", "completed_workers", "status"},
+            {"reward", "budget", "max_workers", "reserved_workers", "completed_workers", "status"},
         )
