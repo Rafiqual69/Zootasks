@@ -30,6 +30,10 @@ class CriticalOperationBoundaryTests(TestCase):
             "resource": "withdrawal",
             "action": "approve",
             "authorization_scope": "role_scope",
+            "authorization_facts": {
+                "permission.withdrawal_approve": True,
+                "business_rules.valid_withdrawal": True,
+            },
         }
 
     def _pair(self, *, digest, expires_at=None):
@@ -57,13 +61,12 @@ class CriticalOperationBoundaryTests(TestCase):
             )
         })
         ids = self._pair(digest=digest)
-        with self.settings(SECRET_KEY="test-secret"):
-            with self._production_env():
-                result = require_critical_operation_authorized(
-                    owner_id=self.owner.id,
-                    approval_ids=ids,
-                    **self.common,
-                )
+        with self._production_env():
+            result = require_critical_operation_authorized(
+                owner_id=self.owner.id,
+                approval_ids=ids,
+                **self.common,
+            )
         self.assertEqual(result, digest)
         self.assertEqual(
             OwnerApproval.objects.filter(consumed_at__isnull=False).count(),
@@ -113,6 +116,33 @@ class CriticalOperationBoundaryTests(TestCase):
             2,
         )
 
+    def test_client_cannot_assert_dual_control_fact(self):
+        digest = canonical_request_digest(**{
+            key: self.common[key]
+            for key in (
+                "request_id", "operation", "target", "scope",
+                "environment", "policy_version", "material_parameters",
+            )
+        })
+        ids = self._pair(digest=digest)
+        with self._production_env():
+            with self.assertRaises(AuthorizationDenied):
+                require_critical_operation_authorized(
+                    owner_id=self.owner.id,
+                    approval_ids=ids,
+                    **{
+                        **self.common,
+                        "authorization_facts": {
+                            **self.common["authorization_facts"],
+                            "owner_dual_control_verified": True,
+                        },
+                    },
+                )
+        self.assertEqual(
+            OwnerApproval.objects.filter(consumed_at__isnull=False).count(),
+            0,
+        )
+
     def test_replay_denies_after_successful_consumption(self):
         digest = canonical_request_digest(**{
             key: self.common[key]
@@ -128,7 +158,7 @@ class CriticalOperationBoundaryTests(TestCase):
                 approval_ids=ids,
                 **self.common,
             )
-            with self.assertRaises(Exception):
+            with self.assertRaises(AuthorizationDenied):
                 require_critical_operation_authorized(
                     owner_id=self.owner.id,
                     approval_ids=ids,
