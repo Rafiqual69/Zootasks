@@ -1,14 +1,32 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import models
 from django.utils import timezone
 
 from tasks.models import Task
+from core.security_policy_engine import AuthorizationDenied, require_authorized
 
 
 class Command(BaseCommand):
     help = "Expire overdue ZooTasks and close tasks that reached worker capacity."
 
     def handle(self, *args, **options):
+        try:
+            require_authorized(
+                actor="system",
+                resource="task",
+                action="update",
+                scope="global",
+                facts={
+                    "trusted_execution_context": True,
+                    "automation.lifecycle_maintenance": True,
+                    "automation.status_transition_bounded": True,
+                },
+            )
+        except AuthorizationDenied as exc:
+            raise CommandError(
+                "Automated task lifecycle maintenance is not authorized by the server policy."
+            ) from exc
+
         now = timezone.now()
 
         expired_count = Task.objects.filter(
