@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, SimpleTestCase
@@ -13,7 +15,7 @@ from wallet.models import WalletTransaction, WithdrawalRequest
 class FinancialAdminDestructiveBoundaryTests(SimpleTestCase):
     def setUp(self):
         self.request = RequestFactory().get("/admin/")
-        self.request.user = get_user_model()(
+        self.request.user = SimpleNamespace(
             id=1,
             is_authenticated=True,
             is_staff=True,
