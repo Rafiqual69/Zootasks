@@ -101,8 +101,8 @@ def evaluate_ai_plan(
         raise AIGuardError("AI plan exceeds tool-call limit.")
 
     risks = [validate_ai_proposal(proposal) for proposal in proposals]
-    if any(risk in (AIRiskLevel.HIGH, AIRiskLevel.CRITICAL) for risk in risks):
-        raise AIGuardError("AI plan requires a separate human-authorized execution path.")
+    if any(risk is AIRiskLevel.CRITICAL for risk in risks):
+        raise AIGuardError("Critical AI action requires a separate human-authorized execution path.")
 
     try:
         digest = canonical_request_digest(
@@ -128,9 +128,10 @@ def evaluate_ai_plan(
     except RequestBindingError as exc:
         raise AIGuardError("AI plan binding denied.") from exc
 
+    highest_risk = max(risks, key=lambda value: list(AIRiskLevel).index(value))
     return AIPlanDecision(
-        risk=max(risks, key=lambda value: list(AIRiskLevel).index(value)),
-        human_governance_required=False,
+        risk=highest_risk,
+        human_governance_required=highest_risk is AIRiskLevel.HIGH,
         request_digest=digest,
     )
 
