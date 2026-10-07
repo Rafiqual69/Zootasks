@@ -29,6 +29,7 @@ def require_execution_authorized(
     request,
     operation: str,
     target: str,
+    actor: str,
     resource: str,
     action: str,
     material_parameters: Mapping[str, object],
@@ -45,7 +46,7 @@ def require_execution_authorized(
 
     if not _production_dual_control_enabled():
         require_authorized(
-            actor="finance",
+            actor=actor,
             resource=resource,
             action=action,
             scope="role_scope",
@@ -80,7 +81,7 @@ def require_execution_authorized(
         environment="production",
         policy_version=policy["policy_version"],
         material_parameters=material_parameters,
-        actor="finance",
+        actor=actor,
         resource=resource,
         action=action,
         authorization_scope="role_scope",
