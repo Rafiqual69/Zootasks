@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("tasks", "0004_protect_claim_history"),
+        ("tasks", "0005_alter_taskclaim_task"),
     ]
 
     operations = [
