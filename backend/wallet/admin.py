@@ -5,6 +5,7 @@ from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
 from core.execution_authorization import require_execution_authorized
+from core.security_policy_engine import authorize
 
 
 @admin.register(WalletTransaction)
@@ -52,16 +53,25 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "wallet.approve_withdrawal",
-                "wallet.reject_withdrawal",
-                "wallet.mark_withdrawal_paid",
+        can_approve = user.has_perm("wallet.approve_withdrawal")
+        can_pay = user.has_perm("wallet.mark_withdrawal_paid")
+        if can_approve:
+            return authorize(
+                actor="finance",
+                resource="wallet_transaction",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_approve": True},
             )
-        )
+        if can_pay:
+            return authorize(
+                actor="finance_payer",
+                resource="wallet_transaction",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_pay": True},
+            )
+        return False
 
 
 @admin.action(description="✅ Approve selected withdrawals")
@@ -420,22 +430,6 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
 
 @admin.register(WithdrawalRequest)
 class WithdrawalRequestAdmin(admin.ModelAdmin):
-    def has_change_permission(self, request, obj=None):
-        user = request.user
-        return bool(
-            user
-            and user.is_authenticated
-            and user.is_staff
-            and any(
-                user.has_perm(permission)
-                for permission in (
-                    "wallet.approve_withdrawal",
-                    "wallet.reject_withdrawal",
-                    "wallet.mark_withdrawal_paid",
-                )
-            )
-        )
-
     def has_add_permission(self, request):
         return False
 
@@ -517,13 +511,22 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "wallet.approve_withdrawal",
-                "wallet.reject_withdrawal",
-                "wallet.mark_withdrawal_paid",
+        can_approve = user.has_perm("wallet.approve_withdrawal")
+        can_pay = user.has_perm("wallet.mark_withdrawal_paid")
+        if can_approve:
+            return authorize(
+                actor="finance",
+                resource="withdrawal",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_approve": True},
             )
-        )
+        if can_pay:
+            return authorize(
+                actor="finance_payer",
+                resource="withdrawal",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_pay": True},
+            )
+        return False
