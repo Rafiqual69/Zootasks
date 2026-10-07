@@ -89,7 +89,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
         request = self._request()
         request.POST = request.POST.copy()
         request.POST["approval_ids"] = str(uuid4())
-        with self.settings(PRODUCTION_MODE=True):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "true", "OWNER_CONTROL_STATE": "PRODUCTION_DUAL_CONTROL"}, clear=False):
             with self.assertRaises(PermissionError):
                 require_execution_authorized(
                     request=request,
@@ -128,7 +128,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
         }
         request.session.save()
 
-        with self.settings(PRODUCTION_MODE=True, OWNER_CONTROL_STATE="PRODUCTION_DUAL_CONTROL"):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "true", "OWNER_CONTROL_STATE": "PRODUCTION_DUAL_CONTROL"}, clear=False):
             with self.assertRaises(PermissionError):
                 require_execution_authorized(
                     request=request,
