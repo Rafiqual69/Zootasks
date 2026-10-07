@@ -46,7 +46,7 @@ def marketplace(request):
             </div>
             <p class="promo-desc">{escape(promotion.description[:100])}...</p>
             <div class="progress-bar"><div class="progress-fill" style="width:{progress}%"></div></div>
-            <p class="progress-text">{promotion.completed_workers}/{promotion.max_workers} workers</p>
+            <p class="progress-text">{promotion.reserved_workers}/{promotion.max_workers} workers</p>
             <div class="promo-action">{action}</div>
         </div>"""
     if not cards:
