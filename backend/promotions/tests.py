@@ -30,6 +30,7 @@ class FinancialAdminHttpTamperingTests(TestCase):
             reward="15.00",
             budget="100.00",
             max_workers=5,
+            reserved_workers=1,
             completed_workers=1,
             status="active",
         )
