@@ -4,7 +4,8 @@ from django.db import transaction
 from .models import Task, TaskClaim
 from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
-from core.security_policy_engine import authorize, require_authorized
+from core.security_policy_engine import authorize
+from core.execution_authorization import require_execution_authorized
 
 
 @admin.register(Task)
@@ -103,7 +104,25 @@ def approve_submissions(modeladmin, request, queryset):
             if claim.status != "submitted":
                 continue
 
-            require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": True})
+            require_execution_authorized(
+                request=request,
+                operation="task_claim.approve",
+                target=f"task_claim:{claim.id}",
+                scope="role_scope",
+                material_parameters={
+                    "claim_id": claim.id,
+                    "reward": str(claim.task.reward),
+                    "status": claim.status,
+                },
+                actor="finance",
+                resource="task_claim",
+                action="approve",
+                authorization_scope="role_scope",
+                authorization_facts={
+                    "permission.task_approve": True,
+                    "business_rules.valid_task_claim": True,
+                },
+            )
 
             reward = claim.task.reward
             existing_payment = WalletTransaction.objects.filter(
@@ -194,7 +213,24 @@ def reject_submissions(modeladmin, request, queryset):
             claim = TaskClaim.objects.select_for_update().get(id=claim_id)
             if claim.status != "submitted":
                 continue
-            require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": True})
+            require_execution_authorized(
+                request=request,
+                operation="task_claim.reject",
+                target=f"task_claim:{claim.id}",
+                scope="role_scope",
+                material_parameters={
+                    "claim_id": claim.id,
+                    "status": claim.status,
+                },
+                actor="finance",
+                resource="task_claim",
+                action="reject",
+                authorization_scope="role_scope",
+                authorization_facts={
+                    "permission.task_reject": True,
+                    "business_rules.valid_task_claim": True,
+                },
+            )
             claim.status = "rejected"
             claim.save(update_fields=["status"])
             updated += 1
