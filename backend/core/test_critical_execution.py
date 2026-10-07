@@ -1,13 +1,13 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, TestCase
 
 from .critical_execution import SESSION_KEY, require_execution_authorized
 from .security_policy_engine import AuthorizationDenied
 
 
-class CriticalExecutionBridgeTests(SimpleTestCase):
+class CriticalExecutionBridgeTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username="critical-execution-owner",
