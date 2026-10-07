@@ -50,7 +50,7 @@ class PromotionClaim(models.Model):
         ("rejected", "Rejected"),
     ]
 
-        promotion = models.ForeignKey(
+    promotion = models.ForeignKey(
         Promotion,
         on_delete=models.PROTECT,
         related_name="claims",
