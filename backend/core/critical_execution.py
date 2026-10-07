@@ -18,10 +18,8 @@ from .security_policy_engine import AuthorizationDenied, require_authorized
 SESSION_KEY = "zt_critical_execution"
 
 
-def _production_dual_control_enabled() -> bool:
-    return bool(getattr(settings, "PRODUCTION_MODE", False)) and (
-        getattr(settings, "OWNER_CONTROL_STATE", "") == "PRODUCTION_DUAL_CONTROL"
-    )
+def _production_mode() -> bool:
+    return bool(getattr(settings, "PRODUCTION_MODE", False))
 
 
 def require_execution_authorized(
@@ -44,7 +42,7 @@ def require_execution_authorized(
     if not request.user.is_authenticated:
         raise AuthorizationDenied("Protected operation denied.")
 
-    if not _production_dual_control_enabled():
+    if not _production_mode():
         require_authorized(
             actor=actor,
             resource=resource,
@@ -53,6 +51,9 @@ def require_execution_authorized(
             facts=authorization_facts,
         )
         return None
+
+    if getattr(settings, "OWNER_CONTROL_STATE", "") != "PRODUCTION_DUAL_CONTROL":
+        raise AuthorizationDenied("Protected operation denied.")
 
     context = request.session.get(SESSION_KEY)
     if not isinstance(context, dict):
