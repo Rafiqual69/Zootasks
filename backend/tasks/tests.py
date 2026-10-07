@@ -137,10 +137,16 @@ class TaskMarketplaceTests(TestCase):
 
     def test_full_task_cannot_be_claimed(self):
         self.active_task.max_workers = 1
+        self.active_task.reserved_workers = 1
         self.active_task.completed_workers = 1
         self.active_task.status = "active"
         self.active_task.save(
-            update_fields=["max_workers", "completed_workers", "status"]
+            update_fields=[
+                "max_workers",
+                "reserved_workers",
+                "completed_workers",
+                "status",
+            ]
         )
 
         self.login()
@@ -256,7 +262,13 @@ class AdminWriteBoundaryTests(TestCase):
         model_admin = TaskAdmin(Task, admin.site)
         self.assertEqual(
             set(model_admin.readonly_fields),
-            {"reward", "max_workers", "completed_workers", "status"},
+            {
+                "reward",
+                "max_workers",
+                "reserved_workers",
+                "completed_workers",
+                "status",
+            },
         )
 
 
@@ -375,6 +387,7 @@ class FinancialAdminHttpTamperingTests(TestCase):
             category="Testing",
             reward="25.00",
             max_workers=5,
+            reserved_workers=1,
             completed_workers=1,
             status="active",
         )
