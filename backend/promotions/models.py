@@ -32,6 +32,20 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(reward__gte=0),
+                name="promotion_reward_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(budget__gte=0),
+                name="promotion_budget_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(completed_workers__lte=models.F("max_workers")),
+                name="promotion_completed_lte_max_workers",
+            ),
+        ]
         permissions = [
             ("approve_promotion_claim", "Can approve promotion claims"),
             ("reject_promotion_claim", "Can reject promotion claims"),
