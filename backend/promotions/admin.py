@@ -6,7 +6,8 @@ import logging
 from .models import Promotion, PromotionClaim
 from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
-from core.security_policy_engine import authorize, require_authorized
+from core.security_policy_engine import authorize
+from core.critical_execution import require_execution_authorized
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,25 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     if locked.status != "submitted":
                         continue
 
-                    require_authorized(actor="finance", resource="promotion_claim", action="approve", scope="role_scope", facts={"permission.promotion_approve": True, "business_rules.valid_promotion_claim": True})
+                    require_execution_authorized(
+                        request=request,
+                        actor="finance",
+                        operation="promotion_claim.approve",
+                        target=f"promotion_claim:{locked.id}",
+                        resource="promotion_claim",
+                        action="approve",
+                        material_parameters={
+                            "promotion_claim_id": locked.id,
+                            "promotion_id": locked.promotion_id,
+                            "worker_id": locked.worker_id,
+                            "reward": str(locked.promotion.reward),
+                            "status": locked.status,
+                        },
+                        authorization_facts={
+                            "permission.promotion_approve": True,
+                            "business_rules.valid_promotion_claim": True,
+                        },
+                    )
 
                     reward = locked.promotion.reward
                     existing_payment = WalletTransaction.objects.filter(
@@ -281,7 +300,25 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                 claim = PromotionClaim.objects.select_for_update().get(id=claim_id)
                 if claim.status != "submitted":
                     continue
-                require_authorized(actor="finance", resource="promotion_claim", action="reject", scope="role_scope", facts={"permission.promotion_reject": True, "business_rules.valid_promotion_claim": True})
+                require_execution_authorized(
+                    request=request,
+                    actor="finance",
+                    operation="promotion_claim.reject",
+                    target=f"promotion_claim:{claim.id}",
+                    resource="promotion_claim",
+                    action="reject",
+                    material_parameters={
+                        "promotion_claim_id": claim.id,
+                        "promotion_id": claim.promotion_id,
+                        "worker_id": claim.worker_id,
+                        "reward": str(claim.promotion.reward),
+                        "status": claim.status,
+                    },
+                    authorization_facts={
+                        "permission.promotion_reject": True,
+                        "business_rules.valid_promotion_claim": True,
+                    },
+                )
                 claim.status = "rejected"
                 claim.approved_at = None
                 claim.save(update_fields=["status", "approved_at"])
