@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from tasks.models import Task
+from core.security_policy_engine import AuthorizationDenied, require_authorized
 
 
 TASK_TEMPLATES = [
@@ -90,6 +91,24 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         limit = max(1, min(options["limit"], len(TASK_TEMPLATES)))
+
+        if not dry_run:
+            try:
+                require_authorized(
+                    actor="system",
+                    resource="task",
+                    action="create",
+                    scope="global",
+                    facts={
+                        "trusted_execution_context": True,
+                        "automation.task_template_allowlisted": True,
+                        "automation.reward_bounded": True,
+                    },
+                )
+            except AuthorizationDenied as exc:
+                raise CommandError(
+                    "Automated task creation is not authorized by the server policy."
+                ) from exc
 
         created_count = 0
         skipped_count = 0
