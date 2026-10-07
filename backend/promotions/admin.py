@@ -83,6 +83,21 @@ class PromotionAdmin(admin.ModelAdmin):
 
 @admin.register(PromotionClaim)
 class PromotionClaimAdmin(admin.ModelAdmin):
+    def has_change_permission(self, request, obj=None):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.is_staff
+            and any(
+                user.has_perm(permission)
+                for permission in (
+                    "promotions.approve_promotion_claim",
+                    "promotions.reject_promotion_claim",
+                )
+            )
+        )
+
     def has_add_permission(self, request):
         return False
 
