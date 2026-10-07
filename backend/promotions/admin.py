@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 import logging
 
@@ -238,6 +239,27 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                         )
 
                         already_paid += 1
+                        continue
+
+                    approved_payout_total = (
+                        WalletTransaction.objects
+                        .filter(
+                            promotion_id=promotion.id,
+                            transaction_type="earning",
+                        )
+                        .aggregate(total=Sum("amount"))
+                        .get("total")
+                        or reward.__class__("0.00")
+                    )
+                    if approved_payout_total + reward > promotion.budget:
+                        self.message_user(
+                            request,
+                            (
+                                f"❌ Promotion claim #{locked.id} cannot be approved: "
+                                "promotion budget would be exceeded. Manual reconciliation required."
+                            ),
+                            messages.ERROR,
+                        )
                         continue
 
                     profile = (
