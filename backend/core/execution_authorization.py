@@ -18,28 +18,33 @@ from .security_policy_engine import require_authorized
 _APPROVAL_SESSION_KEY = "_zt_owner_approval_pair"
 
 
-def _server_approval_pair(request: HttpRequest) -> tuple[UUID, UUID] | None:
+def _server_approval_context(request: HttpRequest) -> tuple[str, tuple[UUID, UUID]] | None:
     """Read only the server-side approval context created by the ceremony."""
     try:
         raw = request.session.get(_APPROVAL_SESSION_KEY)
     except Exception:
         return None
-    if not isinstance(raw, (list, tuple)) or len(raw) != 2:
+    if not isinstance(raw, dict):
+        return None
+    request_id = raw.get("request_id")
+    approval_values = raw.get("approval_ids")
+    if not isinstance(request_id, str) or not request_id:
+        return None
+    if not isinstance(approval_values, (list, tuple)) or len(approval_values) != 2:
         return None
     try:
-        first, second = (UUID(str(value)) for value in raw)
+        first, second = (UUID(str(value)) for value in approval_values)
     except (TypeError, ValueError):
         return None
     if first == second:
         return None
-    return first, second
+    return request_id, (first, second)
 
 
 def require_execution_authorized(
     *,
     request: HttpRequest,
     owner_id: int,
-    request_id: str,
     operation: str,
     target: str,
     scope: str,
@@ -75,9 +80,10 @@ def require_execution_authorized(
         )
         return None
 
-    approval_ids = _server_approval_pair(request)
-    if approval_ids is None:
+    approval_context = _server_approval_context(request)
+    if approval_context is None:
         raise PermissionError("Protected operation denied.")
+    request_id, approval_ids = approval_context
 
     digest = require_critical_operation_authorized(
         owner_id=owner_id,
