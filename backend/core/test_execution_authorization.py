@@ -10,6 +10,7 @@ from django.utils import timezone
 from .execution_authorization import _APPROVAL_SESSION_KEY, require_execution_authorized
 from .models import OwnerApproval
 from .owner_request_binding import canonical_request_digest
+from .security_policy import load_and_validate_policy
 from .security_policy_engine import AuthorizationDenied
 
 
@@ -57,7 +58,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
             target=common["target"],
             scope=common["scope"],
             environment="production",
-            policy_version="1.1.4",
+            policy_version=load_and_validate_policy()["policy_version"],
             material_parameters=common["material_parameters"],
         )
 
