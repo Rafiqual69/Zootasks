@@ -244,7 +244,7 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     approved_payout_total = (
                         WalletTransaction.objects
                         .filter(
-                            promotion_id=promotion.id,
+                            promotion_claim__promotion_id=promotion.id,
                             transaction_type="earning",
                         )
                         .aggregate(total=Sum("amount"))
