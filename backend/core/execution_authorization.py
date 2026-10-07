@@ -12,7 +12,7 @@ from uuid import UUID
 from django.http import HttpRequest
 
 from .critical_operation import require_critical_operation_authorized
-from .security_policy_engine import require_authorized
+from .security_policy_engine import CRITICAL_PRODUCTION_OPERATIONS, _production_mode, require_authorized\nfrom .security_policy import load_and_validate_policy
 
 
 _APPROVAL_SESSION_KEY = "_zt_owner_approval_pair"
