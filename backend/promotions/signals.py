@@ -46,7 +46,12 @@ ZooTasks টিম
                 [instance.worker.email],
                 fail_silently=False,
             )
-        except Exception:
-            logger.exception("Promotion approval notification delivery failed")
+        except Exception as exc:
+            logger.error(
+                "Promotion approval notification delivery failed safely: %s",
+                type(exc).__name__,
+                extra={"security_event": "promotion_approval_notification_failure"},
+                exc_info=False,
+            )
 
     transaction.on_commit(deliver)
