@@ -89,3 +89,59 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
         self.assertEqual(self.promotion.completed_workers, 1)
         self.assertEqual(WalletTransaction.objects.filter(promotion_claim=self.claim, transaction_type="earning").count(), 1)
         self.assertEqual(WorkerProfile.objects.get(user=self.user).balance, balance_after_first)
+
+    def test_new_approval_is_blocked_when_cumulative_payout_exceeds_budget(self):
+        self.promotion.budget = Decimal("20.00")
+        self.promotion.save(update_fields=["budget"])
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+
+        with patch("promotions.admin.require_execution_authorized"):
+            model_admin.approve_claims(
+                self.request(),
+                PromotionClaim.objects.filter(pk=self.claim.pk),
+            )
+
+        self.claim.refresh_from_db()
+        self.promotion.refresh_from_db()
+        profile = WorkerProfile.objects.get(user=self.user)
+
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(self.promotion.completed_workers, 0)
+        self.assertEqual(profile.balance, Decimal("100.00"))
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                promotion_claim=self.claim,
+                transaction_type="earning",
+            ).count(),
+            0,
+        )
+
+    def test_existing_ledger_reconciliation_does_not_require_remaining_budget(self):
+        self.promotion.budget = Decimal("20.00")
+        self.promotion.save(update_fields=["budget"])
+        WalletTransaction.objects.create(
+            user=self.user,
+            amount=Decimal("25.00"),
+            transaction_type="earning",
+            description="Legacy promotion reward",
+            promotion_claim=self.claim,
+        )
+        model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+
+        with patch("promotions.admin.require_execution_authorized"):
+            model_admin.approve_claims(
+                self.request(),
+                PromotionClaim.objects.filter(pk=self.claim.pk),
+            )
+
+        self.claim.refresh_from_db()
+        self.promotion.refresh_from_db()
+        self.assertEqual(self.claim.status, "approved")
+        self.assertEqual(self.promotion.completed_workers, 1)
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                promotion_claim=self.claim,
+                transaction_type="earning",
+            ).count(),
+            1,
+        )
