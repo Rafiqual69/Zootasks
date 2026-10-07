@@ -8,7 +8,6 @@ from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
 from core.security_policy_engine import authorize
 from core.execution_authorization import require_execution_authorized
-from core.security_policy_engine import authorize
 
 logger = logging.getLogger(__name__)
 
