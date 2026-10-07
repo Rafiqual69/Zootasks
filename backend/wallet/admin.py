@@ -420,6 +420,22 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
 
 @admin.register(WithdrawalRequest)
 class WithdrawalRequestAdmin(admin.ModelAdmin):
+    def has_change_permission(self, request, obj=None):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.is_staff
+            and any(
+                user.has_perm(permission)
+                for permission in (
+                    "wallet.approve_withdrawal",
+                    "wallet.reject_withdrawal",
+                    "wallet.mark_withdrawal_paid",
+                )
+            )
+        )
+
     def has_add_permission(self, request):
         return False
 
