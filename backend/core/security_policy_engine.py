@@ -111,6 +111,11 @@ def authorize(
                (actor, resource, action, scope)):
         return False
 
+    try:
+        _production_mode()
+    except AuthorizationDenied:
+        return False
+
     trusted_facts = facts or {}
     if not isinstance(trusted_facts, Mapping):
         return False
