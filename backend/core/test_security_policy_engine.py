@@ -1,6 +1,7 @@
 from .security_policy import load_and_validate_policy
 from .security_policy_engine import AuthorizationDenied, authorize, require_authorized
 import unittest
+from unittest.mock import patch
 
 
 class SecurityPolicyDecisionTests(unittest.TestCase):
@@ -27,6 +28,13 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
                 facts={"account_entity.active_worker": True},
             )
         )
+
+    def test_malformed_production_mode_fails_closed(self):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "not-a-boolean"}, clear=False):
+            self.assertFalse(authorize(
+                actor="worker", resource="task", action="read", scope="role_scope",
+                facts={"account_entity.active_worker": True},
+            ))
 
     def test_unknown_operation_denies(self):
         self.assertFalse(
