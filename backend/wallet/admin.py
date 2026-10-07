@@ -4,7 +4,6 @@ from django.utils import timezone
 from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
-from core.security_policy_engine import require_authorized
 from core.execution_authorization import require_execution_authorized
 
 
