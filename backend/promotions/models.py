@@ -27,6 +27,7 @@ class Promotion(models.Model):
     )
     budget = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     max_workers = models.PositiveIntegerField(default=1)
+    reserved_workers = models.PositiveIntegerField(default=0)
     completed_workers = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,15 +43,18 @@ class Promotion(models.Model):
                 name="promotion_budget_nonnegative",
             ),
             models.CheckConstraint(
-                condition=models.Q(completed_workers__lte=models.F("max_workers")),
-                name="promotion_completed_lte_max_workers",
+                condition=models.Q(reserved_workers__lte=models.F("max_workers")),
+                name="promotion_reserved_lte_max_workers",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(completed_workers__lte=models.F("reserved_workers")),
+                name="promotion_completed_lte_reserved_workers",
             ),
         ]
         permissions = [
             ("approve_promotion_claim", "Can approve promotion claims"),
             ("reject_promotion_claim", "Can reject promotion claims"),
         ]
-
 
     def __str__(self):
         return self.title
