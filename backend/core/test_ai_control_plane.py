@@ -89,16 +89,17 @@ class AIControlPlaneTests(SimpleTestCase):
         with self.assertRaises(AIGuardError):
             validate_retry_count(MAX_RETRIES_PER_STEP)
 
-    def test_high_impact_external_message_requires_separate_governed_path(self):
-        with self.assertRaises(AIGuardError):
-            evaluate_ai_plan(
-                proposals=[
-                    self.proposal(
-                        tool="send_external_message",
-                        action="send_external_message",
-                    )
-                ],
-                request_id="req-004",
-                environment="development",
-                policy_version="1.0.0",
-            )
+    def test_high_impact_external_message_is_planned_but_requires_governance(self):
+        decision = evaluate_ai_plan(
+            proposals=[
+                self.proposal(
+                    tool="send_external_message",
+                    action="send_external_message",
+                )
+            ],
+            request_id="req-004",
+            environment="development",
+            policy_version="1.0.0",
+        )
+        self.assertEqual(decision.risk, AIRiskLevel.HIGH)
+        self.assertTrue(decision.human_governance_required)
