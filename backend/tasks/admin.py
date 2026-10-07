@@ -301,8 +301,7 @@ class TaskClaimAdmin(admin.ModelAdmin):
             action="read",
             scope="role_scope",
             facts={
-                "permission.task_approve": user.has_perm("tasks.approve_task_submission"),
-                "permission.task_reject": user.has_perm("tasks.reject_task_submission"),
+                "permission.task_review": (user.has_perm("tasks.approve_task_submission") or user.has_perm("tasks.reject_task_submission")),
             },
         )
 
