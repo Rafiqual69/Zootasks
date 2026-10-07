@@ -244,21 +244,6 @@ def reject_submissions(modeladmin, request, queryset):
 
 @admin.register(TaskClaim)
 class TaskClaimAdmin(admin.ModelAdmin):
-    def has_change_permission(self, request, obj=None):
-        user = request.user
-        return bool(
-            user
-            and user.is_authenticated
-            and user.is_staff
-            and any(
-                user.has_perm(permission)
-                for permission in (
-                    "tasks.approve_task_submission",
-                    "tasks.reject_task_submission",
-                )
-            )
-        )
-
     def has_add_permission(self, request):
         return False
 
@@ -310,14 +295,15 @@ class TaskClaimAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "tasks.approve_task_submission",
-                "tasks.reject_task_submission",
-            )
+        return authorize(
+            actor="finance",
+            resource="task_claim",
+            action="read",
+            scope="role_scope",
+            facts={
+                "permission.task_approve": user.has_perm("tasks.approve_task_submission"),
+                "permission.task_reject": user.has_perm("tasks.reject_task_submission"),
+            },
         )
 
     @admin.display(description="Reward")
