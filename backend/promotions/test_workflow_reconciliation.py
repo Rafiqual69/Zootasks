@@ -46,6 +46,7 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
 
     def test_new_approval_increments_completed_once_and_pays(self):
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.message_user = lambda *args, **kwargs: None
         with patch("promotions.admin.require_execution_authorized"):
             model_admin.approve_claims(self.request(), PromotionClaim.objects.filter(pk=self.claim.pk))
         self.claim.refresh_from_db(); self.promotion.refresh_from_db()
@@ -60,6 +61,7 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
             description="Existing promotion reward", promotion_claim=self.claim,
         )
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.message_user = lambda *args, **kwargs: None
         with patch("promotions.admin.require_execution_authorized"):
             model_admin.approve_claims(self.request(), PromotionClaim.objects.filter(pk=self.claim.pk))
         self.claim.refresh_from_db(); self.promotion.refresh_from_db()
@@ -70,6 +72,7 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
 
     def test_rejection_releases_reservation_and_reopens_paused_promotion(self):
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.message_user = lambda *args, **kwargs: None
         with patch("promotions.admin.require_execution_authorized"):
             model_admin.reject_claims(self.request(), PromotionClaim.objects.filter(pk=self.claim.pk))
         self.claim.refresh_from_db(); self.promotion.refresh_from_db()
@@ -80,6 +83,7 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
 
     def test_approved_replay_does_not_double_count_or_pay(self):
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.message_user = lambda *args, **kwargs: None
         with patch("promotions.admin.require_execution_authorized"):
             model_admin.approve_claims(self.request(), PromotionClaim.objects.filter(pk=self.claim.pk))
         balance_after_first = WorkerProfile.objects.get(user=self.user).balance
