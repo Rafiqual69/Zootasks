@@ -1,7 +1,7 @@
 {
   "$schema": "./read_write_policy.schema.json",
   "policy_id": "ZT-READ-WRITE-POLICY",
-  "policy_version": "1.3.0",
+  "policy_version": "1.4.0",
   "schema_version": "1.0.0",
   "status": "normative-baseline",
   "enforcement": {
@@ -660,6 +660,28 @@
       "decision": "allow",
       "conditions": [
         "permission.withdrawal_pay"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-TASK-CLAIM-READ-001",
+      "actor": "finance",
+      "resource": "task_claim",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.task_review"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-PROMOTION-CLAIM-READ-001",
+      "actor": "finance",
+      "resource": "promotion_claim",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.promotion_review"
       ]
     }
   ],
