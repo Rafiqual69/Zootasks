@@ -44,16 +44,18 @@ CRITICAL_PRODUCTION_OPERATIONS = frozenset({
 
 
 def _production_mode() -> bool:
-    """Resolve production mode with an environment override and safe fallback."""
+    """Resolve production mode; malformed configuration fails closed."""
     raw = os.environ.get("PRODUCTION_MODE")
     if raw is None:
         raw = getattr(settings, "PRODUCTION_MODE", False)
     if isinstance(raw, bool):
         return raw
     value = str(raw).strip().lower()
-    if value not in {"true", "false"}:
+    if value == "true":
+        return True
+    if value == "false":
         return False
-    return value == "true"
+    raise AuthorizationDenied("Protected operation denied.")
 
 
 def _production_dual_control_allows(
@@ -80,9 +82,6 @@ def _production_dual_control_allows(
     except (ValueError, OwnerControlStateDenied):
         return False
 
-    # Trusted server-side fact only: the complete WebAuthn/passkey,
-    # exact-request-binding and atomic pair-consumption ceremony must have
-    # completed immediately before the protected operation.
     return facts.get("owner_dual_control_verified") is True
 
 
@@ -119,13 +118,16 @@ def authorize(
            for key, value in trusted_facts.items()):
         return False
 
-    if not _production_dual_control_allows(
-        actor=actor,
-        resource=resource,
-        action=action,
-        scope=scope,
-        facts=trusted_facts,
-    ):
+    try:
+        if not _production_dual_control_allows(
+            actor=actor,
+            resource=resource,
+            action=action,
+            scope=scope,
+            facts=trusted_facts,
+        ):
+            return False
+    except AuthorizationDenied:
         return False
 
     try:
