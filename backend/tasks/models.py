@@ -22,6 +22,7 @@ class Task(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
     )
     max_workers = models.PositiveIntegerField(default=1)
+    reserved_workers = models.PositiveIntegerField(default=0)
     completed_workers = models.PositiveIntegerField(default=0)
     deadline = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
@@ -39,8 +40,12 @@ class Task(models.Model):
                 name="task_reward_nonnegative",
             ),
             models.CheckConstraint(
-                condition=models.Q(completed_workers__lte=models.F("max_workers")),
-                name="task_completed_lte_max_workers",
+                condition=models.Q(reserved_workers__lte=models.F("max_workers")),
+                name="task_reserved_lte_max_workers",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(completed_workers__lte=models.F("reserved_workers")),
+                name="task_completed_lte_reserved_workers",
             ),
         ]
         permissions = [
