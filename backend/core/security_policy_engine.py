@@ -14,6 +14,8 @@ from __future__ import annotations
 import os
 from typing import Any, Mapping
 
+from django.conf import settings
+
 from .owner_control_state import (
     OwnerControlState,
     OwnerControlStateDenied,
@@ -42,7 +44,13 @@ CRITICAL_PRODUCTION_OPERATIONS = frozenset({
 
 
 def _production_mode() -> bool:
-    value = os.environ.get("PRODUCTION_MODE", "false").strip().lower()
+    """Resolve production mode with an environment override and safe fallback."""
+    raw = os.environ.get("PRODUCTION_MODE")
+    if raw is None:
+        raw = getattr(settings, "PRODUCTION_MODE", False)
+    if isinstance(raw, bool):
+        return raw
+    value = str(raw).strip().lower()
     if value not in {"true", "false"}:
         return False
     return value == "true"
