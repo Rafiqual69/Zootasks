@@ -83,7 +83,9 @@ class TaskAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
-            return ()
+            # Capacity counters are system-maintained and must never be client-editable,
+            # including during creation.
+            return ("reserved_workers",)
         return self.financial_immutable_fields + ("status",)
 
 
