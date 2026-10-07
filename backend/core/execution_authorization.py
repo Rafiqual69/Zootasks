@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from django.db import connection
 from django.http import HttpRequest
 
 from .critical_operation import require_critical_operation_authorized
@@ -90,6 +91,13 @@ def require_execution_authorized(
             facts=authorization_facts,
         )
         return None
+
+    # Critical authorization consumes approvals and must share the exact
+    # database transaction with the protected mutation. Refuse standalone
+    # execution so a future caller cannot accidentally split authorization
+    # consumption from the financial/state mutation.
+    if not connection.in_atomic_block:
+        raise PermissionError("Protected operation denied.")
 
     approval_context = _server_approval_context(request)
     if approval_context is None:
