@@ -24,11 +24,19 @@ class TaskAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     ordering = ("-created_at",)
 
-    financial_immutable_fields = ("reward", "max_workers", "completed_workers")
-
-    # Protected task fields are never directly writable through generic Django
-    # admin forms. Financial/state changes must use an explicit policy-bound workflow.
-    readonly_fields = ("reward", "max_workers", "completed_workers", "status")
+    financial_immutable_fields = (
+        "reward",
+        "max_workers",
+        "reserved_workers",
+        "completed_workers",
+    )
+    readonly_fields = (
+        "reward",
+        "max_workers",
+        "reserved_workers",
+        "completed_workers",
+        "status",
+    )
 
     def _owner_policy_facts(self, request, obj=None):
         user = request.user
@@ -138,6 +146,10 @@ def approve_submissions(modeladmin, request, queryset):
                         messages.ERROR,
                     )
                     continue
+
+                task = Task.objects.select_for_update().get(id=claim.task_id)
+                task.completed_workers += 1
+                task.save(update_fields=["completed_workers"])
                 claim.status = "approved"
                 claim.save(update_fields=["status"])
                 already_paid += 1
@@ -152,7 +164,6 @@ def approve_submissions(modeladmin, request, queryset):
             profile.balance += reward
             profile.total_earned += reward
             profile.completed_tasks += 1
-
             profile.save(
                 update_fields=[
                     "balance",
@@ -160,6 +171,10 @@ def approve_submissions(modeladmin, request, queryset):
                     "completed_tasks",
                 ]
             )
+
+            task = Task.objects.select_for_update().get(id=claim.task_id)
+            task.completed_workers += 1
+            task.save(update_fields=["completed_workers"])
 
             WalletTransaction.objects.create(
                 user=claim.worker,
@@ -184,8 +199,7 @@ def approve_submissions(modeladmin, request, queryset):
     if already_paid:
         modeladmin.message_user(
             request,
-            f"{already_paid} submission(s) were already paid. "
-            "No duplicate payment made.",
+            f"{already_paid} submission(s) were already paid. No duplicate payment made.",
             messages.WARNING,
         )
 
@@ -213,6 +227,7 @@ def reject_submissions(modeladmin, request, queryset):
             claim = TaskClaim.objects.select_for_update().get(id=claim_id)
             if claim.status != "submitted":
                 continue
+
             require_execution_authorized(
                 request=request,
                 operation="task_claim.reject",
@@ -231,6 +246,21 @@ def reject_submissions(modeladmin, request, queryset):
                     "business_rules.valid_task_claim": True,
                 },
             )
+
+            task = Task.objects.select_for_update().get(id=claim.task_id)
+            if task.reserved_workers <= 0:
+                modeladmin.message_user(
+                    request,
+                    f"❌ Task claim #{claim.id} has no reservation to release; manual reconciliation required.",
+                    messages.ERROR,
+                )
+                continue
+
+            task.reserved_workers -= 1
+            if task.status == "completed" and task.reserved_workers < task.max_workers:
+                task.status = "active"
+            task.save(update_fields=["reserved_workers", "status"])
+
             claim.status = "rejected"
             claim.save(update_fields=["status"])
             updated += 1
@@ -252,7 +282,6 @@ class TaskClaimAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
-
 
     list_display = (
         "task",
@@ -301,7 +330,10 @@ class TaskClaimAdmin(admin.ModelAdmin):
             action="read",
             scope="role_scope",
             facts={
-                "permission.task_review": (user.has_perm("tasks.approve_task_submission") or user.has_perm("tasks.reject_task_submission")),
+                "permission.task_review": (
+                    user.has_perm("tasks.approve_task_submission")
+                    or user.has_perm("tasks.reject_task_submission")
+                ),
             },
         )
 
