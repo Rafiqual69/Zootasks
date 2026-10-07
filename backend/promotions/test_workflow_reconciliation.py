@@ -98,6 +98,7 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
         self.promotion.budget = Decimal("20.00")
         self.promotion.save(update_fields=["budget"])
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.message_user = lambda *args, **kwargs: None
 
         with patch("promotions.admin.require_execution_authorized"):
             model_admin.approve_claims(
@@ -131,6 +132,7 @@ class PromotionClaimWorkflowReconciliationTests(TestCase):
             promotion_claim=self.claim,
         )
         model_admin = PromotionClaimAdmin(PromotionClaim, admin.site)
+        model_admin.message_user = lambda *args, **kwargs: None
 
         with patch("promotions.admin.require_execution_authorized"):
             model_admin.approve_claims(
