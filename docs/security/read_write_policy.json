@@ -1,7 +1,7 @@
 {
   "$schema": "./read_write_policy.schema.json",
   "policy_id": "ZT-READ-WRITE-POLICY",
-  "policy_version": "1.2.0",
+  "policy_version": "1.3.0",
   "schema_version": "1.0.0",
   "status": "normative-baseline",
   "enforcement": {
@@ -616,6 +616,50 @@
         "trusted_execution_context",
         "automation.task_lifecycle_bounded",
         "automation.no_external_side_effect"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-WITHDRAWAL-READ-001",
+      "actor": "finance",
+      "resource": "withdrawal",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.withdrawal_approve"
+      ]
+    },
+    {
+      "rule_id": "ZT-PAYER-WITHDRAWAL-READ-001",
+      "actor": "finance_payer",
+      "resource": "withdrawal",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.withdrawal_pay"
+      ]
+    },
+    {
+      "rule_id": "ZT-FINANCE-WALLET-TX-READ-001",
+      "actor": "finance",
+      "resource": "wallet_transaction",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.withdrawal_approve"
+      ]
+    },
+    {
+      "rule_id": "ZT-PAYER-WALLET-TX-READ-001",
+      "actor": "finance_payer",
+      "resource": "wallet_transaction",
+      "action": "read",
+      "scope": "role_scope",
+      "decision": "allow",
+      "conditions": [
+        "permission.withdrawal_pay"
       ]
     }
   ],
