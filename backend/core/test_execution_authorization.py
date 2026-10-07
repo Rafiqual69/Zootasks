@@ -1,5 +1,6 @@
 from uuid import uuid4
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
@@ -76,7 +77,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
 
     def test_production_denies_without_server_approval_context(self):
         request = self._request()
-        with self.settings(PRODUCTION_MODE=True):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "true", "OWNER_CONTROL_STATE": "PRODUCTION_DUAL_CONTROL"}, clear=False):
             with self.assertRaises(PermissionError):
                 require_execution_authorized(
                     request=request,
@@ -105,7 +106,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
         }
         request.session.save()
 
-        with self.settings(PRODUCTION_MODE=True, OWNER_CONTROL_STATE="PRODUCTION_DUAL_CONTROL"):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "true", "OWNER_CONTROL_STATE": "PRODUCTION_DUAL_CONTROL"}, clear=False):
             result = require_execution_authorized(
                 request=request,
                 **self._common(),
@@ -135,7 +136,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
 
     def test_development_keeps_existing_policy_path(self):
         request = self._request()
-        with self.settings(PRODUCTION_MODE=False):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "false"}, clear=False):
             result = require_execution_authorized(
                 request=request,
                 **self._common(),
