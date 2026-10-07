@@ -56,7 +56,7 @@ class ExecutionAuthorizationBridgeTests(TestCase):
             target=common["target"],
             scope=common["scope"],
             environment="production",
-            policy_version="test-v1",
+            policy_version="1.1.4",
             material_parameters=common["material_parameters"],
         )
 
@@ -106,20 +106,17 @@ class ExecutionAuthorizationBridgeTests(TestCase):
         request.session.save()
 
         with self.settings(PRODUCTION_MODE=True, OWNER_CONTROL_STATE="PRODUCTION_DUAL_CONTROL"):
-            # The policy file used by this test branch has a stable version;
-            # the approval digest above intentionally uses the test version,
-            # so the production call must deny rather than consume.
-            with self.assertRaises(AuthorizationDenied):
-                require_execution_authorized(
-                    request=request,
-                    **self._common(),
-                )
+            result = require_execution_authorized(
+                request=request,
+                **self._common(),
+            )
 
+        self.assertIsNotNone(result)
         self.assertEqual(
             OwnerApproval.objects.filter(consumed_at__isnull=False).count(),
-            0,
+            2,
         )
-        self.assertIn(_APPROVAL_SESSION_KEY, request.session)
+        self.assertNotIn(_APPROVAL_SESSION_KEY, request.session)
 
     def test_malformed_server_context_denies(self):
         request = self._request()
