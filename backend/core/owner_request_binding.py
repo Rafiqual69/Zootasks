@@ -25,6 +25,10 @@ _FORBIDDEN_KEY_PARTS = (
     "session",
     "cookie",
     "credential_value",
+    "credential",
+    "authorization",
+    "access_key",
+    "api_key",
     "bank_account",
     "payment_identifier",
 )
