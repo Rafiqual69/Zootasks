@@ -52,6 +52,11 @@ class OwnerRequestBindingTests(unittest.TestCase):
         with self.assertRaises(RequestBindingError):
             self._digest(material_parameters={"api_token": "must-not-bind"})
 
+    def test_nested_sensitive_parameter_names_are_rejected(self):
+        for key in ("credential", "authorization", "access_key", "api_key"):
+            with self.assertRaises(RequestBindingError):
+                self._digest(material_parameters={"nested": {key: "must-not-bind"}})
+
     def test_empty_required_metadata_is_rejected(self):
         with self.assertRaises(RequestBindingError):
             self._digest(target="")
