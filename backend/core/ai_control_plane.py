@@ -13,6 +13,7 @@ from typing import Any, Mapping
 
 from .ai_action_risk import AIRiskLevel, classify_ai_action
 from .owner_request_binding import RequestBindingError, canonical_request_digest
+from .security_policy import SecurityPolicyError, load_and_validate_policy
 
 
 class AIGuardError(PermissionError):
@@ -95,6 +96,14 @@ def evaluate_ai_plan(
     """Validate a bounded plan and return a secret-free exact-request digest."""
     if not isinstance(proposals, list) or not proposals:
         raise AIGuardError("AI plan denied.")
+    if not isinstance(policy_version, str) or not policy_version.strip():
+        raise AIGuardError("AI policy version denied.")
+    try:
+        current_policy_version = load_and_validate_policy()["policy_version"]
+    except SecurityPolicyError as exc:
+        raise AIGuardError("AI policy load denied.") from exc
+    if policy_version != current_policy_version:
+        raise AIGuardError("AI policy version is stale.")
     if len(proposals) > MAX_PLAN_STEPS:
         raise AIGuardError("AI plan exceeds step limit.")
     if len(proposals) > MAX_TOOL_CALLS_PER_PLAN:
