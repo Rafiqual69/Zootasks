@@ -21,7 +21,7 @@ class AIAgentTrustTests(SimpleTestCase):
             "receiver": "execution-gateway",
             "request_id": "req-100",
             "request_digest": "a" * 64,
-            "nonce": "nonce-100",
+            "nonce": "nonce-100-unique-value",
             "issued_at": 1000,
             "expires_at": 1100,
             "claims": {"operation": "generate_report"},
@@ -85,6 +85,24 @@ class AIAgentTrustTests(SimpleTestCase):
         with patch("core.ai_agent_trust.cache.add", side_effect=RuntimeError("cache unavailable")):
             with self.assertRaises(AIAgentTrustError):
                 verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
+    def test_short_nonce_is_rejected(self):
+        request = self.request(nonce="short")
+        with self.assertRaises(AIAgentTrustError):
+            verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
+    def test_malformed_request_digest_is_rejected(self):
+        request = self.request(request_digest="not-a-sha256-digest")
+        with self.assertRaises(AIAgentTrustError):
+            verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
+    def test_oversized_sender_metadata_is_rejected(self):
+        request = self.request(sender="s" * 129)
+        with self.assertRaises(AIAgentTrustError):
+            verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
 
     @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_expired_request_is_rejected(self):
