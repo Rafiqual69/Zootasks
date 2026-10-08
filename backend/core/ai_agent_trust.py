@@ -18,8 +18,10 @@ MAX_CLAIM_NODES = 256
 MAX_CLAIM_STRING_LENGTH = 512
 MIN_TRUST_KEY_BYTES = 32
 MAX_BINDING_FIELD_LENGTH = 128
+MAX_CLAIM_KEY_LENGTH = 128
 MIN_NONCE_LENGTH = 16
 _SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+_NONCE_FORMAT = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 NONCE_PREFIX = "zootasks:ai-agent-nonce:"
 
 _FORBIDDEN_CLAIM_KEY_PARTS = (
@@ -38,6 +40,8 @@ def _validate_claims(value: Any, *, depth: int = 0, nodes: list[int] | None = No
         for key, nested in value.items():
             if not isinstance(key, str) or not key:
                 raise AIAgentTrustError("Invalid AI agent claim key.")
+            if len(key) > MAX_CLAIM_KEY_LENGTH:
+                raise AIAgentTrustError("AI agent claim key too large.")
             lowered = key.casefold()
             if any(part in lowered for part in _FORBIDDEN_CLAIM_KEY_PARTS):
                 raise AIAgentTrustError("Sensitive AI agent claim key forbidden.")
@@ -102,6 +106,8 @@ def verify_inter_agent_request(request: AIAgentRequest, *, expected_receiver: st
         raise AIAgentTrustError("Invalid AI agent sender.")
     if len(request.nonce) < MIN_NONCE_LENGTH:
         raise AIAgentTrustError("AI agent nonce is too short.")
+    if not _NONCE_FORMAT.fullmatch(request.nonce):
+        raise AIAgentTrustError("Invalid AI agent nonce format.")
     if not _SHA256_HEX.fullmatch(request.request_digest):
         raise AIAgentTrustError("Invalid AI agent request digest.")
     if not _SHA256_HEX.fullmatch(request.signature):
@@ -109,7 +115,12 @@ def verify_inter_agent_request(request: AIAgentRequest, *, expected_receiver: st
     if not isinstance(request.claims, Mapping):
         raise AIAgentTrustError("Invalid AI agent claims.")
     _validate_claims(request.claims)
-    if not isinstance(request.issued_at, int) or not isinstance(request.expires_at, int):
+    if (
+        isinstance(request.issued_at, bool)
+        or isinstance(request.expires_at, bool)
+        or not isinstance(request.issued_at, int)
+        or not isinstance(request.expires_at, int)
+    ):
         raise AIAgentTrustError("Invalid AI agent timestamps.")
     current = int(datetime.now(timezone.utc).timestamp()) if now is None else now
     if request.expires_at <= request.issued_at or request.expires_at - request.issued_at > MAX_TTL_SECONDS:
