@@ -52,13 +52,13 @@ class AIControlPlaneTests(SimpleTestCase):
             proposals=proposals,
             request_id="req-001",
             environment="development",
-            policy_version="1.0.0",
+            policy_version="1.4.0",
         )
         second = evaluate_ai_plan(
             proposals=proposals,
             request_id="req-001",
             environment="development",
-            policy_version="1.0.0",
+            policy_version="1.4.0",
         )
         self.assertEqual(first.risk, AIRiskLevel.LOW)
         self.assertFalse(first.human_governance_required)
@@ -70,7 +70,7 @@ class AIControlPlaneTests(SimpleTestCase):
                 proposals=[self.proposal() for _ in range(MAX_PLAN_STEPS + 1)],
                 request_id="req-002",
                 environment="development",
-                policy_version="1.0.0",
+                policy_version="1.4.0",
             )
 
     def test_sensitive_parameter_is_rejected_by_request_binding(self):
@@ -81,7 +81,7 @@ class AIControlPlaneTests(SimpleTestCase):
                 ],
                 request_id="req-003",
                 environment="development",
-                policy_version="1.0.0",
+                policy_version="1.4.0",
             )
 
     def test_retry_budget_is_bounded(self):
@@ -99,7 +99,15 @@ class AIControlPlaneTests(SimpleTestCase):
             ],
             request_id="req-004",
             environment="development",
-            policy_version="1.0.0",
+            policy_version="1.4.0",
         )
         self.assertEqual(decision.risk, AIRiskLevel.HIGH)
         self.assertTrue(decision.human_governance_required)
+    def test_stale_policy_version_fails_closed(self):
+        with self.assertRaises(AIGuardError):
+            evaluate_ai_plan(
+                proposals=[self.proposal()],
+                request_id="req-stale",
+                environment="development",
+                policy_version="1.3.0",
+            )
