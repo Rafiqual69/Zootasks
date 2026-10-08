@@ -17,6 +17,10 @@ class RequestBindingError(ValueError):
     """Raised when a protected action cannot be safely canonicalized."""
 
 
+MAX_BINDING_DEPTH = 8
+MAX_BINDING_NODES = 512
+MAX_BINDING_STRING_LENGTH = 512
+
 _FORBIDDEN_KEY_PARTS = (
     "password",
     "secret",
@@ -34,8 +38,14 @@ _FORBIDDEN_KEY_PARTS = (
 )
 
 
-def _validate_value(value: Any, *, path: str = "value") -> None:
+def _validate_value(value: Any, *, path: str = "value", depth: int = 0, nodes: list[int] | None = None) -> None:
+    nodes = nodes if nodes is not None else [0]
+    nodes[0] += 1
+    if nodes[0] > MAX_BINDING_NODES or depth > MAX_BINDING_DEPTH:
+        raise RequestBindingError("parameter payload exceeds safety limits")
     if value is None or isinstance(value, (str, bool, int)):
+        if isinstance(value, str) and len(value) > MAX_BINDING_STRING_LENGTH:
+            raise RequestBindingError("parameter string exceeds safety limits")
         return
     if isinstance(value, float):
         raise RequestBindingError(f"floating-point value forbidden at {path}")
@@ -46,11 +56,13 @@ def _validate_value(value: Any, *, path: str = "value") -> None:
             lowered = key.casefold()
             if any(part in lowered for part in _FORBIDDEN_KEY_PARTS):
                 raise RequestBindingError("sensitive parameter key forbidden")
-            _validate_value(nested, path=f"{path}.{key}")
+            if len(key) > MAX_BINDING_STRING_LENGTH:
+                raise RequestBindingError("parameter key exceeds safety limits")
+            _validate_value(nested, path=f"{path}.{key}", depth=depth + 1, nodes=nodes)
         return
     if isinstance(value, (list, tuple)):
         for index, nested in enumerate(value):
-            _validate_value(nested, path=f"{path}[{index}]")
+            _validate_value(nested, path=f"{path}[{index}]", depth=depth + 1, nodes=nodes)
         return
     raise RequestBindingError(f"unsupported parameter type at {path}")
 
