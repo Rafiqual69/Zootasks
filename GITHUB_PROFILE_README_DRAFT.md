@@ -1,40 +1,44 @@
 # Hi, I'm Rafiqual Islam 👋
 
-**Python/Django Developer | Secure Automation | Backend Engineering**
+**Python & Django | Backend Development | Secure Automation**
 
-I build practical web applications with a focus on reliable backend systems, security-minded engineering, and maintainable automation.
+I’m building practical backend applications with an emphasis on secure-by-design development, maintainable code, and dependable automation. My current focus is improving the security and reliability of **ZooTasks**, a Django-based task marketplace and earning-platform project.
 
-## What I'm Working On
+## 🚀 Current Project
 
-### ZooTasks
-A task-marketplace and earning-platform project built around Django/Python. Current development priorities include:
+### [ZooTasks](https://github.com/Rafiqual69/Zootasks)
 
-- Secure authentication and authorization
+A task marketplace in active development, with current engineering priorities including:
+
+- Authentication, authorization, and least-privilege access
 - Wallet and financial-ledger integrity
 - Idempotent task and promotion reward workflows
 - Safer withdrawal and approval controls
-- Automated testing, dependency checks, and deployment readiness
-- Privacy-conscious logging and secret management
+- Automated regression testing and dependency auditing
+- Secret management and privacy-conscious logging
+- Deployment readiness, backup validation, and operational reliability
 
-Project: [Rafiqual69/Zootasks](https://github.com/Rafiqual69/Zootasks)
-
-## Technical Focus
+## 🧰 Technical Areas
 
 - **Languages:** Python, SQL, Bash
-- **Backend:** Django, REST-oriented application design
-- **Data:** PostgreSQL, SQLite, Redis
-- **Delivery & Operations:** Git, GitHub Actions, Docker, Linux/Termux
-- **Security practices:** least privilege, input validation, fail-closed authorization, regression testing, dependency auditing
+- **Backend:** Django
+- **Data & infrastructure:** PostgreSQL, SQLite, Redis
+- **Tools & delivery:** Git, GitHub Actions, Docker, Linux, Termux
+- **Security-minded practices:** input validation, fail-closed authorization, regression testing, dependency checks, and careful handling of sensitive data
 
-## Engineering Principles
+## 🔐 Engineering Principles
 
-- Security and privacy are design requirements, not afterthoughts.
-- Financial changes must be auditable, consistent, and protected against duplicate execution.
-- Automated checks support engineering decisions; they do not replace independent review.
-- Production changes require verified configuration, backups, and an explicit release gate.
+- Protect user privacy and never commit credentials or production secrets.
+- Treat wallet, reward, and withdrawal changes as security-sensitive.
+- Prefer explicit authorization, auditable state transitions, and protection against duplicate processing.
+- Use automated checks as evidence—not as a guarantee that software is vulnerability-free.
+- Require review, verified configuration, and backup planning before production changes.
 
-## Connect
+## 🤝 Connect
 
-- GitHub: [@Rafiqual69](https://github.com/Rafiqual69)
+- **GitHub:** [@Rafiqual69](https://github.com/Rafiqual69)
+- **Featured project:** [ZooTasks](https://github.com/Rafiqual69/Zootasks)
 
-*This profile draft intentionally avoids publishing private contact details, credentials, or unverified claims about qualifications and experience.*
+---
+
+*This profile describes current project interests and engineering priorities. It avoids publishing private contact details and does not claim certifications or experience that have not been verified.*
