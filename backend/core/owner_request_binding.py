@@ -92,10 +92,15 @@ def canonical_request_digest(
         "material_parameters": dict(material_parameters or {}),
     }
     if any(
-        not isinstance(values[key], str) or not values[key]
+        not isinstance(values[key], str) or not values[key].strip()
         for key in ("request_id", "operation", "target", "scope", "environment", "policy_version")
     ):
         raise RequestBindingError("request binding metadata must be non-empty strings")
+    if any(
+        len(values[key]) > MAX_BINDING_STRING_LENGTH
+        for key in ("request_id", "operation", "target", "scope", "environment", "policy_version")
+    ):
+        raise RequestBindingError("request binding metadata exceeds safety limits")
     _validate_value(values["material_parameters"], path="material_parameters")
 
     canonical = json.dumps(
