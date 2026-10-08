@@ -28,6 +28,13 @@ class AuthorizationDenied(PermissionError):
     """Raised when a protected operation cannot be explicitly authorized."""
 
 
+class _SystemAutomationCapability:
+    __slots__ = ()
+
+
+SYSTEM_AUTOMATION_CAPABILITY = _SystemAutomationCapability()
+
+
 CRITICAL_PRODUCTION_OPERATIONS = frozenset({
     ("owner", "task", "create", "global"),
     ("owner", "task", "update", "global"),
@@ -105,6 +112,7 @@ def authorize(
     action: str,
     scope: str,
     facts: Mapping[str, Any] | None = None,
+    system_capability: object | None = None,
 ) -> bool:
     """Return True only for an explicit, fully satisfied allow rule."""
     if not all(isinstance(value, str) and value for value in
@@ -114,6 +122,9 @@ def authorize(
     try:
         _production_mode()
     except AuthorizationDenied:
+        return False
+
+    if actor == "system" and system_capability is not SYSTEM_AUTOMATION_CAPABILITY:
         return False
 
     trusted_facts = facts or {}
