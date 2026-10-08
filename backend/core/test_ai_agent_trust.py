@@ -33,26 +33,26 @@ class AIAgentTrustTests(SimpleTestCase):
             request = AIAgentRequest(**{**values, "signature": sign_inter_agent_request(request)})
         return request
 
-    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key"}, clear=False)
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_valid_request_is_accepted_once(self):
         request = self.request()
         verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
         with self.assertRaises(AIAgentTrustError):
             verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
 
-    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key"}, clear=False)
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_tampering_is_rejected(self):
         request = self.request(claims={"operation": "read_scoped_project_data"})
         tampered = AIAgentRequest(**{**request.__dict__, "request_digest": "b" * 64})
         with self.assertRaises(AIAgentTrustError):
             verify_inter_agent_request(tampered, expected_receiver="execution-gateway", now=1050)
 
-    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key"}, clear=False)
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_wrong_receiver_is_rejected(self):
         with self.assertRaises(AIAgentTrustError):
             verify_inter_agent_request(self.request(receiver="other-gateway"), expected_receiver="execution-gateway", now=1050)
 
-    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key"}, clear=False)
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_upstream_approval_claim_is_never_authority(self):
         request = self.request(claims={"authorized": True})
         request = AIAgentRequest(**{**request.__dict__, "signature": sign_inter_agent_request(request)})
@@ -64,7 +64,12 @@ class AIAgentTrustTests(SimpleTestCase):
         with self.assertRaises(AIAgentTrustError):
             sign_inter_agent_request(self.request(signature="not-used"))
 
-    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key"}, clear=False)
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "short"}, clear=False)
+    def test_short_trust_key_fails_closed(self):
+        with self.assertRaises(AIAgentTrustError):
+            sign_inter_agent_request(self.request())
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_expired_request_is_rejected(self):
         with self.assertRaises(AIAgentTrustError):
             verify_inter_agent_request(self.request(), expected_receiver="execution-gateway", now=2000)
