@@ -52,6 +52,24 @@ class OwnerRequestBindingTests(unittest.TestCase):
         with self.assertRaises(RequestBindingError):
             self._digest(material_parameters={"api_token": "must-not-bind"})
 
+    def test_oversized_nested_payload_is_rejected(self):
+        nested = "x"
+        for _ in range(9):
+            nested = {"nested": nested}
+        with self.assertRaises(RequestBindingError):
+            canonical_request_digest(
+                request_id="req", operation="update", target="task", scope="own",
+                environment="test", policy_version="1.0.0", material_parameters=nested,
+            )
+
+    def test_oversized_parameter_string_is_rejected(self):
+        with self.assertRaises(RequestBindingError):
+            canonical_request_digest(
+                request_id="req", operation="update", target="task", scope="own",
+                environment="test", policy_version="1.0.0",
+                material_parameters={"value": "x" * 513},
+            )
+
     def test_nested_sensitive_parameter_names_are_rejected(self):
         for key in ("credential", "authorization", "access_key", "api_key"):
             with self.assertRaises(RequestBindingError):
