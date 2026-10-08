@@ -5,6 +5,9 @@ from enum import StrEnum
 from typing import Any
 from .ai_action_risk import AIRiskLevel
 
+MAX_AUDIT_STRING_LENGTH = 128
+_ALLOWED_DECISIONS = frozenset({"allowed", "denied", "blocked", "requires_human_review"})
+
 class AIDataTrust(StrEnum):
     INSTRUCTION = "instruction"
     UNTRUSTED_DATA = "untrusted_data"
@@ -34,6 +37,10 @@ def build_ai_audit_event(*, request_digest: str, decision: str, risk: AIRiskLeve
     fields = (request_digest, decision, tool, action, target, scope, policy_version)
     if not all(isinstance(value, str) and value.strip() for value in fields):
         raise ValueError("AI audit metadata must use non-empty strings.")
+    if any(len(value) > MAX_AUDIT_STRING_LENGTH for value in fields):
+        raise ValueError("AI audit metadata is too large.")
+    if decision not in _ALLOWED_DECISIONS:
+        raise ValueError("Invalid AI audit decision.")
     if len(request_digest) != 64:
         raise ValueError("AI audit digest must be SHA-256 sized.")
     if not isinstance(risk, AIRiskLevel) or not isinstance(data_trust, AIDataTrust):
