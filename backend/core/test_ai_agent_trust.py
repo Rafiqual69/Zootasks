@@ -93,6 +93,24 @@ class AIAgentTrustTests(SimpleTestCase):
             verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
 
     @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
+    def test_malformed_nonce_format_is_rejected(self):
+        request = self.request(nonce="nonce with spaces!!")
+        with self.assertRaises(AIAgentTrustError):
+            verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
+    def test_oversized_claim_key_is_rejected(self):
+        request = self.request(claims={"k" * 129: "value"})
+        with self.assertRaises(AIAgentTrustError):
+            verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
+    def test_boolean_timestamps_are_rejected(self):
+        request = self.request(issued_at=True, expires_at=1100)
+        with self.assertRaises(AIAgentTrustError):
+            verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
+
+    @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
     def test_malformed_request_digest_is_rejected(self):
         request = self.request(request_digest="not-a-sha256-digest")
         with self.assertRaises(AIAgentTrustError):
