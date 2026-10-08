@@ -2,7 +2,7 @@
 AI agents are peers across a trust boundary. A receiving executor must not trust upstream authorization claims.
 """
 from __future__ import annotations
-import hashlib, hmac, json, os
+import hashlib, hmac, json, os, re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
@@ -17,6 +17,9 @@ MAX_CLAIM_DEPTH = 6
 MAX_CLAIM_NODES = 256
 MAX_CLAIM_STRING_LENGTH = 512
 MIN_TRUST_KEY_BYTES = 32
+MAX_BINDING_FIELD_LENGTH = 128
+MIN_NONCE_LENGTH = 16
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 NONCE_PREFIX = "zootasks:ai-agent-nonce:"
 
 _FORBIDDEN_CLAIM_KEY_PARTS = (
@@ -90,12 +93,19 @@ def verify_inter_agent_request(request: AIAgentRequest, *, expected_receiver: st
         raise AIAgentTrustError("Malformed AI agent request.")
     if not isinstance(expected_receiver, str) or not expected_receiver.strip():
         raise AIAgentTrustError("Invalid receiver.")
+    fields = (request.sender, request.receiver, request.request_id, request.request_digest, request.nonce, request.signature)
+    if any(not isinstance(value, str) or not value.strip() or len(value) > MAX_BINDING_FIELD_LENGTH for value in fields):
+        raise AIAgentTrustError("Invalid AI agent request metadata.")
     if request.receiver != expected_receiver:
         raise AIAgentTrustError("AI agent audience mismatch.")
-    if not request.sender or request.sender == request.receiver:
+    if request.sender == request.receiver:
         raise AIAgentTrustError("Invalid AI agent sender.")
-    if not request.request_id or not request.request_digest or not request.nonce:
-        raise AIAgentTrustError("Incomplete AI agent request binding.")
+    if len(request.nonce) < MIN_NONCE_LENGTH:
+        raise AIAgentTrustError("AI agent nonce is too short.")
+    if not _SHA256_HEX.fullmatch(request.request_digest):
+        raise AIAgentTrustError("Invalid AI agent request digest.")
+    if not _SHA256_HEX.fullmatch(request.signature):
+        raise AIAgentTrustError("Invalid AI agent signature format.")
     if not isinstance(request.claims, Mapping):
         raise AIAgentTrustError("Invalid AI agent claims.")
     _validate_claims(request.claims)
