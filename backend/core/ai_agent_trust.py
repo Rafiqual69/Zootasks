@@ -13,6 +13,9 @@ class AIAgentTrustError(PermissionError):
 
 MAX_CLOCK_SKEW_SECONDS = 30
 MAX_TTL_SECONDS = 300
+MAX_CLAIM_DEPTH = 6
+MAX_CLAIM_NODES = 256
+MAX_CLAIM_STRING_LENGTH = 512
 MIN_TRUST_KEY_BYTES = 32
 NONCE_PREFIX = "zootasks:ai-agent-nonce:"
 
@@ -23,7 +26,11 @@ _FORBIDDEN_CLAIM_KEY_PARTS = (
 )
 
 
-def _validate_claims(value: Any) -> None:
+def _validate_claims(value: Any, *, depth: int = 0, nodes: list[int] | None = None) -> None:
+    nodes = nodes if nodes is not None else [0]
+    nodes[0] += 1
+    if nodes[0] > MAX_CLAIM_NODES or depth > MAX_CLAIM_DEPTH:
+        raise AIAgentTrustError("AI agent claims exceed safety limits.")
     if isinstance(value, Mapping):
         for key, nested in value.items():
             if not isinstance(key, str) or not key:
@@ -31,13 +38,15 @@ def _validate_claims(value: Any) -> None:
             lowered = key.casefold()
             if any(part in lowered for part in _FORBIDDEN_CLAIM_KEY_PARTS):
                 raise AIAgentTrustError("Sensitive AI agent claim key forbidden.")
-            _validate_claims(nested)
+            _validate_claims(nested, depth=depth + 1, nodes=nodes)
         return
     if isinstance(value, (list, tuple)):
         for nested in value:
-            _validate_claims(nested)
+            _validate_claims(nested, depth=depth + 1, nodes=nodes)
         return
     if value is None or isinstance(value, (str, bool, int)):
+        if isinstance(value, str) and len(value) > MAX_CLAIM_STRING_LENGTH:
+            raise AIAgentTrustError("AI agent claim value too large.")
         return
     raise AIAgentTrustError("Invalid AI agent claim value.")
 
