@@ -2,6 +2,7 @@ from django.test import SimpleTestCase
 
 from .ai_action_risk import AIRiskLevel
 from .ai_control_plane import (
+    AITool,
     AIProposal,
     AIGuardError,
     MAX_PLAN_STEPS,
