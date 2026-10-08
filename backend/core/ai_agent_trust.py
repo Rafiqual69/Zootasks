@@ -16,6 +16,31 @@ MAX_TTL_SECONDS = 300
 MIN_TRUST_KEY_BYTES = 32
 NONCE_PREFIX = "zootasks:ai-agent-nonce:"
 
+_FORBIDDEN_CLAIM_KEY_PARTS = (
+    "password", "secret", "token", "private_key", "credential",
+    "authorization", "access_key", "api_key", "session", "cookie",
+    "bank_account", "payment_identifier",
+)
+
+
+def _validate_claims(value: Any) -> None:
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if not isinstance(key, str) or not key:
+                raise AIAgentTrustError("Invalid AI agent claim key.")
+            lowered = key.casefold()
+            if any(part in lowered for part in _FORBIDDEN_CLAIM_KEY_PARTS):
+                raise AIAgentTrustError("Sensitive AI agent claim key forbidden.")
+            _validate_claims(nested)
+        return
+    if isinstance(value, (list, tuple)):
+        for nested in value:
+            _validate_claims(nested)
+        return
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    raise AIAgentTrustError("Invalid AI agent claim value.")
+
 @dataclass(frozen=True)
 class AIAgentRequest:
     sender: str
@@ -64,6 +89,7 @@ def verify_inter_agent_request(request: AIAgentRequest, *, expected_receiver: st
         raise AIAgentTrustError("Incomplete AI agent request binding.")
     if not isinstance(request.claims, Mapping):
         raise AIAgentTrustError("Invalid AI agent claims.")
+    _validate_claims(request.claims)
     if not isinstance(request.issued_at, int) or not isinstance(request.expires_at, int):
         raise AIAgentTrustError("Invalid AI agent timestamps.")
     current = int(datetime.now(timezone.utc).timestamp()) if now is None else now
