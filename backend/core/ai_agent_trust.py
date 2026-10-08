@@ -112,5 +112,9 @@ def verify_inter_agent_request(request: AIAgentRequest, *, expected_receiver: st
     if request.claims.get("authorized") is True or request.claims.get("approved") is True:
         raise AIAgentTrustError("Upstream authorization claims are not trusted.")
     cache_key = f"{NONCE_PREFIX}{request.receiver}:{request.nonce}"
-    if not cache.add(cache_key, "consumed", timeout=max(1, request.expires_at - current)):
+    try:
+        consumed = cache.add(cache_key, "consumed", timeout=max(1, request.expires_at - current))
+    except Exception as exc:
+        raise AIAgentTrustError("AI agent replay protection unavailable.") from exc
+    if not consumed:
         raise AIAgentTrustError("AI agent request replay detected.")
