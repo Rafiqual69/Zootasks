@@ -83,7 +83,7 @@ class AIAgentTrustTests(SimpleTestCase):
     def test_replay_store_failure_fails_closed(self):
         request = self.request()
         with patch("core.ai_agent_trust.cache.add", side_effect=RuntimeError("cache unavailable")):
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(AIAgentTrustError):
                 verify_inter_agent_request(request, expected_receiver="execution-gateway", now=1050)
 
     @patch.dict("os.environ", {"AI_AGENT_TRUST_KEY": "test-only-key-with-at-least-32-bytes"}, clear=False)
