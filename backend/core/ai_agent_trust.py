@@ -13,6 +13,7 @@ class AIAgentTrustError(PermissionError):
 
 MAX_CLOCK_SKEW_SECONDS = 30
 MAX_TTL_SECONDS = 300
+MIN_TRUST_KEY_BYTES = 32
 NONCE_PREFIX = "zootasks:ai-agent-nonce:"
 
 @dataclass(frozen=True)
@@ -31,7 +32,10 @@ def _trust_key() -> bytes:
     raw = os.environ.get("AI_AGENT_TRUST_KEY", "")
     if not raw:
         raise AIAgentTrustError("AI agent trust key is not configured.")
-    return raw.encode("utf-8")
+    key = raw.encode("utf-8")
+    if len(key) < MIN_TRUST_KEY_BYTES:
+        raise AIAgentTrustError("AI agent trust key is too short.")
+    return key
 
 def _canonical_payload(request: AIAgentRequest) -> bytes:
     values = {"sender": request.sender, "receiver": request.receiver, "request_id": request.request_id, "request_digest": request.request_digest, "nonce": request.nonce, "issued_at": request.issued_at, "expires_at": request.expires_at, "claims": dict(request.claims)}
