@@ -79,6 +79,11 @@ class OwnerRequestBindingTests(unittest.TestCase):
         with self.assertRaises(RequestBindingError):
             self._digest(target="")
 
+
+    def test_oversized_request_metadata_is_rejected(self):
+        with self.assertRaises(RequestBindingError):
+            self._digest(request_id="r" * 513)
+
     def test_unsupported_parameter_type_is_rejected(self):
         with self.assertRaises(RequestBindingError):
             self._digest(material_parameters={"object": object()})
