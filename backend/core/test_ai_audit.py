@@ -18,6 +18,20 @@ class AIAuditTests(SimpleTestCase):
         self.assertNotIn("parameters", safe)
         self.assertNotIn("payload", safe)
 
+    def test_oversized_or_unknown_decision_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_ai_audit_event(
+                request_digest="a" * 64, decision="x" * 129, risk=AIRiskLevel.HIGH,
+                tool="x", action="x", target="x", scope="x",
+                policy_version="1.0.0", data_trust=AIDataTrust.TOOL_OUTPUT,
+            )
+        with self.assertRaises(ValueError):
+            build_ai_audit_event(
+                request_digest="a" * 64, decision="allow", risk=AIRiskLevel.HIGH,
+                tool="x", action="x", target="x", scope="x",
+                policy_version="1.0.0", data_trust=AIDataTrust.TOOL_OUTPUT,
+            )
+
     def test_invalid_digest_is_rejected(self):
         with self.assertRaises(ValueError):
             build_ai_audit_event(
