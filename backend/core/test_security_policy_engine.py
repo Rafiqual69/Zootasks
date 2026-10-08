@@ -1,5 +1,10 @@
 from .security_policy import load_and_validate_policy
-from .security_policy_engine import AuthorizationDenied, authorize, require_authorized
+from .security_policy_engine import (
+    AuthorizationDenied,
+    SYSTEM_AUTOMATION_CAPABILITY,
+    authorize,
+    require_authorized,
+)
 import unittest
 from unittest.mock import patch
 
@@ -198,12 +203,12 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
             "automation.task_generation_bounded": True,
             "automation.no_external_side_effect": True,
         }
+        self.assertFalse(authorize(
+            actor="system", resource="task", action="create", scope="automation", facts=facts,
+        ))
         self.assertTrue(authorize(
-            actor="system",
-            resource="task",
-            action="create",
-            scope="automation",
-            facts=facts,
+            actor="system", resource="task", action="create", scope="automation",
+            facts=facts, system_capability=SYSTEM_AUTOMATION_CAPABILITY,
         ))
         self.assertFalse(authorize(
             actor="system",
