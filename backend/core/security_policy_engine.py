@@ -127,9 +127,6 @@ def authorize(
     if actor == "system" and system_capability is not SYSTEM_AUTOMATION_CAPABILITY:
         return False
 
-    if actor == "system" and system_capability is not SYSTEM_AUTOMATION_CAPABILITY:
-        return False
-
     trusted_facts = facts or {}
     if not isinstance(trusted_facts, Mapping):
         return False
