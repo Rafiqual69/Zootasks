@@ -39,6 +39,31 @@ AI_TOOL_ACTIONS = {
 MAX_PLAN_STEPS = 12
 MAX_RETRIES_PER_STEP = 3
 MAX_TOOL_CALLS_PER_PLAN = 12
+MAX_PARAMETER_DEPTH = 6
+MAX_PARAMETER_NODES = 256
+MAX_PARAMETER_STRING_LENGTH = 512
+
+
+def _validate_parameter_shape(value: Any, *, depth: int = 0, nodes: list[int] | None = None) -> None:
+    nodes = nodes if nodes is not None else [0]
+    nodes[0] += 1
+    if nodes[0] > MAX_PARAMETER_NODES or depth > MAX_PARAMETER_DEPTH:
+        raise AIGuardError("AI parameter payload exceeds safety limits.")
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if not isinstance(key, str) or not key or len(key) > MAX_PARAMETER_STRING_LENGTH:
+                raise AIGuardError("AI parameter key denied.")
+            _validate_parameter_shape(nested, depth=depth + 1, nodes=nodes)
+        return
+    if isinstance(value, (list, tuple)):
+        for nested in value:
+            _validate_parameter_shape(nested, depth=depth + 1, nodes=nodes)
+        return
+    if value is None or isinstance(value, (str, bool, int)):
+        if isinstance(value, str) and len(value) > MAX_PARAMETER_STRING_LENGTH:
+            raise AIGuardError("AI parameter value denied.")
+        return
+    raise AIGuardError("AI parameter type denied.")
 
 
 @dataclass(frozen=True)
@@ -77,6 +102,7 @@ def validate_ai_proposal(proposal: AIProposal) -> AIRiskLevel:
         raise AIGuardError("AI scope denied.")
     if not isinstance(proposal.parameters, Mapping):
         raise AIGuardError("AI parameters denied.")
+    _validate_parameter_shape(proposal.parameters)
 
     risk = classify_ai_action(proposal.action)
     if risk is AIRiskLevel.CRITICAL:
