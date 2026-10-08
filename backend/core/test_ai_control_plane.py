@@ -27,6 +27,24 @@ class AIControlPlaneTests(SimpleTestCase):
     def test_allowlisted_read_tool_is_low_risk(self):
         self.assertEqual(validate_ai_proposal(self.proposal()), AIRiskLevel.LOW)
 
+    def test_oversized_nested_parameters_are_denied(self):
+        nested = "x"
+        for _ in range(7):
+            nested = {"nested": nested}
+        with self.assertRaises(AIGuardError):
+            validate_ai_proposal(AIProposal(
+                tool=AITool.CREATE_DRAFT,
+                action="create_draft", target="draft", scope="own", parameters=nested,
+            ))
+
+    def test_oversized_parameter_value_is_denied(self):
+        with self.assertRaises(AIGuardError):
+            validate_ai_proposal(AIProposal(
+                tool=AITool.CREATE_DRAFT,
+                action="create_draft", target="draft", scope="own",
+                parameters={"content": "x" * 513},
+            ))
+
     def test_unknown_tool_is_denied(self):
         with self.assertRaises(AIGuardError):
             validate_ai_proposal(self.proposal(tool="shell"))
