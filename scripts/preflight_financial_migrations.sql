@@ -1,10 +1,20 @@
 -- Read-only preflight for the financial constraints introduced by the
 -- security branch. Returns only check names and violation counts; no user data.
+-- Counter/claim mismatches block migration so the reconciliation migration
+-- cannot silently overwrite historical completed-worker accounting.
 SELECT 'tasks.negative_reward' AS check_name, COUNT(*)::bigint AS violations
 FROM tasks_task WHERE reward < 0
 UNION ALL
 SELECT 'tasks.completed_workers_gt_max', COUNT(*)::bigint
 FROM tasks_task WHERE completed_workers > max_workers
+UNION ALL
+SELECT 'tasks.completed_counter_claim_mismatch', COUNT(*)::bigint
+FROM tasks_task t
+WHERE t.completed_workers <> (
+    SELECT COUNT(*)
+    FROM tasks_taskclaim c
+    WHERE c.task_id = t.id AND c.status = 'approved'
+)
 UNION ALL
 SELECT 'tasks.active_claims_gt_max', COUNT(*)::bigint
 FROM tasks_task t
@@ -22,6 +32,14 @@ FROM promotions_promotion WHERE budget < 0
 UNION ALL
 SELECT 'promotions.completed_workers_gt_max', COUNT(*)::bigint
 FROM promotions_promotion WHERE completed_workers > max_workers
+UNION ALL
+SELECT 'promotions.completed_counter_claim_mismatch', COUNT(*)::bigint
+FROM promotions_promotion p
+WHERE p.completed_workers <> (
+    SELECT COUNT(*)
+    FROM promotions_promotionclaim c
+    WHERE c.promotion_id = p.id AND c.status = 'approved'
+)
 UNION ALL
 SELECT 'promotions.active_claims_gt_max', COUNT(*)::bigint
 FROM promotions_promotion p
