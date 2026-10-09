@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from urllib.parse import unquote, urlparse
+
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -7,7 +9,6 @@ SECRET_KEY = config("SECRET_KEY")
 DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",") if h.strip()]
 INSTALLED_APPS = [
-
     "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -56,12 +57,38 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Use Railway's PostgreSQL URL in hosted environments; keep SQLite for local
+# development when DATABASE_URL is a sqlite URL.
+DATABASE_URL = config("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+_database_url = urlparse(DATABASE_URL)
+
+if _database_url.scheme in ("postgres", "postgresql"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(_database_url.path.lstrip("/")),
+            "USER": unquote(_database_url.username or ""),
+            "PASSWORD": unquote(_database_url.password or ""),
+            "HOST": _database_url.hostname or "",
+            "PORT": str(_database_url.port or 5432),
+            "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=60, cast=int),
+            "OPTIONS": {"sslmode": config("DB_SSLMODE", default="prefer")},
+        }
     }
-}
+elif _database_url.scheme == "sqlite":
+    sqlite_name = _database_url.path
+    if sqlite_name.startswith("/") and not sqlite_name.startswith("//"):
+        sqlite_path = Path(sqlite_name)
+    else:
+        sqlite_path = BASE_DIR / sqlite_name.lstrip("/")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": sqlite_path,
+        }
+    }
+else:
+    raise ValueError("DATABASE_URL must use postgres://, postgresql://, or sqlite:///")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -69,20 +96,23 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Dhaka"
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 
 # =============== EMAIL SETTINGS ===============
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True") == "True"
@@ -96,9 +126,7 @@ DEFAULT_FROM_EMAIL = "ZooTasks <noreply@zootasks.com>"
 # transport-security decisions into source.
 PRODUCTION_MODE = config("PRODUCTION_MODE", default=False, cast=bool)
 SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
-SECURE_SSL_REDIRECT = config(
-    "SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cast=bool
-)
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cast=bool)
 SESSION_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_SECURE = SECURE_COOKIES
 SECURE_HSTS_SECONDS = config(
@@ -120,10 +148,7 @@ TRUST_PROXY_SSL = config("TRUST_PROXY_SSL", default=False, cast=bool)
 if TRUST_PROXY_SSL:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-WSGI_APPLICATION = "config.wsgi.application"
-
 ASGI_APPLICATION = "config.asgi.application"
-
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
 # High-assurance Owner access
