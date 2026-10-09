@@ -23,8 +23,9 @@ trap cleanup EXIT INT TERM
 
 cd "${PROJECT_DIR}"
 
-# Source archive: exclude credentials, databases, local recovery artifacts,
-# runtime logs, virtual environments and Git metadata.
+# Source archive: exclude credentials, private keys, databases, production
+# dumps, user uploads, local recovery artifacts, runtime logs, virtual
+# environments and Git metadata. The SQLite database is backed up separately.
 tar \
   --exclude='./.git' \
   --exclude='./backend/venv' \
@@ -37,6 +38,45 @@ tar \
   --exclude='./.env.*' \
   --exclude='*/.env' \
   --exclude='*/.env.*' \
+  --exclude='./.ssh' \
+  --exclude='*/.ssh' \
+  --exclude='./.aws' \
+  --exclude='*/.aws' \
+  --exclude='./secrets' \
+  --exclude='*/secrets' \
+  --exclude='./credentials' \
+  --exclude='*/credentials' \
+  --exclude='./keys' \
+  --exclude='*/keys' \
+  --exclude='./certs' \
+  --exclude='*/certs' \
+  --exclude='./certificates' \
+  --exclude='*/certificates' \
+  --exclude='./dumps' \
+  --exclude='*/dumps' \
+  --exclude='./exports' \
+  --exclude='*/exports' \
+  --exclude='./media' \
+  --exclude='*/media' \
+  --exclude='./uploads' \
+  --exclude='*/uploads' \
+  --exclude='*.pem' \
+  --exclude='*.key' \
+  --exclude='*.p12' \
+  --exclude='*.pfx' \
+  --exclude='*.jks' \
+  --exclude='*.keystore' \
+  --exclude='id_rsa*' \
+  --exclude='id_ed25519*' \
+  --exclude='*.dump' \
+  --exclude='*.pgdump' \
+  --exclude='*.sql.gz' \
+  --exclude='*-dump.sql' \
+  --exclude='*-backup.sql' \
+  --exclude='*production*.sql' \
+  --exclude='*prod*.sql' \
+  --exclude='*.rdb' \
+  --exclude='*.aof' \
   --exclude='*.bak*' \
   --exclude='*.backup*' \
   --exclude='*.before-*' \
