@@ -98,5 +98,11 @@ jobs:
           test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
           ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env|\.git/|db\.sqlite3$|backups/)'
 
+      - name: Container and release-gate checks
+        run: |
+          bash -n backend/release_predeploy.sh
+          python -m json.tool railway.json >/dev/null
+          docker build --pull -t zootasks-security-ci .
+
       - name: Diff hygiene
         run: git diff --check
