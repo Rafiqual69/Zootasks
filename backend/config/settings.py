@@ -57,8 +57,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Use Railway's PostgreSQL URL in hosted environments; keep SQLite for local
-# development when DATABASE_URL is a sqlite URL.
+# Hosted environments use the managed PostgreSQL URL; local development can
+# continue using SQLite without requiring an additional URL-parsing package.
 DATABASE_URL = config("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
 _database_url = urlparse(DATABASE_URL)
 
@@ -72,15 +72,16 @@ if _database_url.scheme in ("postgres", "postgresql"):
             "HOST": _database_url.hostname or "",
             "PORT": str(_database_url.port or 5432),
             "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=60, cast=int),
-            "OPTIONS": {"sslmode": config("DB_SSLMODE", default="prefer")},
+            "OPTIONS": {"sslmode": config("DB_SSLMODE", default="require")},
         }
     }
 elif _database_url.scheme == "sqlite":
-    sqlite_name = _database_url.path
-    if sqlite_name.startswith("/") and not sqlite_name.startswith("//"):
-        sqlite_path = Path(sqlite_name)
+    # sqlite:///relative.db is relative to BASE_DIR; sqlite:////absolute.db
+    # keeps an absolute filesystem path.
+    if DATABASE_URL.startswith("sqlite:////"):
+        sqlite_path = Path("/" + _database_url.path.lstrip("/"))
     else:
-        sqlite_path = BASE_DIR / sqlite_name.lstrip("/")
+        sqlite_path = BASE_DIR / _database_url.path.lstrip("/")
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -121,9 +122,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = "ZooTasks <noreply@zootasks.com>"
 
 # =============== SECURITY ===============
-# Keep local development usable over HTTP, while making production security
-# explicit and environment-controlled. Never hard-code production secrets or
-# transport-security decisions into source.
+# Production transport security is explicit and environment-controlled.
 PRODUCTION_MODE = config("PRODUCTION_MODE", default=False, cast=bool)
 SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
 SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=PRODUCTION_MODE, cast=bool)
