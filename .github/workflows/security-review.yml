@@ -88,15 +88,20 @@ jobs:
             rm -rf "$TMP_HOME" "$SMOKE_DIR"
           }
           trap cleanup_smoke EXIT
-          mkdir -p "$TMP_HOME" "$SMOKE_DIR/nested/backups"
+          mkdir -p "$TMP_HOME" "$SMOKE_DIR/nested/backups" "$SMOKE_DIR/nested/keys" "$SMOKE_DIR/nested/dumps" "$SMOKE_DIR/nested/media" "$SMOKE_DIR/nested/.ssh"
           printf 'synthetic-secret' > "$SMOKE_DIR/nested/.env"
           printf 'synthetic-recovery-data' > "$SMOKE_DIR/nested/backups/should-not-archive.txt"
+          printf 'synthetic-private-key' > "$SMOKE_DIR/nested/keys/test.key"
+          printf 'synthetic-certificate' > "$SMOKE_DIR/nested/cert.pem"
+          printf 'synthetic-database-dump' > "$SMOKE_DIR/nested/dumps/production-dump.sql.gz"
+          printf 'synthetic-upload' > "$SMOKE_DIR/nested/media/private-upload.jpg"
+          printf 'synthetic-ssh-key' > "$SMOKE_DIR/nested/.ssh/id_ed25519"
           ln -s "$GITHUB_WORKSPACE" "$TMP_HOME/ZooTasks"
           HOME="$TMP_HOME" bash "$GITHUB_WORKSPACE/backup-zootasks.sh"
           BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
           test -n "$BACKUP_FILE"
           test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
-          ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env|\.git/|db\.sqlite3$|backups/)'
+          ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env([^/]*$)?|\.git/|db\.sqlite3$|backups/|\.ssh/|keys/|dumps/|media/|uploads/|secrets/|credentials/)|\.(pem|key|p12|pfx|jks|keystore|dump|pgdump|rdb|aof)$|\.sql\.gz$|(-dump|-backup|production|prod)\.sql$'
 
       - name: Container and release-gate checks
         run: |
