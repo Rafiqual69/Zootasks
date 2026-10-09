@@ -59,6 +59,10 @@ UNION ALL
 SELECT 'wallet.negative_withdrawal_amount', COUNT(*)::bigint
 FROM wallet_withdrawalrequest WHERE amount < 0
 UNION ALL
+SELECT 'wallet.negative_earning_or_withdrawal_transaction_amount', COUNT(*)::bigint
+FROM wallet_wallettransaction
+WHERE transaction_type IN ('earning', 'withdrawal') AND amount < 0
+UNION ALL
 SELECT 'wallet.task_identity_type_mismatch', COUNT(*)::bigint
 FROM wallet_wallettransaction
 WHERE task_claim_id IS NOT NULL AND transaction_type <> 'earning'
