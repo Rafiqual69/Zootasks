@@ -110,6 +110,70 @@ class TaskClaimWorkflowReconciliationTests(TestCase):
         self.assertEqual(profile.balance, Decimal("100.00"))
         self.assertEqual(profile.completed_tasks, 0)
 
+    def test_existing_ledger_reconciliation_denies_when_capacity_is_exhausted(self):
+        WalletTransaction.objects.create(
+            user=self.user,
+            amount=Decimal("25.00"),
+            transaction_type="earning",
+            description="Existing task reward",
+            task_claim=self.claim,
+        )
+        self.task.completed_workers = 1
+        self.task.save(update_fields=["completed_workers"])
+        messages_seen = []
+
+        with patch("tasks.admin.require_execution_authorized"):
+            approve_submissions(
+                type("ModelAdminStub", (), {
+                    "message_user": lambda *args, **kwargs: messages_seen.append(args[1])
+                })(),
+                self.request(),
+                TaskClaim.objects.filter(pk=self.claim.pk),
+            )
+
+        self.claim.refresh_from_db()
+        self.task.refresh_from_db()
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(self.task.completed_workers, 1)
+        self.assertEqual(self.task.reserved_workers, 1)
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                task_claim=self.claim,
+                transaction_type="earning",
+            ).count(),
+            1,
+        )
+        self.assertTrue(any("no uncompleted reservation" in message for message in messages_seen))
+
+    def test_new_payout_denies_when_capacity_is_exhausted(self):
+        self.task.completed_workers = 1
+        self.task.save(update_fields=["completed_workers"])
+        messages_seen = []
+
+        with patch("tasks.admin.require_execution_authorized"):
+            approve_submissions(
+                type("ModelAdminStub", (), {
+                    "message_user": lambda *args, **kwargs: messages_seen.append(args[1])
+                })(),
+                self.request(),
+                TaskClaim.objects.filter(pk=self.claim.pk),
+            )
+
+        self.claim.refresh_from_db()
+        self.task.refresh_from_db()
+        profile = WorkerProfile.objects.get(user=self.user)
+        self.assertEqual(self.claim.status, "submitted")
+        self.assertEqual(self.task.completed_workers, 1)
+        self.assertEqual(profile.balance, Decimal("100.00"))
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                task_claim=self.claim,
+                transaction_type="earning",
+            ).count(),
+            0,
+        )
+        self.assertTrue(any("no uncompleted reservation" in message for message in messages_seen))
+
     def test_rejection_releases_reservation_and_reopens_completed_task(self):
         with patch("tasks.admin.require_execution_authorized"):
             reject_submissions(
