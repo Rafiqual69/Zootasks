@@ -75,6 +75,13 @@ jobs:
         working-directory: backend
         run: python manage.py migrate --noinput
 
+      - name: Financial migration preflight invariant checks
+        env:
+          DATABASE_URL: "postgresql://zootasks_ci:zootasks_ci_password@127.0.0.1:5432/zootasks_ci"
+        run: |
+          bash -n scripts/preflight_financial_migrations.sh
+          bash scripts/preflight_financial_migrations.sh
+
       - name: Full regression on PostgreSQL
         working-directory: backend
         run: python manage.py test --verbosity=2
