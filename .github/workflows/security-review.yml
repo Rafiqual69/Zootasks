@@ -102,6 +102,11 @@ jobs:
         run: |
           bash -n backend/release_predeploy.sh
           python -m json.tool railway.json >/dev/null
+          output="$(env -u RAILWAY_GIT_COMMIT_SHA -u ZOOTASKS_APPROVED_RELEASE_SHA bash backend/release_predeploy.sh 2>&1)" && {
+            echo "Release gate unexpectedly passed without an approved commit SHA."
+            exit 1
+          }
+          grep -q "Release blocked:" <<< "$output"
           docker build --pull -t zootasks-security-ci .
 
       - name: Diff hygiene
