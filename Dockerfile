@@ -17,4 +17,4 @@ EXPOSE 8000
 
 # Run collectstatic with runtime environment variables available, then start
 # Gunicorn on the port supplied by the hosting platform.
-CMD ["sh", "-c", "python manage.py collectstatic --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:\${PORT:-8000}"]
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]
