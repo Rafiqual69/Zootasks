@@ -125,7 +125,7 @@ class TaskClaimWorkflowReconciliationTests(TestCase):
         with patch("tasks.admin.require_execution_authorized"):
             approve_submissions(
                 type("ModelAdminStub", (), {
-                    "message_user": lambda *args, **kwargs: messages_seen.append(args[1])
+                    "message_user": lambda *args, **kwargs: messages_seen.append(args[2])
                 })(),
                 self.request(),
                 TaskClaim.objects.filter(pk=self.claim.pk),
@@ -153,7 +153,7 @@ class TaskClaimWorkflowReconciliationTests(TestCase):
         with patch("tasks.admin.require_execution_authorized"):
             approve_submissions(
                 type("ModelAdminStub", (), {
-                    "message_user": lambda *args, **kwargs: messages_seen.append(args[1])
+                    "message_user": lambda *args, **kwargs: messages_seen.append(args[2])
                 })(),
                 self.request(),
                 TaskClaim.objects.filter(pk=self.claim.pk),
