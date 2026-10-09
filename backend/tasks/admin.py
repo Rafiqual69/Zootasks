@@ -135,6 +135,19 @@ def approve_submissions(modeladmin, request, queryset):
             )
 
             reward = claim.task.reward
+            # Lock and validate capacity before any ledger/profile mutation.
+            # Legacy reconciliation must not push completed workers beyond
+            # the reserved capacity; the database constraint is a last line
+            # of defense, not the normal control flow.
+            task = Task.objects.select_for_update().get(id=claim.task_id)
+            if task.completed_workers >= task.reserved_workers:
+                modeladmin.message_user(
+                    request,
+                    f"❌ Task claim #{claim.id} cannot be reconciled: no uncompleted reservation remains. Manual reconciliation required.",
+                    messages.ERROR,
+                )
+                continue
+
             existing_payment = WalletTransaction.objects.filter(
                 task_claim=claim,
                 transaction_type="earning",
@@ -149,7 +162,6 @@ def approve_submissions(modeladmin, request, queryset):
                     )
                     continue
 
-                task = Task.objects.select_for_update().get(id=claim.task_id)
                 task.completed_workers += 1
                 task.save(update_fields=["completed_workers"])
                 claim.status = "approved"
@@ -174,7 +186,6 @@ def approve_submissions(modeladmin, request, queryset):
                 ]
             )
 
-            task = Task.objects.select_for_update().get(id=claim.task_id)
             task.completed_workers += 1
             task.save(update_fields=["completed_workers"])
 
