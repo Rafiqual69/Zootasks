@@ -63,6 +63,14 @@ class SecurityPolicyContractTests(unittest.TestCase):
         with self.assertRaises(SecurityPolicyError):
             validate_policy(policy, self.schema)
 
+    def test_policy_loader_error_does_not_expose_filesystem_path(self):
+        from unittest.mock import patch
+        with patch("pathlib.Path.open", side_effect=OSError("private-path-error")):
+            with self.assertRaises(SecurityPolicyError) as captured:
+                load_and_validate_policy()
+        self.assertNotIn(str(POLICY_PATH), str(captured.exception))
+        self.assertNotIn(str(SCHEMA_PATH), str(captured.exception))
+
     def test_parse_failure_is_rejected(self):
         policy = copy.deepcopy(self.policy)
         policy["enforcement"]["policy_parse_failure"] = "allow"

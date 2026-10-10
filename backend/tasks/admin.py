@@ -4,7 +4,8 @@ from django.db import transaction
 from .models import Task, TaskClaim
 from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
-from core.security_policy_engine import authorize, require_authorized
+from core.security_policy_engine import authorize
+from core.execution_authorization import require_execution_authorized
 
 
 @admin.register(Task)
@@ -23,11 +24,19 @@ class TaskAdmin(admin.ModelAdmin):
     search_fields = ("title", "description")
     ordering = ("-created_at",)
 
-    financial_immutable_fields = ("reward", "max_workers", "completed_workers")
-
-    # Protected task fields are never directly writable through generic Django
-    # admin forms. Financial/state changes must use an explicit policy-bound workflow.
-    readonly_fields = ("reward", "max_workers", "completed_workers", "status")
+    financial_immutable_fields = (
+        "reward",
+        "max_workers",
+        "reserved_workers",
+        "completed_workers",
+    )
+    readonly_fields = (
+        "reward",
+        "max_workers",
+        "reserved_workers",
+        "completed_workers",
+        "status",
+    )
 
     def _owner_policy_facts(self, request, obj=None):
         user = request.user
@@ -74,7 +83,9 @@ class TaskAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
-            return ()
+            # Capacity counters are system-maintained and must never be client-editable,
+            # including during creation.
+            return ("reserved_workers",)
         return self.financial_immutable_fields + ("status",)
 
 
@@ -103,9 +114,40 @@ def approve_submissions(modeladmin, request, queryset):
             if claim.status != "submitted":
                 continue
 
-            require_authorized(actor="finance", resource="task_claim", action="approve", scope="role_scope", facts={"permission.task_approve": True, "business_rules.valid_task_claim": True})
+            require_execution_authorized(
+                request=request,
+                operation="task_claim.approve",
+                target=f"task_claim:{claim.id}",
+                scope="role_scope",
+                material_parameters={
+                    "claim_id": claim.id,
+                    "reward": str(claim.task.reward),
+                    "status": claim.status,
+                },
+                actor="finance",
+                resource="task_claim",
+                action="approve",
+                authorization_scope="role_scope",
+                authorization_facts={
+                    "permission.task_approve": True,
+                    "business_rules.valid_task_claim": True,
+                },
+            )
 
             reward = claim.task.reward
+            # Lock and validate capacity before any ledger/profile mutation.
+            # Legacy reconciliation must not push completed workers beyond
+            # the reserved capacity; the database constraint is a last line
+            # of defense, not the normal control flow.
+            task = Task.objects.select_for_update().get(id=claim.task_id)
+            if task.completed_workers >= task.reserved_workers:
+                modeladmin.message_user(
+                    request,
+                    f"❌ Task claim #{claim.id} cannot be reconciled: no uncompleted reservation remains. Manual reconciliation required.",
+                    messages.ERROR,
+                )
+                continue
+
             existing_payment = WalletTransaction.objects.filter(
                 task_claim=claim,
                 transaction_type="earning",
@@ -119,6 +161,9 @@ def approve_submissions(modeladmin, request, queryset):
                         messages.ERROR,
                     )
                     continue
+
+                task.completed_workers += 1
+                task.save(update_fields=["completed_workers"])
                 claim.status = "approved"
                 claim.save(update_fields=["status"])
                 already_paid += 1
@@ -133,7 +178,6 @@ def approve_submissions(modeladmin, request, queryset):
             profile.balance += reward
             profile.total_earned += reward
             profile.completed_tasks += 1
-
             profile.save(
                 update_fields=[
                     "balance",
@@ -141,6 +185,9 @@ def approve_submissions(modeladmin, request, queryset):
                     "completed_tasks",
                 ]
             )
+
+            task.completed_workers += 1
+            task.save(update_fields=["completed_workers"])
 
             WalletTransaction.objects.create(
                 user=claim.worker,
@@ -165,8 +212,7 @@ def approve_submissions(modeladmin, request, queryset):
     if already_paid:
         modeladmin.message_user(
             request,
-            f"{already_paid} submission(s) were already paid. "
-            "No duplicate payment made.",
+            f"{already_paid} submission(s) were already paid. No duplicate payment made.",
             messages.WARNING,
         )
 
@@ -194,7 +240,40 @@ def reject_submissions(modeladmin, request, queryset):
             claim = TaskClaim.objects.select_for_update().get(id=claim_id)
             if claim.status != "submitted":
                 continue
-            require_authorized(actor="finance", resource="task_claim", action="reject", scope="role_scope", facts={"permission.task_reject": True, "business_rules.valid_task_claim": True})
+
+            require_execution_authorized(
+                request=request,
+                operation="task_claim.reject",
+                target=f"task_claim:{claim.id}",
+                scope="role_scope",
+                material_parameters={
+                    "claim_id": claim.id,
+                    "status": claim.status,
+                },
+                actor="finance",
+                resource="task_claim",
+                action="reject",
+                authorization_scope="role_scope",
+                authorization_facts={
+                    "permission.task_reject": True,
+                    "business_rules.valid_task_claim": True,
+                },
+            )
+
+            task = Task.objects.select_for_update().get(id=claim.task_id)
+            if task.reserved_workers <= 0:
+                modeladmin.message_user(
+                    request,
+                    f"❌ Task claim #{claim.id} has no reservation to release; manual reconciliation required.",
+                    messages.ERROR,
+                )
+                continue
+
+            task.reserved_workers -= 1
+            if task.status == "completed" and task.reserved_workers < task.max_workers:
+                task.status = "active"
+            task.save(update_fields=["reserved_workers", "status"])
+
             claim.status = "rejected"
             claim.save(update_fields=["status"])
             updated += 1
@@ -208,6 +287,15 @@ def reject_submissions(modeladmin, request, queryset):
 
 @admin.register(TaskClaim)
 class TaskClaimAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     list_display = (
         "task",
         "worker",
@@ -249,14 +337,17 @@ class TaskClaimAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "tasks.approve_task_submission",
-                "tasks.reject_task_submission",
-            )
+        return authorize(
+            actor="finance",
+            resource="task_claim",
+            action="read",
+            scope="role_scope",
+            facts={
+                "permission.task_review": (
+                    user.has_perm("tasks.approve_task_submission")
+                    or user.has_perm("tasks.reject_task_submission")
+                ),
+            },
         )
 
     @admin.display(description="Reward")

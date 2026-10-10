@@ -584,7 +584,7 @@ class WithdrawalAdminActionTests(TestCase):
     def test_paid_withdrawal_without_enough_balance_stays_approved(self):
         self._use_payer()
         self.profile.balance = Decimal("40.00")
-        self.profile.reserved_balance = Decimal("50.00")
+        self.profile.reserved_balance = Decimal("40.00")
         self.profile.save(update_fields=["balance", "reserved_balance"])
         withdrawal = self.create_withdrawal(status="approved")
         mark_withdrawals_paid(
@@ -596,7 +596,7 @@ class WithdrawalAdminActionTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(withdrawal.status, "approved")
         self.assertEqual(self.profile.balance, Decimal("40.00"))
-        self.assertEqual(self.profile.reserved_balance, Decimal("50.00"))
+        self.assertEqual(self.profile.reserved_balance, Decimal("40.00"))
         self.assertEqual(
             WalletTransaction.objects.filter(
                 user=self.user,

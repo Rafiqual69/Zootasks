@@ -1,6 +1,12 @@
 from .security_policy import load_and_validate_policy
-from .security_policy_engine import AuthorizationDenied, authorize, require_authorized
+from .security_policy_engine import (
+    AuthorizationDenied,
+    SYSTEM_AUTOMATION_CAPABILITY,
+    authorize,
+    require_authorized,
+)
 import unittest
+from unittest.mock import patch
 
 
 class SecurityPolicyDecisionTests(unittest.TestCase):
@@ -27,6 +33,13 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
                 facts={"account_entity.active_worker": True},
             )
         )
+
+    def test_malformed_production_mode_fails_closed(self):
+        with patch.dict("os.environ", {"PRODUCTION_MODE": "not-a-boolean"}, clear=False):
+            self.assertFalse(authorize(
+                actor="worker", resource="task", action="read", scope="role_scope",
+                facts={"account_entity.active_worker": True},
+            ))
 
     def test_unknown_operation_denies(self):
         self.assertFalse(
@@ -182,6 +195,39 @@ class SecurityPolicyDecisionTests(unittest.TestCase):
                 facts={"owner_authenticated": True},
             )
         )
+
+
+    def test_system_task_automation_requires_trusted_bounded_facts(self):
+        facts = {
+            "trusted_execution_context": True,
+            "automation.task_generation_bounded": True,
+            "automation.no_external_side_effect": True,
+        }
+        self.assertFalse(authorize(
+            actor="system", resource="task", action="create", scope="automation", facts=facts,
+        ))
+        self.assertTrue(authorize(
+            actor="system", resource="task", action="create", scope="automation",
+            facts=facts, system_capability=SYSTEM_AUTOMATION_CAPABILITY,
+        ))
+        self.assertFalse(authorize(
+            actor="system",
+            resource="task",
+            action="create",
+            scope="automation",
+            facts={**facts, "trusted_execution_context": False},
+        ))
+        self.assertFalse(authorize(
+            actor="system",
+            resource="task",
+            action="update",
+            scope="automation",
+            facts={
+                "trusted_execution_context": True,
+                "automation.task_lifecycle_bounded": True,
+                "automation.no_external_side_effect": False,
+            },
+        ))
 
     def test_require_authorized_raises_on_deny(self):
         with self.assertRaises(AuthorizationDenied):

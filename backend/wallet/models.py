@@ -56,6 +56,13 @@ class WalletTransaction(models.Model):
                 ),
                 name="wallet_tx_single_operation_identity",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(transaction_type="adjustment")
+                    | models.Q(amount__gte=0)
+                ),
+                name="wallet_tx_amount_nonnegative_unless_adjustment",
+            ),
         ]
 
     def __str__(self):
@@ -81,6 +88,12 @@ class WithdrawalRequest(models.Model):
 
     class Meta:
         ordering = ["-requested_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0),
+                name="withdrawal_amount_nonnegative",
+            ),
+        ]
         permissions = [
             ("approve_withdrawal", "Can approve withdrawals"),
             ("reject_withdrawal", "Can reject withdrawals"),

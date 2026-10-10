@@ -56,6 +56,7 @@ jobs:
           SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/zootasks_ci"
           PRODUCTION_MODE: "true"
           SECURE_SSL_REDIRECT: "true"
           SECURE_COOKIES: "true"

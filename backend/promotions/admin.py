@@ -1,12 +1,14 @@
 from django.contrib import admin, messages
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 import logging
 
 from .models import Promotion, PromotionClaim
 from accounts.models import AccountEntity, WorkerProfile
 from wallet.models import WalletTransaction
-from core.security_policy_engine import authorize, require_authorized
+from core.security_policy_engine import authorize
+from core.execution_authorization import require_execution_authorized
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,7 @@ class PromotionAdmin(admin.ModelAdmin):
         "reward",
         "budget",
         "max_workers",
+        "reserved_workers",
         "completed_workers",
         "status",
         "created_at",
@@ -26,10 +29,23 @@ class PromotionAdmin(admin.ModelAdmin):
     list_filter = ("status",)
     search_fields = ("title", "advertiser_name")
 
-    financial_immutable_fields = ("reward", "budget", "max_workers", "completed_workers")
+    financial_immutable_fields = (
+        "reward",
+        "budget",
+        "max_workers",
+        "reserved_workers",
+        "completed_workers",
+    )
 
     # Protected promotion financial/state fields are read-only in generic admin forms.
-    readonly_fields = ("reward", "budget", "max_workers", "completed_workers", "status")
+    readonly_fields = (
+        "reward",
+        "budget",
+        "max_workers",
+        "reserved_workers",
+        "completed_workers",
+        "status",
+    )
 
     def _owner_policy_facts(self, request, obj=None):
         user = request.user
@@ -76,12 +92,24 @@ class PromotionAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
-            return ()
+            # Capacity counters are system-maintained and must never be client-editable,
+            # including during creation.
+            return ("reserved_workers",)
         return self.financial_immutable_fields + ("status",)
 
 
 @admin.register(PromotionClaim)
 class PromotionClaimAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
     list_display = (
         "promotion",
         "worker",
@@ -112,14 +140,14 @@ class PromotionClaimAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "promotions.approve_promotion_claim",
-                "promotions.reject_promotion_claim",
-            )
+        return authorize(
+            actor="finance",
+            resource="promotion_claim",
+            action="read",
+            scope="role_scope",
+            facts={
+                "permission.promotion_review": (user.has_perm("promotions.approve_promotion_claim") or user.has_perm("promotions.reject_promotion_claim")),
+            },
         )
 
     @admin.action(description="Approve selected promotion claims and pay reward")
@@ -149,9 +177,41 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                     if locked.status != "submitted":
                         continue
 
-                    require_authorized(actor="finance", resource="promotion_claim", action="approve", scope="role_scope", facts={"permission.promotion_approve": True, "business_rules.valid_promotion_claim": True})
+                    require_execution_authorized(
+                        request=request,
+                        operation="promotion_claim.approve",
+                        target=f"promotion_claim:{locked.id}",
+                        scope="role_scope",
+                        material_parameters={
+                            "claim_id": locked.id,
+                            "reward": str(locked.promotion.reward),
+                            "status": locked.status,
+                        },
+                        actor="finance",
+                        resource="promotion_claim",
+                        action="approve",
+                        authorization_scope="role_scope",
+                        authorization_facts={
+                            "permission.promotion_approve": True,
+                            "business_rules.valid_promotion_claim": True,
+                        },
+                    )
 
-                    reward = locked.promotion.reward
+                    promotion = (
+                        Promotion.objects
+                        .select_for_update()
+                        .get(id=locked.promotion_id)
+                    )
+                    reward = promotion.reward
+
+                    if promotion.completed_workers >= promotion.reserved_workers:
+                        self.message_user(
+                            request,
+                            f"❌ Promotion claim #{locked.id} cannot be approved: no uncompleted reservation remains. Manual reconciliation required.",
+                            messages.ERROR,
+                        )
+                        continue
+
                     existing_payment = WalletTransaction.objects.filter(
                         promotion_claim=locked,
                         transaction_type="earning",
@@ -165,19 +225,43 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                                 messages.ERROR,
                             )
                             continue
-                        if locked.status != "approved":
-                            locked.status = "approved"
-                            locked.approved_at = (
-                                locked.approved_at or timezone.now()
-                            )
-                            locked.save(
-                                update_fields=[
-                                    "status",
-                                    "approved_at",
-                                ]
-                            )
+
+                        promotion.completed_workers += 1
+                        promotion.save(update_fields=["completed_workers"])
+
+                        locked.status = "approved"
+                        locked.approved_at = (
+                            locked.approved_at or timezone.now()
+                        )
+                        locked.save(
+                            update_fields=[
+                                "status",
+                                "approved_at",
+                            ]
+                        )
 
                         already_paid += 1
+                        continue
+
+                    approved_payout_total = (
+                        WalletTransaction.objects
+                        .filter(
+                            promotion_claim__promotion_id=promotion.id,
+                            transaction_type="earning",
+                        )
+                        .aggregate(total=Sum("amount"))
+                        .get("total")
+                        or reward.__class__("0.00")
+                    )
+                    if approved_payout_total + reward > promotion.budget:
+                        self.message_user(
+                            request,
+                            (
+                                f"❌ Promotion claim #{locked.id} cannot be approved: "
+                                "promotion budget would be exceeded. Manual reconciliation required."
+                            ),
+                            messages.ERROR,
+                        )
                         continue
 
                     profile = (
@@ -185,8 +269,6 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                         .select_for_update()
                         .get(user=locked.worker)
                     )
-
-                    reward = locked.promotion.reward
 
                     profile.balance += reward
                     profile.total_earned += reward
@@ -203,10 +285,13 @@ class PromotionClaimAdmin(admin.ModelAdmin):
                         transaction_type="earning",
                         description=(
                             f"Promotion reward: "
-                            f"{locked.promotion.title}"
+                            f"{promotion.title}"
                         ),
                         promotion_claim=locked,
                     )
+
+                    promotion.completed_workers += 1
+                    promotion.save(update_fields=["completed_workers"])
 
                     locked.status = "approved"
                     locked.approved_at = timezone.now()
@@ -278,10 +363,54 @@ class PromotionClaimAdmin(admin.ModelAdmin):
         updated = 0
         for claim_id in queryset.values_list("id", flat=True):
             with transaction.atomic():
-                claim = PromotionClaim.objects.select_for_update().get(id=claim_id)
+                claim = (
+                    PromotionClaim.objects
+                    .select_for_update()
+                    .get(id=claim_id)
+                )
                 if claim.status != "submitted":
                     continue
-                require_authorized(actor="finance", resource="promotion_claim", action="reject", scope="role_scope", facts={"permission.promotion_reject": True, "business_rules.valid_promotion_claim": True})
+
+                require_execution_authorized(
+                    request=request,
+                    operation="promotion_claim.reject",
+                    target=f"promotion_claim:{claim.id}",
+                    scope="role_scope",
+                    material_parameters={
+                        "claim_id": claim.id,
+                        "status": claim.status,
+                    },
+                    actor="finance",
+                    resource="promotion_claim",
+                    action="reject",
+                    authorization_scope="role_scope",
+                    authorization_facts={
+                        "permission.promotion_reject": True,
+                        "business_rules.valid_promotion_claim": True,
+                    },
+                )
+
+                promotion = (
+                    Promotion.objects
+                    .select_for_update()
+                    .get(id=claim.promotion_id)
+                )
+                if promotion.reserved_workers <= 0:
+                    self.message_user(
+                        request,
+                        f"❌ Promotion claim #{claim.id} has no reservation to release; manual reconciliation required.",
+                        messages.ERROR,
+                    )
+                    continue
+
+                promotion.reserved_workers -= 1
+                if (
+                    promotion.status == "paused"
+                    and promotion.reserved_workers < promotion.max_workers
+                ):
+                    promotion.status = "active"
+                promotion.save(update_fields=["reserved_workers", "status"])
+
                 claim.status = "rejected"
                 claim.approved_at = None
                 claim.save(update_fields=["status", "approved_at"])
