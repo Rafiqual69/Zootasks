@@ -11,6 +11,7 @@ urlpatterns = [
         name="live_wallet_dashboard",
     ),
 
+    path("owner/", include("core.owner_urls")),
     path("admin/", admin.site.urls),
 
     path("accounts/", include("accounts.urls")),
