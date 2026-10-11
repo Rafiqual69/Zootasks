@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import hashlib
+import hmac
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from webauthn import generate_registration_options, options_to_json, verify_registration_response
@@ -84,8 +87,13 @@ def create_owner_registration_options(
         options = generate_registration_options(
             rp_id=rp_id,
             rp_name=rp_name,
-            user_id=str(owner_id).encode("utf-8"),
-            user_name=f"owner-{owner_id}",
+            # Stable opaque user handle: do not expose sequential database IDs.
+            user_id=hmac.new(
+                settings.SECRET_KEY.encode("utf-8"),
+                f"zootasks-owner-webauthn:{owner_id}".encode("utf-8"),
+                hashlib.sha256,
+            ).digest(),
+            user_name="zootasks-owner",
             user_display_name="ZooTasks Owner",
             authenticator_selection=AuthenticatorSelectionCriteria(
                 user_verification=UserVerificationRequirement.REQUIRED,
@@ -129,7 +137,14 @@ def complete_owner_registration(
     """
     if not isinstance(owner_id, int) or isinstance(owner_id, bool) or owner_id <= 0:
         raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
-    if not isinstance(challenge_record_id, str) or not challenge_record_id.isascii() or not challenge_record_id.isdecimal():
+    if (
+        not isinstance(challenge_record_id, str)
+        or not challenge_record_id.isascii()
+        or not challenge_record_id.isdecimal()
+        or len(challenge_record_id) > 20
+        or int(challenge_record_id) <= 0
+        or str(int(challenge_record_id)) != challenge_record_id
+    ):
         raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
     if not isinstance(credential, dict):
         raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
@@ -167,7 +182,13 @@ def complete_owner_registration(
         credential_id = bytes_to_base64url(verified.credential_id)
         public_key = bytes(verified.credential_public_key)
         sign_count = int(verified.sign_count)
-        if not credential_id or len(credential_id) > 255 or not public_key or sign_count < 0:
+        if (
+            not credential_id
+            or len(credential_id) > 255
+            or not public_key
+            or len(public_key) > 4096
+            or sign_count < 0
+        ):
             raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
     except OwnerWebAuthnRegistrationDenied:
         raise
