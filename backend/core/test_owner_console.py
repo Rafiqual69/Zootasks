@@ -1,5 +1,4 @@
 from datetime import timedelta
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
@@ -14,7 +13,6 @@ class OwnerConsoleAuthorizationTests(SimpleTestCase):
         self.factory = RequestFactory()
         self.user = get_user_model()(username="owner", is_staff=True, is_superuser=True)
         self.user.pk = 1
-        self.user.is_authenticated = True
         self.user.is_verified = lambda: True
         self.request = self.factory.get("/owner/")
         self.request.user = self.user
