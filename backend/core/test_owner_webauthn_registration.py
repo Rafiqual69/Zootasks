@@ -78,6 +78,14 @@ class OwnerWebAuthnRegistrationTests(TestCase):
             )
         self.assertEqual(OwnerWebAuthnCredential.objects.count(), 0)
 
+    def test_invalid_challenge_record_id_is_rejected(self):
+        with self.assertRaises(OwnerWebAuthnRegistrationDenied):
+            complete_owner_registration(
+                **self.config,
+                challenge_record_id="not-a-number",
+                credential={"id": "test"},
+            )
+
     def test_expired_challenge_is_rejected(self):
         challenge_id, _ = create_owner_registration_options(**self.config)
         row = OwnerWebAuthnChallenge.objects.get(pk=challenge_id)
