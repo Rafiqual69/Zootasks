@@ -96,3 +96,20 @@ Unknown or unverified activation state is treated as DENY for protected producti
 
 ## 12. Security rule
 **One compromised trust anchor must never be enough to authorize a protected production change.**
+
+
+## 10. Single primary Owner input device
+
+The Owner may use one enrolled, trusted primary device as the normal command and input surface for the ZooTasks control plane. From that device, the Owner may submit instructions, drafts, research requests, configuration proposals, monitoring queries, and approval requests. The server must authenticate the Owner and authorize each operation independently; device identity alone is not authorization.
+
+The primary-device feature must:
+- enroll only after a fresh phishing-resistant WebAuthn/passkey ceremony and explicit Owner confirmation;
+- store only public credential metadata and a non-secret device reference, never authenticator private keys or recovery secrets;
+- bind each session to the authenticated Owner, device/credential, expiry, CSRF protections, and risk signals;
+- allow a single primary device to prepare and submit requests without granting background agents or the device blanket write privileges;
+- support explicit revocation, device-loss recovery, session invalidation, audit events, rate limits, and notification of primary-device changes;
+- never accept a primary-device ID supplied by an untrusted request as proof of identity.
+
+The single-device input surface does not waive independent authorization for protected production operations listed in this Constitution. Financial movement, privilege/security changes, production deployment/migrations, destructive operations, and incident break-glass remain blocked until their required approval and release gates pass. If the primary device is suspected compromised, freeze privileged mutations and revoke its sessions/credential.
+
+This is a control-plane requirement, not a claim that an Owner device has already been enrolled. Enrollment and the user-facing control surface must be implemented and tested before the feature can be marked active.
