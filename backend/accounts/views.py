@@ -106,7 +106,7 @@ class OwnerLoginView(LoginView):
     redirect_authenticated_user = False
 
     def get_success_url(self):
-        return reverse("admin:index")
+        return reverse("owner_console")
 
     def form_valid(self, form):
         response = super().form_valid(form)
