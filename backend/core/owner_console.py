@@ -34,7 +34,9 @@ def _owner_console_authorized(request) -> bool:
         or not isinstance(configured_owner_id, str)
         or not configured_owner_id.isascii()
         or not configured_owner_id.isdecimal()
+        or len(configured_owner_id) > 20
         or int(configured_owner_id) <= 0
+        or str(int(configured_owner_id)) != configured_owner_id
         or str(user.pk) != configured_owner_id
         or not user.is_staff
         or not user.is_superuser
