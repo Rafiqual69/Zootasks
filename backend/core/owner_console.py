@@ -26,13 +26,16 @@ OWNER_REQUESTS_PER_HOUR = 10
 def _owner_console_authorized(request) -> bool:
     """Require configured Owner identity, staff authority, verified OTP and fresh auth."""
     user = getattr(request, "user", None)
-    configured_owner = getattr(settings, "OWNER_USERNAME", "")
+    # Bind authority to the immutable database primary key, never a mutable username.
+    configured_owner_id = getattr(settings, "OWNER_USER_ID", "")
     if (
         not user
         or not user.is_authenticated
-        or not isinstance(configured_owner, str)
-        or not configured_owner.strip()
-        or user.username.casefold() != configured_owner.strip().casefold()
+        or not isinstance(configured_owner_id, str)
+        or not configured_owner_id.isascii()
+        or not configured_owner_id.isdecimal()
+        or int(configured_owner_id) <= 0
+        or str(user.pk) != configured_owner_id
         or not user.is_staff
         or not user.is_superuser
     ):
