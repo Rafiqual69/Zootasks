@@ -60,5 +60,44 @@
     "may_create_or_replay_owner_approval": false
   },
   "human_approval_required": true,
-  "precedence": "most_restrictive_wins"
+  "precedence": "most_restrictive_wins",
+  "primary_owner_input_device": {
+    "mode": "one_enrolled_primary_device_as_owner_input_surface",
+    "status": "required_not_yet_implemented",
+    "allowed_input_classes": [
+      "instructions",
+      "research_requests",
+      "drafts",
+      "configuration_proposals",
+      "monitoring_queries",
+      "approval_requests"
+    ],
+    "authentication": [
+      "fresh_phishing_resistant_webauthn",
+      "explicit_owner_confirmation",
+      "server_side_session_binding",
+      "csrf_protection",
+      "expiry_and_revocation"
+    ],
+    "device_id_is_authorization_by_itself": false,
+    "grants_blanket_write_access": false,
+    "protected_production_operations_bypass_dual_control": false,
+    "compromised_device_response": [
+      "freeze_privileged_mutations",
+      "revoke_credential",
+      "invalidate_sessions",
+      "audit_and_notify"
+    ],
+    "recovery_requires": [
+      "independent_owner_reauthentication",
+      "audited_reenrollment",
+      "old_device_revocation"
+    ],
+    "never_store": [
+      "private_authenticator_keys",
+      "raw_recovery_codes",
+      "session_cookies",
+      "authentication_secrets"
+    ]
+  }
 }
