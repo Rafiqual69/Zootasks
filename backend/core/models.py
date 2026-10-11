@@ -26,6 +26,34 @@ class OwnerWebAuthnCredential(models.Model):
         ordering = ("-created_at",)
 
 
+class OwnerWebAuthnChallenge(models.Model):
+    """Short-lived, one-time server challenge for WebAuthn registration."""
+
+    class Ceremony(models.TextChoices):
+        REGISTRATION = "registration", "Registration"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owner_webauthn_challenges",
+    )
+    challenge = models.BinaryField()
+    ceremony = models.CharField(
+        max_length=24,
+        choices=Ceremony.choices,
+        default=Ceremony.REGISTRATION,
+    )
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("owner", "ceremony", "expires_at"), name="core_owner_chal_exp"),
+        ]
+
+
 class OwnerApproval(models.Model):
     """Single-use, server-recorded Owner approval for a bound protected request.
 
