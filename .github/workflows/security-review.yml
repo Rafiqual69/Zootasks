@@ -16,7 +16,6 @@ jobs:
   security-review:
     runs-on: ubuntu-22.04
     env:
-      SECRET_KEY: ci-only-zootasks-security-gate-2026-rotate-for-ci-only-9f4e8d7c6b5a
       ALLOWED_HOSTS: localhost,127.0.0.1
       OWNER_USERNAME: ci-owner
       PRODUCTION_MODE: "false"
@@ -38,6 +37,9 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: backend/requirements.txt
+
+      - name: Generate ephemeral CI secret key
+        run: python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(64))" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         working-directory: backend
