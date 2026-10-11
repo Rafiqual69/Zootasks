@@ -95,7 +95,7 @@ These are engineering baselines, not a statement that ZooTasks is certified or l
 
 ## Current repository status and safe next steps
 
-The current Owner console work is a first implementation slice: it queues bounded requests and requires configured Owner identity, staff/superuser, verified OTP and fresh reauthentication. It does **not** yet implement WebAuthn registration/device binding or complete account recovery. The current branch and PR must remain Draft until the new controls and tests are complete and all exact-head checks pass.
+The current Owner console work is an early implementation slice: it queues bounded requests and requires the configured immutable `OWNER_USER_ID` (database primary key), staff/superuser status, verified OTP and fresh reauthentication. The runtime authorization check and regression tests now fail closed when that ID is absent, malformed or mismatched, and a username change does not change the bound identity. Deployment configuration remains intentionally unset in source control and must be resolved from the protected database; this code change does not identify the live Owner account. It does **not** yet implement WebAuthn registration/device binding or complete account recovery. The current branch and PR must remain Draft until the new controls and tests are complete and all exact-head checks pass.
 
 Recommended order:
 1. Add this benchmark as the security-board baseline and map each target control to a test.
