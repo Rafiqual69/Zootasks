@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from .models import OwnerWebAuthnChallenge, OwnerWebAuthnCredential
@@ -16,6 +16,9 @@ from .owner_webauthn_registration import (
 class OwnerWebAuthnRegistrationTests(TestCase):
     def setUp(self):
         self.owner = get_user_model().objects.create_user(username="owner-registration-test")
+        self.owner_setting = override_settings(OWNER_USER_ID=str(self.owner.pk))
+        self.owner_setting.enable()
+        self.addCleanup(self.owner_setting.disable)
         self.config = {
             "owner_id": self.owner.pk,
             "rp_id": "example.com",
