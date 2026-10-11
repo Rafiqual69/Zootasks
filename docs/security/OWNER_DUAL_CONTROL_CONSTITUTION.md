@@ -160,7 +160,7 @@ Enrollment of Device 2 requires fresh phishing-resistant WebAuthn/passkey verifi
 
 ## 13. Owner input console and persistent account binding
 
-The Owner input console is available at `/owner/` only to the configured `OWNER_USERNAME` after staff/superuser checks, a verified Django OTP session, and recent Owner re-authentication (maximum age 15 minutes). If the configured identity is missing or mismatched, access is denied. The configured username must identify the already-authorized Owner account; do not promote a user or change account roles automatically to make the console work.
+The Owner input console is available at `/owner/` only to the account whose immutable database primary key matches the deployment setting `OWNER_USER_ID`, after staff/superuser checks, a verified Django OTP session, and recent Owner re-authentication (maximum age 15 minutes). If the setting is missing, malformed, or mismatched, access is denied. Resolve the ID by verifying the existing authorized Owner account against the protected deployment database; never guess the ID, auto-promote a user, or change account roles to make the console work. `OWNER_USERNAME` is not an authorization identity.
 
 Submissions are size-bounded and stored as queued requests for review. Submission is not execution or authorization. Protected requests must continue through existing exact-request binding, dual-control, and release gates. The console currently does **not** cryptographically bind a browser to Device 1; its UI states this explicitly. Primary-device WebAuthn enrollment, explicit confirmation, revocation, and device-bound session enforcement remain required before claiming Device 1-only access is active.
 
