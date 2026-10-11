@@ -67,6 +67,17 @@ class OwnerConsoleRequestTests(TestCase):
             OwnerInputRequest.objects.filter(owner=self.owner).count(), 1
         )
 
+    def test_credential_like_input_is_rejected_before_storage(self):
+        from .owner_input_forms import OwnerInputRequestForm
+
+        form = OwnerInputRequestForm(data={
+            "category": OwnerInputRequest.Category.INSTRUCTION,
+            "title": "Check integration",
+            "body": "api_key=example-secret-value-1234567890",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("body", form.errors)
+
     def test_body_limit_is_enforced_by_model_field(self):
         from .owner_input_forms import OwnerInputRequestForm
 
