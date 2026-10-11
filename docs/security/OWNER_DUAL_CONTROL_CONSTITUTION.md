@@ -156,3 +156,12 @@ Enrollment of Device 2 requires fresh phishing-resistant WebAuthn/passkey verifi
 9. All Phase A/Phase B behavior is verified in regression tests before the user-facing feature is marked active.
 
 **Implementation status:** policy/requirements only. This document change does not claim the user-facing primary-device input surface or second-device enrollment flow is already implemented. Production remains blocked until the runtime endpoints, UI, tests, and independent review pass.
+
+
+## 13. Owner input console and persistent account binding
+
+The Owner input console is available at `/owner/` only to the configured `OWNER_USERNAME` after staff/superuser checks, a verified Django OTP session, and recent Owner re-authentication (maximum age 15 minutes). If the configured identity is missing or mismatched, access is denied. The configured username must identify the already-authorized Owner account; do not promote a user or change account roles automatically to make the console work.
+
+Submissions are size-bounded and stored as queued requests for review. Submission is not execution or authorization. Protected requests must continue through existing exact-request binding, dual-control, and release gates. The console currently does **not** cryptographically bind a browser to Device 1; its UI states this explicitly. Primary-device WebAuthn enrollment, explicit confirmation, revocation, and device-bound session enforcement remain required before claiming Device 1-only access is active.
+
+Set the real `OWNER_USERNAME` only in the deployment provider's protected variable store after verifying the intended existing Owner account. Never place passwords, OTP seeds, private keys, cookies, or recovery codes in source control. Production deployment and account-role changes are outside this change.
