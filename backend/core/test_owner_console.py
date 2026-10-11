@@ -20,26 +20,35 @@ class OwnerConsoleAuthorizationTests(SimpleTestCase):
             "owner_reauthenticated_at": timezone.now().isoformat(),
         }
 
-    @override_settings(OWNER_USERNAME="owner")
+    @override_settings(OWNER_USER_ID="1")
     def test_fresh_verified_configured_owner_is_allowed(self):
         self.assertTrue(_owner_console_authorized(self.request))
 
-    @override_settings(OWNER_USERNAME="")
+    @override_settings(OWNER_USER_ID="")
     def test_missing_owner_configuration_fails_closed(self):
         self.assertFalse(_owner_console_authorized(self.request))
 
-    @override_settings(OWNER_USERNAME="different")
+    @override_settings(OWNER_USER_ID="2")
     def test_wrong_owner_fails_closed(self):
         self.assertFalse(_owner_console_authorized(self.request))
 
-    @override_settings(OWNER_USERNAME="owner")
+    @override_settings(OWNER_USER_ID="01")
+    def test_noncanonical_owner_id_fails_closed(self):
+        self.assertFalse(_owner_console_authorized(self.request))
+
+    @override_settings(OWNER_USER_ID="1")
+    def test_username_change_does_not_change_owner_identity(self):
+        self.request.user.username = "renamed-owner"
+        self.assertTrue(_owner_console_authorized(self.request))
+
+    @override_settings(OWNER_USER_ID="1")
     def test_stale_reauthentication_fails_closed(self):
         self.request.session["owner_reauthenticated_at"] = (
             timezone.now() - timedelta(minutes=16)
         ).isoformat()
         self.assertFalse(_owner_console_authorized(self.request))
 
-    @override_settings(OWNER_USERNAME="owner")
+    @override_settings(OWNER_USER_ID="1")
     def test_unverified_user_fails_closed(self):
         self.request.user.is_verified = lambda: False
         self.assertFalse(_owner_console_authorized(self.request))
