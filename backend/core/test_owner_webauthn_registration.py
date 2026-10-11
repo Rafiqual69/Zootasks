@@ -35,6 +35,14 @@ class OwnerWebAuthnRegistrationTests(TestCase):
         self.assertTrue(options_json.startswith("{"))
         self.assertIn("challenge", options_json)
 
+    def test_registration_for_another_account_is_denied(self):
+        other = get_user_model().objects.create_user(username="not-the-owner")
+        with self.assertRaises(OwnerWebAuthnRegistrationDenied):
+            create_owner_registration_options(
+                **{**self.config, "owner_id": other.pk},
+            )
+        self.assertEqual(OwnerWebAuthnChallenge.objects.count(), 0)
+
     def test_wrong_origin_is_rejected_before_challenge_creation(self):
         with self.assertRaises(OwnerWebAuthnRegistrationDenied):
             create_owner_registration_options(
