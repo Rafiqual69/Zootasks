@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <title>Owner Input Console — ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
+</head>
+<body class="zt-owner-page">
+<header class="zt-owner-header">
+    <a class="zt-brand" href="/"><span class="zt-brand-mark">Z</span><span>ZooTasks</span></a>
+    <span class="zt-owner-badge">OWNER CONSOLE</span>
+</header>
+<main class="zt-owner-main">
+    <section class="zt-owner-card" style="max-width: 760px;">
+        <span class="zt-kicker zt-owner-kicker">PRIVATE CONTROL PLANE</span>
+        <h1>Owner Input Console</h1>
+        <p class="zt-owner-intro">Signed in as <strong>{{ owner_username }}</strong>. Submit instructions, research requests, drafts, proposals, monitoring queries, or protected-action requests.</p>
+
+        <div class="zt-security-note">
+            <strong>Security status: device binding not yet active</strong>
+            <span>This console requires Owner password + verified authenticator and recent re-authentication. A device has not been cryptographically enrolled yet. Requests are queued only; this page does not execute them.</span>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="zt-alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% if form.non_field_errors %}
+            <div class="zt-alert zt-alert-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <form method="post" class="zt-owner-form">
+            {% csrf_token %}
+            <div class="zt-owner-field">
+                {{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}
+            </div>
+            <div class="zt-owner-field">
+                {{ form.title.label_tag }}{{ form.title }}{{ form.title.errors }}
+            </div>
+            <div class="zt-owner-field">
+                {{ form.body.label_tag }}{{ form.body }}{{ form.body.errors }}
+                <small>Maximum 5,000 characters. Do not include passwords, OTP codes, API keys, or payment credentials.</small>
+            </div>
+            <button class="zt-owner-submit" type="submit">Queue request for review</button>
+        </form>
+
+        <hr>
+        <h2>Recent requests</h2>
+        {% if recent_requests %}
+            <ul>
+            {% for item in recent_requests %}
+                <li>
+                    <strong>{{ item.title }}</strong>
+                    — {{ item.get_category_display }}
+                    — {{ item.get_status_display }}
+                    — {{ item.created_at|date:"Y-m-d H:i" }} UTC
+                    <small>Ref: {{ item.request_id }}</small>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>No requests submitted yet.</p>
+        {% endif %}
+        <p><a href="{% url 'admin:index' %}">Admin panel</a> · <a href="/">Home</a></p>
+    </section>
+</main>
+</body>
+</html>
