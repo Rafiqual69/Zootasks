@@ -49,3 +49,49 @@ class OwnerApproval(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+
+
+
+class OwnerInputRequest(models.Model):
+    """Private Owner-submitted command/request; submission never executes it."""
+
+    class Category(models.TextChoices):
+        INSTRUCTION = "instruction", "Instruction"
+        RESEARCH = "research", "Research request"
+        DRAFT = "draft", "Draft/content request"
+        CONFIG_PROPOSAL = "config_proposal", "Configuration proposal"
+        MONITORING = "monitoring", "Monitoring query"
+        PROTECTED_REQUEST = "protected_request", "Protected-action request"
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued for review"
+        IN_REVIEW = "in_review", "In review"
+        COMPLETED = "completed", "Completed"
+        REJECTED = "rejected", "Rejected"
+
+    request_id = models.UUIDField(unique=True, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owner_input_requests",
+    )
+    category = models.CharField(max_length=32, choices=Category.choices)
+    title = models.CharField(max_length=120)
+    body = models.TextField(max_length=5000)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.QUEUED,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("owner", "created_at"), name="core_owner_input_recent"),
+            models.Index(fields=("owner", "status"), name="core_owner_input_status"),
+        ]
+
+    def __str__(self):
+        return f"Owner request {self.request_id} ({self.status})"
