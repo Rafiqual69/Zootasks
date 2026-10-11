@@ -171,6 +171,7 @@ if TRUST_PROXY_SSL:
 
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
+OWNER_USER_ID = config("OWNER_USER_ID", default="")
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
 OWNER_CONTROL_STATE = config(
     "OWNER_CONTROL_STATE",
