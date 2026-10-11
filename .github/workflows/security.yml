@@ -35,6 +35,9 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      - name: Generate ephemeral CI secret key
+        run: python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(64))" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         working-directory: backend
         run: |
@@ -45,7 +48,6 @@ jobs:
       - name: Django system check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py check
@@ -53,7 +55,6 @@ jobs:
       - name: Django deployment security check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/zootasks_ci"
@@ -69,7 +70,6 @@ jobs:
       - name: Migration drift check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py makemigrations --check --dry-run
@@ -81,7 +81,6 @@ jobs:
       - name: Full regression tests
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: |
