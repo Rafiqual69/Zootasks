@@ -50,7 +50,7 @@ class OwnerMFATests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/admin/")
+        self.assertEqual(response["Location"], "/owner/")
         self.assertEqual(
             self.client.session.get("_auth_user_id"),
             str(self.owner.pk),
