@@ -36,6 +36,10 @@ class OwnerConsoleAuthorizationTests(SimpleTestCase):
     def test_noncanonical_owner_id_fails_closed(self):
         self.assertFalse(_owner_console_authorized(self.request))
 
+    @override_settings(OWNER_USER_ID="9" * 5000)
+    def test_oversized_owner_id_fails_closed(self):
+        self.assertFalse(_owner_console_authorized(self.request))
+
     @override_settings(OWNER_USER_ID="1")
     def test_username_change_does_not_change_owner_identity(self):
         self.request.user.username = "renamed-owner"
