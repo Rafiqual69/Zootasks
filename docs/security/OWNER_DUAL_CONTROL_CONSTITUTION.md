@@ -113,3 +113,46 @@ The primary-device feature must:
 The single-device input surface does not waive independent authorization for protected production operations listed in this Constitution. Financial movement, privilege/security changes, production deployment/migrations, destructive operations, and incident break-glass remain blocked until their required approval and release gates pass. If the primary device is suspected compromised, freeze privileged mutations and revoke its sessions/credential.
 
 This is a control-plane requirement, not a claim that an Owner device has already been enrolled. Enrollment and the user-facing control surface must be implemented and tested before the feature can be marked active.
+
+
+## 11. Staged Owner input rollout: Device 1 first, Device 2 later
+
+**Requested operating sequence:** the Owner uses one trusted primary device now to enter and submit all ordinary instructions; a second independently enrolled Owner device will be added later. This is a staged onboarding mode, not a dual-control bypass.
+
+### Phase A — single-device input mode
+
+The primary device may be used to enter and submit all ordinary control-plane inputs, including research prompts, task drafts, content drafts, configuration proposals, workflow requests, monitoring queries, and requests for privileged actions. The server must still authenticate the Owner and authorize every request by action and scope. Inputs are untrusted data until validated; AI agents may prepare proposals but cannot self-authorize them.
+
+Allowed in Phase A:
+- create, edit, and submit ordinary drafts/proposals;
+- start read-only research, diagnostics, and monitoring;
+- queue a privileged request with a visible pending/blocked status;
+- configure non-production settings that do not weaken security or grant privilege;
+- view sanitized audit events and request status.
+
+Not allowed with Device 1 alone:
+- production deployment, rollback, schema migration, or production restore;
+- payment, withdrawal, balance/ledger, budget, or other money movement/mutation;
+- Owner/admin/role/permission changes;
+- changing authentication, MFA, security policy, secrets, network exposure, or audit controls;
+- destructive deletion, incident break-glass, or disabling required safeguards.
+
+These requests may be prepared and queued, but execution must remain denied until the second independent device is enrolled and the dual-control ceremony is implemented, tested, and activated through the explicit production-readiness gate. A queued request must not auto-execute when Device 2 is later enrolled; the Owner must review and approve the exact current request after enrollment.
+
+### Phase B — second-device enrollment
+
+Enrollment of Device 2 requires fresh phishing-resistant WebAuthn/passkey verification, explicit Owner confirmation, independent device and credential identity, revocation/recovery readiness, and an auditable enrollment event. Never accept a device identity or approval fact supplied only by the client. Device 2 enrollment does not itself activate production privileges.
+
+### Required acceptance tests
+
+1. Device 1 can submit an ordinary draft and read-only request after authentication.
+2. Device 1 cannot directly execute any protected operation listed above.
+3. A privileged request from Device 1 remains pending and has no side effects.
+4. Device 2 enrollment cannot automatically release or execute previously queued requests.
+5. Device 1 and Device 2 approvals must bind to the same current action, target, scope, and material parameters.
+6. Revoked, expired, replayed, same-device, same-credential, changed-request, and incident-freeze cases deny.
+7. Device loss/compromise supports revocation and session invalidation without weakening the dual-control requirement.
+8. Audit records contain minimal non-secret metadata only; no passwords, private keys, passkey secrets, session cookies, recovery codes, or raw payment data.
+9. All Phase A/Phase B behavior is verified in regression tests before the user-facing feature is marked active.
+
+**Implementation status:** policy/requirements only. This document change does not claim the user-facing primary-device input surface or second-device enrollment flow is already implemented. Production remains blocked until the runtime endpoints, UI, tests, and independent review pass.
