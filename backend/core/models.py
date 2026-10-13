@@ -38,6 +38,9 @@ class OwnerWebAuthnChallenge(models.Model):
         related_name="owner_webauthn_challenges",
     )
     challenge = models.BinaryField()
+    # Bind the one-time challenge to the exact relying-party configuration used to create it.
+    rp_id = models.CharField(max_length=253, null=True, blank=True)
+    origin = models.CharField(max_length=512, null=True, blank=True)
     ceremony = models.CharField(
         max_length=24,
         choices=Ceremony.choices,
