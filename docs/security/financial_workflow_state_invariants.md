@@ -40,7 +40,7 @@ Required target semantics:
 - Idempotent replay of an already approved claim must not create another ledger entry or increase cumulative payout.
 - Existing dual-control execution authorization remains mandatory for protected production financial mutations.
 
-Data migration gate: before enforcing `reward <= budget` or any cumulative-budget database invariant, audit existing promotion data and explicitly choose the invariant. Do not add a constraint that can invalidate legitimate legacy rows without a reconciliation plan.
+Current code inspection: the promotion approval admin action locks the Promotion row, sums existing earning ledger entries associated with that promotion, and rejects a new payout when `approved_payout_total + reward > budget`. This is an application-level guard, not a database-enforced cumulative invariant. The existing-payment reconciliation path marks a claim approved without re-running the cumulative budget check; review this against legacy over-budget ledger rows. Acceptance gate: add PostgreSQL concurrency tests proving competing approvals cannot exceed budget, test mismatched/orphaned legacy ledger cases, and document/reconcile existing data before deciding whether a database-level cumulative invariant is practical. Do not add a constraint that can invalidate legitimate legacy rows without a reconciliation plan.
 
 ## 3. Withdrawal state machine
 
