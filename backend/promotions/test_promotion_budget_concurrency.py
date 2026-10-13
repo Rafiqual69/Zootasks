@@ -12,6 +12,7 @@ from unittest.mock import patch
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection
+from django.db.models import Sum
 from django.test import RequestFactory, TransactionTestCase, skipUnlessDBFeature
 
 from accounts.models import AccountEntity, WorkerProfile
@@ -113,10 +114,7 @@ class PromotionBudgetConcurrencyTests(TransactionTestCase):
             transaction_type="earning",
         )
         self.assertEqual(earning_rows.count(), 1)
-        self.assertEqual(
-            earning_rows.aggregate_total if hasattr(earning_rows, "aggregate_total") else
-            sum((row.amount for row in earning_rows), Decimal("0.00")),
-            Decimal("60.00"),
-        )
+        total_paid = earning_rows.aggregate(total=Sum("amount"))["total"]
+        self.assertEqual(total_paid, Decimal("60.00"))
         self.promotion.refresh_from_db()
         self.assertEqual(self.promotion.completed_workers, 1)
