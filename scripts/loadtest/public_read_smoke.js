@@ -13,6 +13,13 @@ if (!authorized) {
 if (!baseUrl) {
   throw new Error('BASE_URL is required.');
 }
+const schemeEnd = baseUrl.indexOf('://');
+if (schemeEnd < 0 || /[/?#@]/.test(baseUrl.slice(schemeEnd + 3))) {
+  throw new Error('BASE_URL must contain only the scheme, hostname, and optional port; put paths in READ_PATH.');
+}
+if (/[\\r\\n]/.test(baseUrl) || /[\\r\\n]/.test(readPath)) {
+  throw new Error('BASE_URL and READ_PATH must not contain newline characters.');
+}
 if (!readPath.startsWith('/') || readPath.startsWith('//')) {
   throw new Error('READ_PATH must be a same-origin path beginning with one slash.');
 }
