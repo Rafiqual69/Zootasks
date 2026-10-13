@@ -130,6 +130,8 @@ def create_owner_registration_options(
         challenge = OwnerWebAuthnChallenge.objects.create(
             owner_id=owner_id,
             challenge=options.challenge,
+            rp_id=rp_id,
+            origin=origin,
             ceremony=OwnerWebAuthnChallenge.Ceremony.REGISTRATION,
             expires_at=current_time + CHALLENGE_TTL,
         )
@@ -181,8 +183,15 @@ def complete_owner_registration(
         if challenge_row is None:
             raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
         challenge_bytes = bytes(challenge_row.challenge)
+        challenge_rp_id = challenge_row.rp_id
+        challenge_origin = challenge_row.origin
         challenge_row.consumed_at = current_time
         challenge_row.save(update_fields=("consumed_at",))
+
+    # Consume first, then reject mismatched configuration; this prevents a
+    # challenge from being retried under a different relying-party context.
+    if challenge_rp_id != rp_id or challenge_origin != origin:
+        raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
 
     try:
         verified = verify_registration_response(
