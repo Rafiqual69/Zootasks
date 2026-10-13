@@ -30,6 +30,8 @@ class OwnerWebAuthnRegistrationTests(TestCase):
         challenge_id, options_json = create_owner_registration_options(**self.config)
         row = OwnerWebAuthnChallenge.objects.get(pk=challenge_id)
         self.assertEqual(row.owner_id, self.owner.pk)
+        self.assertEqual(row.rp_id, self.config["rp_id"])
+        self.assertEqual(row.origin, self.config["origin"])
         self.assertGreater(row.expires_at, timezone.now())
         self.assertIsNone(row.consumed_at)
         self.assertTrue(options_json.startswith("{"))
@@ -49,6 +51,18 @@ class OwnerWebAuthnRegistrationTests(TestCase):
                 **{**self.config, "origin": "https://attacker.example"},
             )
         self.assertEqual(OwnerWebAuthnChallenge.objects.count(), 0)
+
+    def test_challenge_cannot_be_completed_under_a_different_origin(self):
+        challenge_id, _ = create_owner_registration_options(**self.config)
+        with self.assertRaises(OwnerWebAuthnRegistrationDenied):
+            complete_owner_registration(
+                **{**self.config, "origin": "https://sub.example.com"},
+                challenge_record_id=challenge_id,
+                credential={"id": "test"},
+            )
+        challenge = OwnerWebAuthnChallenge.objects.get(pk=challenge_id)
+        self.assertIsNotNone(challenge.consumed_at)
+        self.assertEqual(OwnerWebAuthnCredential.objects.count(), 0)
 
     @patch("core.owner_webauthn_registration.verify_registration_response")
     def test_successful_verification_stores_only_public_credential_metadata(self, verify):
