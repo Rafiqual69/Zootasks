@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from webauthn import generate_registration_options, options_to_json, verify_registration_response
@@ -122,6 +123,11 @@ def create_owner_registration_options(
 
     # Invalidate older outstanding registration ceremonies for this Owner.
     with transaction.atomic():
+        # Serialize challenge issuance for this Owner so concurrent requests cannot
+        # leave two simultaneously valid registration ceremonies.
+        owner_row = get_user_model().objects.select_for_update().filter(pk=owner_id).first()
+        if owner_row is None:
+            raise OwnerWebAuthnRegistrationDenied("Owner device enrollment denied.")
         OwnerWebAuthnChallenge.objects.filter(
             owner_id=owner_id,
             ceremony=OwnerWebAuthnChallenge.Ceremony.REGISTRATION,
