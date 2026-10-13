@@ -26,7 +26,7 @@ The current security board work is aligned with:
 - Withdrawal amount nonnegative database invariant: implemented.
 - Task reservation/completed separation: implemented with reconciliation migration and targeted tests.
 - Promotion reservation/completed separation: implemented with reconciliation migration and targeted tests.
-- Promotion cumulative monetary budget invariant: not yet implemented; intentionally gated for dedicated data-reconciliation and concurrency review.
+- Promotion cumulative monetary budget: an application-level check exists in `PromotionClaimAdmin.approve_claims` (promotion row lock + earning-ledger sum + reject if the new payout would exceed budget). It is not a database-enforced cumulative invariant, and the current test suite does not establish the required PostgreSQL concurrent-approval behavior. Existing-payment reconciliation and legacy over-budget rows also require explicit tests/reconciliation. Production activation remains gated.
 - Withdrawal state-transition database history: not forced into an unsuitable row-local CHECK constraint; authoritative transitions remain transactional.
 
 ## Source references
