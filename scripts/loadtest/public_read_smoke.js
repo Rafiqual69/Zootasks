@@ -17,7 +17,7 @@ const schemeEnd = baseUrl.indexOf('://');
 if (schemeEnd < 0 || /[/?#@]/.test(baseUrl.slice(schemeEnd + 3))) {
   throw new Error('BASE_URL must contain only the scheme, hostname, and optional port; put paths in READ_PATH.');
 }
-if (/[\\r\\n]/.test(baseUrl) || /[\\r\\n]/.test(readPath)) {
+if (/[\r\n]/.test(baseUrl) || /[\r\n]/.test(readPath)) {
   throw new Error('BASE_URL and READ_PATH must not contain newline characters.');
 }
 if (!readPath.startsWith('/') || readPath.startsWith('//')) {
