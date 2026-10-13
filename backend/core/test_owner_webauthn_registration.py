@@ -37,6 +37,14 @@ class OwnerWebAuthnRegistrationTests(TestCase):
         self.assertTrue(options_json.startswith("{"))
         self.assertIn("challenge", options_json)
 
+    def test_new_challenge_invalidates_previous_outstanding_challenge(self):
+        first_id, _ = create_owner_registration_options(**self.config)
+        second_id, _ = create_owner_registration_options(**self.config)
+        first = OwnerWebAuthnChallenge.objects.get(pk=first_id)
+        second = OwnerWebAuthnChallenge.objects.get(pk=second_id)
+        self.assertIsNotNone(first.consumed_at)
+        self.assertIsNone(second.consumed_at)
+
     def test_registration_for_another_account_is_denied(self):
         other = get_user_model().objects.create_user(username="not-the-owner")
         with self.assertRaises(OwnerWebAuthnRegistrationDenied):
@@ -57,6 +65,18 @@ class OwnerWebAuthnRegistrationTests(TestCase):
         with self.assertRaises(OwnerWebAuthnRegistrationDenied):
             complete_owner_registration(
                 **{**self.config, "origin": "https://sub.example.com"},
+                challenge_record_id=challenge_id,
+                credential={"id": "test"},
+            )
+        challenge = OwnerWebAuthnChallenge.objects.get(pk=challenge_id)
+        self.assertIsNotNone(challenge.consumed_at)
+        self.assertEqual(OwnerWebAuthnCredential.objects.count(), 0)
+
+    def test_challenge_cannot_be_completed_under_a_different_rp_id(self):
+        challenge_id, _ = create_owner_registration_options(**self.config)
+        with self.assertRaises(OwnerWebAuthnRegistrationDenied):
+            complete_owner_registration(
+                **{**self.config, "rp_id": "sub.example.com", "origin": "https://sub.example.com"},
                 challenge_record_id=challenge_id,
                 credential={"id": "test"},
             )
