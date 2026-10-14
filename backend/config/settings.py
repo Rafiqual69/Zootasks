@@ -178,3 +178,8 @@ OWNER_CONTROL_STATE = config(
     default="DEVELOPMENT_SINGLE_DEVICE",
 )
 LOGOUT_REDIRECT_URL = "/"
+
+# WebAuthn relying-party identity must be deployment-controlled, never derived from Host/Origin headers.
+# Empty defaults intentionally disable Owner WebAuthn ceremonies until explicitly configured.
+OWNER_WEBAUTHN_RP_ID = config("OWNER_WEBAUTHN_RP_ID", default="")
+OWNER_WEBAUTHN_ORIGIN = config("OWNER_WEBAUTHN_ORIGIN", default="")
