@@ -31,6 +31,7 @@ class OwnerWebAuthnChallenge(models.Model):
 
     class Ceremony(models.TextChoices):
         REGISTRATION = "registration", "Registration"
+        AUTHENTICATION = "authentication", "Authentication"
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
