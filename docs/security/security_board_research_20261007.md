@@ -73,3 +73,30 @@ The PostgreSQL financial workflow ran 292 tests and executed the PostgreSQL-only
 ## Current release decision
 
 PR #41 remains Draft/open and unmerged. Production migration, deployment, live financial-data reconciliation, and secret changes remain blocked. The next safe work item is to add or verify tests for the Owner authentication challenge lifecycle and session binding without enabling a public route, while separately defining the approved treatment of already-paid/legacy promotion claims that exceed a promotion budget.
+
+## Evidence snapshot — 2026-10-14: authentication challenge lifecycle
+
+Candidate branch: `security/full-integrated-security-board-20261007`  
+Exact tested commit: `1077c98751651b322c746eda0f7a513f421b9d5d`
+
+The authentication challenge lifecycle tranche adds an `authentication` ceremony choice and migration, deployment-controlled `OWNER_WEBAUTHN_RP_ID` / `OWNER_WEBAUTHN_ORIGIN` settings that default to empty (fail closed), and a backend helper to issue and consume one-time Owner-bound challenges with a five-minute lifetime. New issuance invalidates prior unused authentication challenges. Consumption is database-locked and rejects consumed, expired, wrong-owner, wrong-ceremony, or deployment-RP/origin-mismatched challenges. Tests cover persistence, invalidation, single-use replay denial, expiry, non-owner denial, and missing configuration.
+
+All three GitHub Actions workflows completed successfully for this exact candidate commit:
+- Security Gate: https://github.com/Rafiqual69/Zootasks/actions/runs/38522917484
+- Security Review: https://github.com/Rafiqual69/Zootasks/actions/runs/38522917651
+- PostgreSQL Financial Verification: https://github.com/Rafiqual69/Zootasks/actions/runs/38522917757
+
+An intermediate commit briefly failed migration-drift checks because the model choice change preceded its matching migration. The matching migration was added afterward; the three successful runs above are for the final candidate SHA, not the intermediate commits.
+
+This is a challenge-lifecycle improvement only. It does **not** verify an assertion by itself, create a session, bind a session cryptographically to a device, expose an HTTP endpoint, or authorize protected operations. No production deployment, live financial-data operation, or secret change was performed.
+
+## Prioritized next security-board gates
+
+1. **Authentication ceremony integration (still blocked):** add a narrowly scoped, owner-authorized integration path only after independent review of caller authentication, CSRF/origin protections, strict request schema and size limits, per-owner/IP rate limits, challenge consumption before verification, and generic failure responses. The assertion verifier must receive only the consumed server-side challenge/RP/origin context, never caller-selected trusted values.
+2. **Session and revocation binding (still blocked):** prove end-to-end that a successful verified assertion creates or upgrades a session with explicit credential/device binding; every protected request checks session binding and current credential revocation; logout, credential revocation, password/OTP changes, and recovery invalidate the right sessions. Add adversarial tests before enabling any route.
+3. **Bootstrap and recovery (still blocked):** define a documented first-device bootstrap and recovery procedure with independent proof, notifications, rate limits, audit events, and a safe break-glass policy. A queued Device 2 request must never self-approve or enroll a credential.
+4. **Financial policy reconciliation (still blocked):** define and test an explicit policy for historic over-budget, orphaned, or mismatched promotion ledger/payment records. Preserve immutable financial history; no silent rewrites.
+5. **Operational data protection (still blocked):** verify secret/log redaction, least-privilege production roles, encrypted backups, retention, restore drills, incident response, dependency review, and monitored alerts. Do not claim capacity from CI tests or synthetic load scripts.
+6. **Release gate:** keep PR #41 Draft/open until exact-head CI is green and independent security review confirms all acceptance criteria. Production migration/deployment remains blocked until PostgreSQL migration review, safe reconciliation, rollback/restore readiness, and explicit release approval.
+
+These gates follow the research basis above (OWASP business-logic and transaction-authorization guidance, ASVS 5.0, and NIST CSF 2.0). They are an engineering control record, not legal advice, a complete audit, or a compliance certification.
