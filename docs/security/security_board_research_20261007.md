@@ -100,3 +100,19 @@ This is a challenge-lifecycle improvement only. It does **not** verify an assert
 6. **Release gate:** keep PR #41 Draft/open until exact-head CI is green and independent security review confirms all acceptance criteria. Production migration/deployment remains blocked until PostgreSQL migration review, safe reconciliation, rollback/restore readiness, and explicit release approval.
 
 These gates follow the research basis above (OWASP business-logic and transaction-authorization guidance, ASVS 5.0, and NIST CSF 2.0). They are an engineering control record, not legal advice, a complete audit, or a compliance certification.
+
+## External research refresh — 2026-10-14
+
+The following official/primary guidance was checked during this board refresh:
+
+- NIST SP 800-63B-4, *Digital Identity Guidelines: Authentication and Authenticator Management*, final publication dated 2025-07-31; NIST's publication page records that it supersedes SP 800-63B (2020): https://csrc.nist.gov/pubs/sp/800/63/b/4/final
+- NIST SP 800-63B-4 authenticator guidance: https://pages.nist.gov/800-63-4/sp800-63b/authenticators/
+- OWASP Session Management Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+- OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+
+### Applied interpretation for ZooTasks
+
+- Do not label a passkey/WebAuthn implementation “phishing-resistant” merely because the library verifies an assertion. Verify RP ID and origin from deployment-controlled configuration, challenge freshness and single use, required user verification, and exact credential ownership.
+- Successful authentication must be followed by safe session lifecycle handling: rotate the session identifier on privilege/authentication changes, use HTTPS throughout the authenticated session, use secure cookie attributes, and define idle/absolute timeouts and revocation behavior. Session/device binding is a server-side control and requires end-to-end tests; a challenge helper alone does not provide it.
+- Enrollment and recovery remain separate high-risk ceremonies requiring independent proof and auditability. A synced passkey can improve usability, but it must not be treated as proof that a specific physical device is uniquely bound unless the design establishes that property.
+- These standards are security design references, not a claim that ZooTasks has achieved any NIST assurance level, formal conformance, or certification. Apply requirements proportionately to the actual deployment and threat model.
