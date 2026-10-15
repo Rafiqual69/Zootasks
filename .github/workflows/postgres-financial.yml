@@ -84,6 +84,20 @@ jobs:
           bash -n scripts/preflight_financial_migrations.sh
           bash scripts/preflight_financial_migrations.sh
 
+      - name: Isolated PostgreSQL backup/restore drill (synthetic CI database only)
+        env:
+          PGADMIN_URL: "postgresql://zootasks_ci:zootasks_ci_password@127.0.0.1:5432/zootasks_ci"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          bash -n scripts/restore_drill_postgres.sh
+          TMP_DIR="$(mktemp -d)"
+          cleanup_restore_test() { rm -rf "$TMP_DIR"; }
+          trap cleanup_restore_test EXIT
+          DUMP_FILE="$TMP_DIR/zootasks-ci.dump"
+          pg_dump --format=custom --no-owner --file="$DUMP_FILE" "$PGADMIN_URL"
+          test -s "$DUMP_FILE"
+          bash scripts/restore_drill_postgres.sh "$DUMP_FILE" "restore_drill_ci_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
       - name: Full regression on PostgreSQL
         working-directory: backend
         run: python manage.py test --verbosity=2
