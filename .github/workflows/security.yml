@@ -122,7 +122,7 @@ jobs:
           BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
           test -n "$BACKUP_FILE"
           test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
-          ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env([^/]*$)?|\.git/|db\.sqlite3$|backups/|\.ssh/|keys/|dumps/|media/|uploads/|secrets/|credentials/)|\.(pem|key|p12|pfx|jks|keystore|dump|pgdump|rdb|aof)$|\.sql\.gz$|(-dump|-backup|production|prod)\.sql
+          ! tar -tzf "$BACKUP_FILE" | grep -E "(^|/)(\.env([^/]*$)?|\.git/|db\.sqlite3$|backups/|\.ssh/|keys/|dumps/|media/|uploads/|secrets/|credentials/)|\.(pem|key|p12|pfx|jks|keystore|dump|pgdump|rdb|aof)$|\.sql\.gz$|(-dump|-backup|production|prod)\.sql\$"
       - name: Check whitespace errors
         run: git diff --check
 
