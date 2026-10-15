@@ -116,3 +116,26 @@ The following official/primary guidance was checked during this board refresh:
 - Successful authentication must be followed by safe session lifecycle handling: rotate the session identifier on privilege/authentication changes, use HTTPS throughout the authenticated session, use secure cookie attributes, and define idle/absolute timeouts and revocation behavior. Session/device binding is a server-side control and requires end-to-end tests; a challenge helper alone does not provide it.
 - Enrollment and recovery remain separate high-risk ceremonies requiring independent proof and auditability. A synced passkey can improve usability, but it must not be treated as proof that a specific physical device is uniquely bound unless the design establishes that property.
 - These standards are security design references, not a claim that ZooTasks has achieved any NIST assurance level, formal conformance, or certification. Apply requirements proportionately to the actual deployment and threat model.
+
+## CI, backup isolation, and log-hygiene follow-up — 2026-10-15
+
+### External research recheck
+
+- NIST SP 800-63B-4 remains the current final Digital Identity Guidelines volume for authentication and authenticator management; NIST's publication page notes the implementation resource hub in its 2026-10-06 planning note: https://csrc.nist.gov/pubs/sp/800/63/b/4/final
+- OWASP Session Management guidance reinforces renewing session identifiers after authentication/privilege changes, using secure cookie attributes, keeping session meaning server-side, and actively invalidating sessions on logout/expiry: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+- Applied decision unchanged: this research does not prove ZooTasks has NIST assurance-level conformance. End-to-end WebAuthn route integration, session binding/revocation, bootstrap/recovery, and independent security review remain blocked release gates.
+
+### Corrective work and evidence
+
+- The PostgreSQL 16 restore-drill container did not include `python3`; the drill failed before attempting restoration. The restore script now parses the connection URI authority with shell parameter expansion and still accepts only `localhost`, `127.0.0.1`, or `::1`. It refuses an existing target database, restores only into a uniquely named `restore_drill_*` database, and removes that temporary database on exit.
+- The Security Gate's backup smoke test was weaker than the Security Review workflow. Its fixtures and exclusion assertions now cover nested `.env` files, backups, SSH/private-key material, certificates, database dumps, media/uploads, secrets, and credentials. A first run exposed a shell-quoting error in the test expression; the expression was corrected and the final exact-candidate run passed.
+- Workflow logs previously displayed the randomly generated CI-only `SECRET_KEY` unmasked. This was not a production secret, but it was unnecessary log exposure. All three workflows now register the ephemeral value with GitHub Actions masking before writing it to `GITHUB_ENV`. The final candidate logs were checked: every `SECRET_KEY` environment entry was masked.
+- Exact code candidate tested: `18d30becb1bccddec5ed8fb7e9732f1848df99ac`.
+  - Security Review #798: https://github.com/Rafiqual69/Zootasks/actions/runs/38724386571 — success.
+  - Security Gate #1104: https://github.com/Rafiqual69/Zootasks/actions/runs/38724386569 — success; 298 regression tests ran, dependency audit reported no known vulnerabilities, and backup isolation smoke test passed.
+  - PostgreSQL Financial Verification #255: https://github.com/Rafiqual69/Zootasks/actions/runs/38724386592 — success; 298 PostgreSQL regression tests ran and the isolated synthetic backup/restore drill reported success.
+- These are CI results against synthetic data and the exact code candidate only. They do not establish a real production backup/restore drill, verify production financial records, certify security, or authorize deployment.
+
+### Release status
+
+PR #41 remains Draft/open. Production migration/deployment, live financial-data reconciliation, secret changes, and enabling Owner WebAuthn enrollment/protected routes remain blocked pending exact-head CI after this documentation update, independent review, adversarial session-lifecycle tests, approved legacy financial reconciliation, and production rollback/restore rehearsal.
