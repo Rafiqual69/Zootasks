@@ -88,16 +88,15 @@ jobs:
         env:
           PGADMIN_URL: "postgresql://zootasks_ci:zootasks_ci_password@127.0.0.1:5432/zootasks_ci"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          docker pull postgres:16
           bash -n scripts/restore_drill_postgres.sh
           TMP_DIR="$(mktemp -d)"
           cleanup_restore_test() { rm -rf "$TMP_DIR"; }
           trap cleanup_restore_test EXIT
           DUMP_FILE="$TMP_DIR/zootasks-ci.dump"
-          pg_dump --format=custom --no-owner --file="$DUMP_FILE" "$PGADMIN_URL"
+          docker run --network host --rm -v "$TMP_DIR:/tmp/restore-drill" postgres:16 pg_dump --format=custom --no-owner --file=/tmp/restore-drill/zootasks-ci.dump "$PGADMIN_URL"
           test -s "$DUMP_FILE"
-          bash scripts/restore_drill_postgres.sh "$DUMP_FILE" "restore_drill_ci_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          docker run --network host --rm -v "$GITHUB_WORKSPACE/scripts/restore_drill_postgres.sh:/restore_drill_postgres.sh:ro" -v "$TMP_DIR:/tmp/restore-drill" -e PGADMIN_URL="$PGADMIN_URL" postgres:16 bash /restore_drill_postgres.sh /tmp/restore-drill/zootasks-ci.dump "restore_drill_ci_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
       - name: Full regression on PostgreSQL
         working-directory: backend
         run: python manage.py test --verbosity=2
