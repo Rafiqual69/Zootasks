@@ -9,8 +9,21 @@ DUMP_FILE="$1"
 RESTORE_DB="$2"
 [[ -f "$DUMP_FILE" ]] || { echo 'FAIL: dump file not found' >&2; exit 1; }
 [[ "$RESTORE_DB" =~ ^restore_drill_[a-zA-Z0-9_]+$ ]] || { echo 'FAIL: target must start with restore_drill_' >&2; exit 1; }
-HOST="$(python3 -c 'import os; from urllib.parse import urlparse; print(urlparse(os.environ["PGADMIN_URL"]).hostname or "")')"
+
+# This script is intentionally limited to a local PostgreSQL endpoint. Parse
+# the URI authority using shell parameter expansion so the PostgreSQL client
+# container does not need Python or another runtime just for hostname parsing.
+AUTHORITY="${PGADMIN_URL#*://}"
+AUTHORITY="${AUTHORITY%%/*}"
+AUTHORITY="${AUTHORITY#*@}"
+if [[ "$AUTHORITY" == \[*\]* ]]; then
+  HOST="${AUTHORITY#\[}"
+  HOST="${HOST%%\]*}"
+else
+  HOST="${AUTHORITY%%:*}"
+fi
 case "$HOST" in localhost|127.0.0.1|::1) ;; *) echo 'FAIL: non-local database host refused' >&2; exit 1 ;; esac
+
 command -v psql >/dev/null || { echo 'FAIL: psql required' >&2; exit 1; }
 command -v pg_restore >/dev/null || { echo 'FAIL: pg_restore required' >&2; exit 1; }
 if psql "$PGADMIN_URL" -tAc "SELECT 1 FROM pg_database WHERE datname = '$RESTORE_DB'" | grep -q 1; then echo 'FAIL: existing restore target; refusing overwrite' >&2; exit 1; fi
