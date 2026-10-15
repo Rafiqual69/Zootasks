@@ -39,7 +39,12 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Generate ephemeral CI secret key
-        run: python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(64))" >> "$GITHUB_ENV"
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          echo "::add-mask::$SECRET_KEY"
+          printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         working-directory: backend
