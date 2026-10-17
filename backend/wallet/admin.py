@@ -4,11 +4,22 @@ from django.utils import timezone
 from accounts.models import WorkerProfile
 
 from .models import WalletTransaction, WithdrawalRequest
-from core.security_policy_engine import require_authorized
+from core.execution_authorization import require_execution_authorized
+from core.security_policy_engine import authorize
 
 
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
     list_display = (
         "user",
         "amount",
@@ -42,16 +53,25 @@ class WalletTransactionAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "wallet.approve_withdrawal",
-                "wallet.reject_withdrawal",
-                "wallet.mark_withdrawal_paid",
+        can_approve = user.has_perm("wallet.approve_withdrawal")
+        can_pay = user.has_perm("wallet.mark_withdrawal_paid")
+        if can_approve:
+            return authorize(
+                actor="finance",
+                resource="wallet_transaction",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_approve": True},
             )
-        )
+        if can_pay:
+            return authorize(
+                actor="finance_payer",
+                resource="wallet_transaction",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_pay": True},
+            )
+        return False
 
 
 @admin.action(description="✅ Approve selected withdrawals")
@@ -82,7 +102,25 @@ def approve_withdrawals(modeladmin, request, queryset):
                 skipped += 1
                 continue
 
-            require_authorized(actor="finance", resource="withdrawal", action="approve", scope="role_scope", facts={"permission.withdrawal_approve": True, "business_rules.valid_withdrawal": True})
+            require_execution_authorized(
+                request=request,
+                operation="withdrawal.approve",
+                target=f"withdrawal:{withdrawal.id}",
+                scope="role_scope",
+                material_parameters={
+                    "withdrawal_id": withdrawal.id,
+                    "amount": str(withdrawal.amount),
+                    "status": withdrawal.status,
+                },
+                actor="finance",
+                resource="withdrawal",
+                action="approve",
+                authorization_scope="role_scope",
+                authorization_facts={
+                    "permission.withdrawal_approve": True,
+                    "business_rules.valid_withdrawal": True,
+                },
+            )
 
             profile = (
                 WorkerProfile.objects
@@ -146,12 +184,21 @@ def reject_withdrawals(modeladmin, request, queryset):
             if withdrawal.status != "pending":
                 continue
 
-            require_authorized(
+            require_execution_authorized(
+                request=request,
+                operation="withdrawal.reject",
+                target=f"withdrawal:{withdrawal.id}",
+                scope="role_scope",
+                material_parameters={
+                    "withdrawal_id": withdrawal.id,
+                    "amount": str(withdrawal.amount),
+                    "status": withdrawal.status,
+                },
                 actor="finance",
                 resource="withdrawal",
                 action="reject",
-                scope="role_scope",
-                facts={
+                authorization_scope="role_scope",
+                authorization_facts={
                     "permission.withdrawal_reject": True,
                     "business_rules.pending_withdrawal": True,
                 },
@@ -218,12 +265,21 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
                 request.user.has_perm("wallet.mark_withdrawal_paid")
                 and not request.user.has_perm("wallet.approve_withdrawal")
             )
-            require_authorized(
+            require_execution_authorized(
+                request=request,
+                operation="withdrawal.pay",
+                target=f"withdrawal:{withdrawal.id}",
+                scope="role_scope",
+                material_parameters={
+                    "withdrawal_id": withdrawal.id,
+                    "amount": str(withdrawal.amount),
+                    "status": withdrawal.status,
+                },
                 actor="finance_payer",
                 resource="withdrawal",
                 action="pay",
-                scope="role_scope",
-                facts={
+                authorization_scope="role_scope",
+                authorization_facts={
                     "permission.withdrawal_pay": is_payer,
                     "business_rules.approved_withdrawal": True,
                     "idempotency.required": True,
@@ -374,6 +430,16 @@ def mark_withdrawals_paid(modeladmin, request, queryset):
 
 @admin.register(WithdrawalRequest)
 class WithdrawalRequestAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
     list_display = (
         "id",
         "user",
@@ -445,13 +511,22 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         user = request.user
         if not user.is_authenticated or not user.is_staff:
             return False
-        if user.is_superuser:
-            return True
-        return any(
-            user.has_perm(permission)
-            for permission in (
-                "wallet.approve_withdrawal",
-                "wallet.reject_withdrawal",
-                "wallet.mark_withdrawal_paid",
+        can_approve = user.has_perm("wallet.approve_withdrawal")
+        can_pay = user.has_perm("wallet.mark_withdrawal_paid")
+        if can_approve:
+            return authorize(
+                actor="finance",
+                resource="withdrawal",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_approve": True},
             )
-        )
+        if can_pay:
+            return authorize(
+                actor="finance_payer",
+                resource="withdrawal",
+                action="read",
+                scope="role_scope",
+                facts={"permission.withdrawal_pay": True},
+            )
+        return False

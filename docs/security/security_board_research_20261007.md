@@ -1,0 +1,141 @@
+# ZooTasks Security Board Research Record — 2026-10-07
+
+## Research basis
+
+The current security board work is aligned with:
+
+- OWASP Business Logic Security: contextual authorization, state/workflow integrity, server-side business rules, concurrency and idempotency.
+- OWASP Secure Code Review: workflow integrity, race-condition prevention, transaction atomicity, resource limits, authorization at workflow steps, secure defaults, and abuse-case review.
+- OWASP Transaction Authorization: protected transaction data must remain bound to the authorized operation and workflow steps must not be skipped or reordered.
+- OWASP ASVS 5.0: business logic, authorization, secure architecture/coding, data protection, and security logging/error handling are explicit control areas.
+- NIST CSF 2.0: Govern, Identify, Protect, Detect, Respond, Recover are concurrent functions rather than a one-time checklist.
+
+## Current board decisions
+
+1. Financial mutations remain deny-by-default and production dual-control protected.
+2. Task and promotion worker capacity are modeled separately from completed/approved accounting.
+3. Row-local financial invariants are enforced at the database layer where practical.
+4. State-transition rules remain transactionally enforced in application operations.
+5. Legacy data is reconciled before new constraints are activated.
+6. Concurrency verification must include PostgreSQL because production row-lock semantics matter.
+7. Existing financial idempotency controls must not be weakened by workflow refactoring.
+8. Production deployment/migration remains blocked until CI, migration review, PostgreSQL verification, regression, and security review are green.
+
+## Current implementation tranche
+
+- Withdrawal amount nonnegative database invariant: implemented.
+- Task reservation/completed separation: implemented with reconciliation migration and targeted tests.
+- Promotion reservation/completed separation: implemented with reconciliation migration and targeted tests.
+- Promotion cumulative monetary budget: an application-level check exists in `PromotionClaimAdmin.approve_claims` (promotion row lock + earning-ledger sum + reject if the new payout would exceed budget). It is not a database-enforced cumulative invariant. A PostgreSQL-only concurrency regression test now exercises two competing $60 approvals against a $100 budget and asserts that only one claim is approved and only one $60 earning-ledger credit exists. This test passed on the exact candidate commit listed in the evidence snapshot below. Existing-payment reconciliation and legacy over-budget/orphaned ledger rows still require an explicit policy decision and safe reconciliation; do not silently rewrite historic financial records. Production activation remains gated.
+- Withdrawal state-transition database history: not forced into an unsuitable row-local CHECK constraint; authoritative transitions remain transactional.
+
+## Source references
+
+OWASP Business Logic Security:
+https://cheatsheetseries.owasp.org/cheatsheets/Business_Logic_Security_Cheat_Sheet.html
+
+OWASP Secure Code Review:
+https://cheatsheetseries.owasp.org/cheatsheets/Secure_Code_Review_Cheat_Sheet.html
+
+OWASP Transaction Authorization:
+https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html
+
+OWASP ASVS 5.0:
+https://cornucopia.owasp.org/taxonomy/asvs-5.0
+
+NIST CSF 2.0:
+https://www.nist.gov/cyberframework
+
+This record is engineering/security guidance, not legal advice or a claim of regulatory certification.
+
+
+## Evidence snapshot — 2026-10-14
+
+Candidate branch: `security/full-integrated-security-board-20261007`  
+Exact tested commit: `6f452f15a6df38ad628341bf3bb652061c0980a6`
+
+The following GitHub Actions runs completed successfully for that exact commit:
+- Security Gate: https://github.com/Rafiqual69/Zootasks/actions/runs/38349328400
+- Security Review: https://github.com/Rafiqual69/Zootasks/actions/runs/38349328449
+- PostgreSQL Financial Verification: https://github.com/Rafiqual69/Zootasks/actions/runs/38349328409
+
+The PostgreSQL financial workflow ran 292 tests and executed the PostgreSQL-only competing promotion-approval test. The SQLite suite also ran 292 tests; the PostgreSQL row-lock-specific test is skipped on SQLite by design. These results support only the tested commit and scenarios; they are not a complete security audit, production validation, or certification.
+
+## Owner authentication and device-binding status
+
+- The Owner console is a queue-only request intake surface; submission does not execute a protected operation.
+- Owner console authorization checks the configured immutable `OWNER_USER_ID`, staff/superuser flags, verified OTP, and a recent re-authentication timestamp.
+- A backend WebAuthn assertion-verification service exists and validates the assertion against a stored, non-revoked credential, expected challenge, RP ID, exact origin supplied by its caller, required user verification, and sign counter. Unit tests currently cover denial for unknown/revoked credentials and invalid challenge input.
+- A backend registration service exists, but the threat model explicitly records that there is no enabled public enrollment endpoint/UI and no completed bootstrap/recovery ceremony.
+- **Not verified/implemented end-to-end:** a protected route invoking the assertion service; challenge issuance/consumption for authentication; fixed deployment-controlled RP/origin wired into the route; cryptographic device-bound session creation and per-request revocation checks; first-device bootstrap; recovery; independent Device 1/Device 2 proof; and notifications.
+- Therefore, do not describe the Owner session as cryptographically device-bound, do not activate enrollment routes/UI, and do not permit protected production mutations until the documented acceptance gates and adversarial tests pass.
+
+## Current release decision
+
+PR #41 remains Draft/open and unmerged. Production migration, deployment, live financial-data reconciliation, and secret changes remain blocked. The next safe work item is to add or verify tests for the Owner authentication challenge lifecycle and session binding without enabling a public route, while separately defining the approved treatment of already-paid/legacy promotion claims that exceed a promotion budget.
+
+## Evidence snapshot — 2026-10-14: authentication challenge lifecycle
+
+Candidate branch: `security/full-integrated-security-board-20261007`  
+Exact tested commit: `1077c98751651b322c746eda0f7a513f421b9d5d`
+
+The authentication challenge lifecycle tranche adds an `authentication` ceremony choice and migration, deployment-controlled `OWNER_WEBAUTHN_RP_ID` / `OWNER_WEBAUTHN_ORIGIN` settings that default to empty (fail closed), and a backend helper to issue and consume one-time Owner-bound challenges with a five-minute lifetime. New issuance invalidates prior unused authentication challenges. Consumption is database-locked and rejects consumed, expired, wrong-owner, wrong-ceremony, or deployment-RP/origin-mismatched challenges. Tests cover persistence, invalidation, single-use replay denial, expiry, non-owner denial, and missing configuration.
+
+All three GitHub Actions workflows completed successfully for this exact candidate commit:
+- Security Gate: https://github.com/Rafiqual69/Zootasks/actions/runs/38522917484
+- Security Review: https://github.com/Rafiqual69/Zootasks/actions/runs/38522917651
+- PostgreSQL Financial Verification: https://github.com/Rafiqual69/Zootasks/actions/runs/38522917757
+
+An intermediate commit briefly failed migration-drift checks because the model choice change preceded its matching migration. The matching migration was added afterward; the three successful runs above are for the final candidate SHA, not the intermediate commits.
+
+This is a challenge-lifecycle improvement only. It does **not** verify an assertion by itself, create a session, bind a session cryptographically to a device, expose an HTTP endpoint, or authorize protected operations. No production deployment, live financial-data operation, or secret change was performed.
+
+## Prioritized next security-board gates
+
+1. **Authentication ceremony integration (still blocked):** add a narrowly scoped, owner-authorized integration path only after independent review of caller authentication, CSRF/origin protections, strict request schema and size limits, per-owner/IP rate limits, challenge consumption before verification, and generic failure responses. The assertion verifier must receive only the consumed server-side challenge/RP/origin context, never caller-selected trusted values.
+2. **Session and revocation binding (still blocked):** prove end-to-end that a successful verified assertion creates or upgrades a session with explicit credential/device binding; every protected request checks session binding and current credential revocation; logout, credential revocation, password/OTP changes, and recovery invalidate the right sessions. Add adversarial tests before enabling any route.
+3. **Bootstrap and recovery (still blocked):** define a documented first-device bootstrap and recovery procedure with independent proof, notifications, rate limits, audit events, and a safe break-glass policy. A queued Device 2 request must never self-approve or enroll a credential.
+4. **Financial policy reconciliation (still blocked):** define and test an explicit policy for historic over-budget, orphaned, or mismatched promotion ledger/payment records. Preserve immutable financial history; no silent rewrites.
+5. **Operational data protection (still blocked):** verify secret/log redaction, least-privilege production roles, encrypted backups, retention, restore drills, incident response, dependency review, and monitored alerts. Do not claim capacity from CI tests or synthetic load scripts.
+6. **Release gate:** keep PR #41 Draft/open until exact-head CI is green and independent security review confirms all acceptance criteria. Production migration/deployment remains blocked until PostgreSQL migration review, safe reconciliation, rollback/restore readiness, and explicit release approval.
+
+These gates follow the research basis above (OWASP business-logic and transaction-authorization guidance, ASVS 5.0, and NIST CSF 2.0). They are an engineering control record, not legal advice, a complete audit, or a compliance certification.
+
+## External research refresh — 2026-10-14
+
+The following official/primary guidance was checked during this board refresh:
+
+- NIST SP 800-63B-4, *Digital Identity Guidelines: Authentication and Authenticator Management*, final publication dated 2025-07-31; NIST's publication page records that it supersedes SP 800-63B (2020): https://csrc.nist.gov/pubs/sp/800/63/b/4/final
+- NIST SP 800-63B-4 authenticator guidance: https://pages.nist.gov/800-63-4/sp800-63b/authenticators/
+- OWASP Session Management Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+- OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+
+### Applied interpretation for ZooTasks
+
+- Do not label a passkey/WebAuthn implementation “phishing-resistant” merely because the library verifies an assertion. Verify RP ID and origin from deployment-controlled configuration, challenge freshness and single use, required user verification, and exact credential ownership.
+- Successful authentication must be followed by safe session lifecycle handling: rotate the session identifier on privilege/authentication changes, use HTTPS throughout the authenticated session, use secure cookie attributes, and define idle/absolute timeouts and revocation behavior. Session/device binding is a server-side control and requires end-to-end tests; a challenge helper alone does not provide it.
+- Enrollment and recovery remain separate high-risk ceremonies requiring independent proof and auditability. A synced passkey can improve usability, but it must not be treated as proof that a specific physical device is uniquely bound unless the design establishes that property.
+- These standards are security design references, not a claim that ZooTasks has achieved any NIST assurance level, formal conformance, or certification. Apply requirements proportionately to the actual deployment and threat model.
+
+## CI, backup isolation, and log-hygiene follow-up — 2026-10-15
+
+### External research recheck
+
+- NIST SP 800-63B-4 remains the current final Digital Identity Guidelines volume for authentication and authenticator management; NIST's publication page notes the implementation resource hub in its 2026-10-06 planning note: https://csrc.nist.gov/pubs/sp/800/63/b/4/final
+- OWASP Session Management guidance reinforces renewing session identifiers after authentication/privilege changes, using secure cookie attributes, keeping session meaning server-side, and actively invalidating sessions on logout/expiry: https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+- Applied decision unchanged: this research does not prove ZooTasks has NIST assurance-level conformance. End-to-end WebAuthn route integration, session binding/revocation, bootstrap/recovery, and independent security review remain blocked release gates.
+
+### Corrective work and evidence
+
+- The PostgreSQL 16 restore-drill container did not include `python3`; the drill failed before attempting restoration. The restore script now parses the connection URI authority with shell parameter expansion and still accepts only `localhost`, `127.0.0.1`, or `::1`. It refuses an existing target database, restores only into a uniquely named `restore_drill_*` database, and removes that temporary database on exit.
+- The Security Gate's backup smoke test was weaker than the Security Review workflow. Its fixtures and exclusion assertions now cover nested `.env` files, backups, SSH/private-key material, certificates, database dumps, media/uploads, secrets, and credentials. A first run exposed a shell-quoting error in the test expression; the expression was corrected and the final exact-candidate run passed.
+- Workflow logs previously displayed the randomly generated CI-only `SECRET_KEY` unmasked. This was not a production secret, but it was unnecessary log exposure. All three workflows now register the ephemeral value with GitHub Actions masking before writing it to `GITHUB_ENV`. The final candidate logs were checked: every `SECRET_KEY` environment entry was masked.
+- Exact code candidate tested: `18d30becb1bccddec5ed8fb7e9732f1848df99ac`.
+  - Security Review #798: https://github.com/Rafiqual69/Zootasks/actions/runs/38724386571 — success.
+  - Security Gate #1104: https://github.com/Rafiqual69/Zootasks/actions/runs/38724386569 — success; 298 regression tests ran, dependency audit reported no known vulnerabilities, and backup isolation smoke test passed.
+  - PostgreSQL Financial Verification #255: https://github.com/Rafiqual69/Zootasks/actions/runs/38724386592 — success; 298 PostgreSQL regression tests ran and the isolated synthetic backup/restore drill reported success.
+- These are CI results against synthetic data and the exact code candidate only. They do not establish a real production backup/restore drill, verify production financial records, certify security, or authorize deployment.
+
+### Release status
+
+PR #41 remains Draft/open. Production migration/deployment, live financial-data reconciliation, secret changes, and enabling Owner WebAuthn enrollment/protected routes remain blocked pending exact-head CI after this documentation update, independent review, adversarial session-lifecycle tests, approved legacy financial reconciliation, and production rollback/restore rehearsal.

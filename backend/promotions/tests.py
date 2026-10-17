@@ -30,6 +30,7 @@ class FinancialAdminHttpTamperingTests(TestCase):
             reward="15.00",
             budget="100.00",
             max_workers=5,
+            reserved_workers=1,
             completed_workers=1,
             status="active",
         )
@@ -344,7 +345,7 @@ class PromotionAdminWriteBoundaryTests(TestCase):
         model_admin = PromotionAdmin(Promotion, admin.site)
         self.assertEqual(
             set(model_admin.readonly_fields),
-            {"reward", "budget", "max_workers", "completed_workers", "status"},
+            {"reward", "budget", "max_workers", "reserved_workers", "completed_workers", "status"},
         )
 
 
@@ -488,5 +489,5 @@ class FinancialAdminPolicyBoundaryTests(TestCase):
         )
         self.assertEqual(
             set(self.admin.get_readonly_fields(request, promotion)),
-            {"reward", "budget", "max_workers", "completed_workers", "status"},
+            {"reward", "budget", "max_workers", "reserved_workers", "completed_workers", "status"},
         )

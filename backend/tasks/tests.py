@@ -111,7 +111,8 @@ class TaskMarketplaceTests(TestCase):
         )
 
         self.active_task.refresh_from_db()
-        self.assertEqual(self.active_task.completed_workers, 1)
+        self.assertEqual(self.active_task.reserved_workers, 1)
+        self.assertEqual(self.active_task.completed_workers, 0)
         self.assertEqual(self.active_task.status, "active")
 
     def test_worker_cannot_claim_same_task_twice(self):
@@ -133,14 +134,21 @@ class TaskMarketplaceTests(TestCase):
         )
 
         self.active_task.refresh_from_db()
-        self.assertEqual(self.active_task.completed_workers, 1)
+        self.assertEqual(self.active_task.reserved_workers, 1)
+        self.assertEqual(self.active_task.completed_workers, 0)
 
     def test_full_task_cannot_be_claimed(self):
         self.active_task.max_workers = 1
+        self.active_task.reserved_workers = 1
         self.active_task.completed_workers = 1
         self.active_task.status = "active"
         self.active_task.save(
-            update_fields=["max_workers", "completed_workers", "status"]
+            update_fields=[
+                "max_workers",
+                "reserved_workers",
+                "completed_workers",
+                "status",
+            ]
         )
 
         self.login()
@@ -170,7 +178,8 @@ class TaskMarketplaceTests(TestCase):
         self.assertRedirects(response, reverse("task_marketplace"))
 
         self.active_task.refresh_from_db()
-        self.assertEqual(self.active_task.completed_workers, 1)
+        self.assertEqual(self.active_task.reserved_workers, 1)
+        self.assertEqual(self.active_task.completed_workers, 0)
         self.assertEqual(self.active_task.status, "completed")
 
     def test_submit_requires_existing_claim(self):
@@ -256,7 +265,13 @@ class AdminWriteBoundaryTests(TestCase):
         model_admin = TaskAdmin(Task, admin.site)
         self.assertEqual(
             set(model_admin.readonly_fields),
-            {"reward", "max_workers", "completed_workers", "status"},
+            {
+                "reward",
+                "max_workers",
+                "reserved_workers",
+                "completed_workers",
+                "status",
+            },
         )
 
 
@@ -375,6 +390,7 @@ class FinancialAdminHttpTamperingTests(TestCase):
             category="Testing",
             reward="25.00",
             max_workers=5,
+            reserved_workers=1,
             completed_workers=1,
             status="active",
         )
@@ -559,5 +575,11 @@ class FinancialAdminPolicyBoundaryTests(TestCase):
         )
         self.assertEqual(
             set(self.admin.get_readonly_fields(request, task)),
-            {"reward", "max_workers", "completed_workers", "status"},
+            {
+                "reward",
+                "max_workers",
+                "reserved_workers",
+                "completed_workers",
+                "status",
+            },
         )

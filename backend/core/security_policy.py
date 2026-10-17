@@ -30,10 +30,10 @@ def _load_json(path: Path) -> dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:
             value = json.load(handle)
     except (OSError, json.JSONDecodeError) as exc:
-        raise SecurityPolicyError(f"security policy load failure: {path.name}") from exc
+        raise SecurityPolicyError("security policy load failure") from exc
 
     if not isinstance(value, dict):
-        raise SecurityPolicyError(f"{path.name} must contain a JSON object")
+        raise SecurityPolicyError("security policy document is invalid")
     return value
 
 

@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
@@ -13,8 +16,13 @@ class Task(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     category = models.CharField(max_length=100, default="General")
-    reward = models.DecimalField(max_digits=10, decimal_places=2)
+    reward = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     max_workers = models.PositiveIntegerField(default=1)
+    reserved_workers = models.PositiveIntegerField(default=0)
     completed_workers = models.PositiveIntegerField(default=0)
     deadline = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
@@ -26,6 +34,20 @@ class Task(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(reward__gte=0),
+                name="task_reward_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(reserved_workers__lte=models.F("max_workers")),
+                name="task_reserved_lte_max_workers",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(completed_workers__lte=models.F("reserved_workers")),
+                name="task_completed_lte_reserved_workers",
+            ),
+        ]
         permissions = [
             ("approve_task_submission", "Can approve task submissions"),
             ("reject_task_submission", "Can reject task submissions"),
@@ -45,12 +67,12 @@ class TaskClaim(models.Model):
 
     task = models.ForeignKey(
         Task,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="claims",
     )
     worker = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="task_claims",
     )
     proof = models.TextField(blank=True)

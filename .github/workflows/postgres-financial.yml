@@ -35,7 +35,6 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: config.settings_postgres_ci
-      SECRET_KEY: ci-only-postgres-secret-key
       ALLOWED_HOSTS: localhost,127.0.0.1
       OWNER_USERNAME: ci-owner
       POSTGRES_DB: zootasks_ci
@@ -57,6 +56,14 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      - name: Generate ephemeral CI secret key
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          echo "::add-mask::$SECRET_KEY"
+          printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         working-directory: backend
         run: |
@@ -75,6 +82,26 @@ jobs:
         working-directory: backend
         run: python manage.py migrate --noinput
 
+      - name: Financial migration preflight invariant checks
+        env:
+          DATABASE_URL: "postgresql://zootasks_ci:zootasks_ci_password@127.0.0.1:5432/zootasks_ci"
+        run: |
+          bash -n scripts/preflight_financial_migrations.sh
+          bash scripts/preflight_financial_migrations.sh
+
+      - name: Isolated PostgreSQL backup/restore drill (synthetic CI database only)
+        env:
+          PGADMIN_URL: "postgresql://zootasks_ci:zootasks_ci_password@127.0.0.1:5432/zootasks_ci"
+        run: |
+          docker pull postgres:16
+          bash -n scripts/restore_drill_postgres.sh
+          TMP_DIR="$(mktemp -d)"
+          cleanup_restore_test() { rm -rf "$TMP_DIR"; }
+          trap cleanup_restore_test EXIT
+          DUMP_FILE="$TMP_DIR/zootasks-ci.dump"
+          docker run --network host --rm -v "$TMP_DIR:/tmp/restore-drill" postgres:16 pg_dump --format=custom --no-owner --file=/tmp/restore-drill/zootasks-ci.dump "$PGADMIN_URL"
+          test -s "$DUMP_FILE"
+          docker run --network host --rm -v "$GITHUB_WORKSPACE/scripts/restore_drill_postgres.sh:/restore_drill_postgres.sh:ro" -v "$TMP_DIR:/tmp/restore-drill" -e PGADMIN_URL="$PGADMIN_URL" postgres:16 bash /restore_drill_postgres.sh /tmp/restore-drill/zootasks-ci.dump "restore_drill_ci_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
       - name: Full regression on PostgreSQL
         working-directory: backend
         run: python manage.py test --verbosity=2

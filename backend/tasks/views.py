@@ -44,11 +44,11 @@ def marketplace(request):
     for task in task_list:
         task.worker_claim = claims_by_task.get(task.id)
         task.remaining_workers = max(
-            task.max_workers - task.completed_workers,
+            task.max_workers - task.reserved_workers,
             0,
         )
         task.progress_percent = min(
-            (task.completed_workers / max(task.max_workers, 1)) * 100,
+            (task.reserved_workers / max(task.max_workers, 1)) * 100,
             100,
         )
 
@@ -77,24 +77,25 @@ def claim_task(request, task_id):
             facts={
                 "account_entity.active_worker": True,
                 "task.active": task.status == "active",
-                "task.capacity_available": task.completed_workers < task.max_workers,
+                "task.capacity_available": task.reserved_workers < task.max_workers,
                 "request.method.POST": request.method == "POST",
             },
         )
     except AuthorizationDenied:
-        # Ineligible protected operations fail closed without exposing object state.
         return redirect("task_marketplace")
+
     existing = TaskClaim.objects.filter(
         task=task,
         worker=request.user,
     ).first()
-    if existing or task.completed_workers >= task.max_workers:
+    if existing or task.reserved_workers >= task.max_workers:
         return redirect("task_marketplace")
+
     TaskClaim.objects.create(task=task, worker=request.user)
-    task.completed_workers += 1
-    if task.completed_workers >= task.max_workers:
+    task.reserved_workers += 1
+    if task.reserved_workers >= task.max_workers:
         task.status = "completed"
-    task.save(update_fields=["completed_workers", "status"])
+    task.save(update_fields=["reserved_workers", "status"])
     return redirect("task_marketplace")
 
 

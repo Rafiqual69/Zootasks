@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from core.security_policy_engine import require_authorized
+
 from tasks.models import Task
 
 
@@ -122,6 +124,21 @@ class Command(BaseCommand):
                 )
                 created_count += 1
                 continue
+
+            require_authorized(
+                actor="system",
+                resource="task",
+                action="create",
+                scope="automation",
+                facts={
+                    "trusted_execution_context": True,
+                    "automation.task_generation_bounded": (
+                        1 <= limit <= len(TASK_TEMPLATES)
+                        and limit == max(1, min(options["limit"], len(TASK_TEMPLATES)))
+                    ),
+                    "automation.no_external_side_effect": True,
+                },
+            )
 
             Task.objects.create(
                 title=template["title"],

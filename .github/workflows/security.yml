@@ -35,6 +35,14 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      - name: Generate ephemeral CI secret key
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          echo "::add-mask::$SECRET_KEY"
+          printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         working-directory: backend
         run: |
@@ -45,7 +53,6 @@ jobs:
       - name: Django system check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py check
@@ -53,9 +60,9 @@ jobs:
       - name: Django deployment security check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/zootasks_ci"
           PRODUCTION_MODE: "true"
           SECURE_SSL_REDIRECT: "true"
           SECURE_COOKIES: "true"
@@ -68,7 +75,6 @@ jobs:
       - name: Migration drift check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py makemigrations --check --dry-run
@@ -80,7 +86,6 @@ jobs:
       - name: Full regression tests
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: |
@@ -100,15 +105,35 @@ jobs:
             rm -rf "$TMP_HOME" "$SMOKE_DIR"
           }
           trap cleanup_smoke EXIT
-          mkdir -p "$TMP_HOME" "$SMOKE_DIR/nested/backups"
+          mkdir -p "$TMP_HOME" "$SMOKE_DIR/nested/backups" "$SMOKE_DIR/nested/keys" "$SMOKE_DIR/nested/dumps" "$SMOKE_DIR/nested/media" "$SMOKE_DIR/nested/.ssh" "$SMOKE_DIR/nested/secrets" "$SMOKE_DIR/nested/credentials" "$SMOKE_DIR/nested/uploads"
           printf 'synthetic-secret' > "$SMOKE_DIR/nested/.env"
+          printf 'synthetic-env-secret' > "$SMOKE_DIR/nested/.env.production"
           printf 'synthetic-recovery-data' > "$SMOKE_DIR/nested/backups/should-not-archive.txt"
+          printf 'synthetic-private-key' > "$SMOKE_DIR/nested/keys/test.key"
+          printf 'synthetic-certificate' > "$SMOKE_DIR/nested/cert.pem"
+          printf 'synthetic-database-dump' > "$SMOKE_DIR/nested/dumps/production-dump.sql.gz"
+          printf 'synthetic-upload' > "$SMOKE_DIR/nested/media/private-upload.jpg"
+          printf 'synthetic-ssh-key' > "$SMOKE_DIR/nested/.ssh/id_ed25519"
+          printf 'synthetic-secret-file' > "$SMOKE_DIR/nested/secrets/credentials.json"
+          printf 'synthetic-token-file' > "$SMOKE_DIR/nested/credentials/service-token.txt"
+          printf 'synthetic-upload' > "$SMOKE_DIR/nested/uploads/private-upload.jpg"
           ln -s "$GITHUB_WORKSPACE" "$TMP_HOME/ZooTasks"
           HOME="$TMP_HOME" bash "$GITHUB_WORKSPACE/backup-zootasks.sh"
           BACKUP_FILE="$(find "$TMP_HOME/zootasks-backups" -maxdepth 1 -name 'zootasks-backup-*.tar.gz' -print -quit)"
           test -n "$BACKUP_FILE"
           test "$(stat -c '%a' "$BACKUP_FILE")" = "600"
-          ! tar -tzf "$BACKUP_FILE" | grep -E '(^|/)(\.env|\.git/|db\.sqlite3$|backups/)'
+          ! tar -tzf "$BACKUP_FILE" | grep -E "(^|/)(\.env([^/]*$)?|\.git/|db\.sqlite3$|backups/|\.ssh/|keys/|dumps/|media/|uploads/|secrets/|credentials/)|\.(pem|key|p12|pfx|jks|keystore|dump|pgdump|rdb|aof)$|\.sql\.gz$|(-dump|-backup|production|prod)\.sql\$"
+      - name: Check whitespace errors
+        run: git diff --check
+
+
+      - name: Check whitespace errors
+        run: git diff --check
+
+
+      - name: Check whitespace errors
+        run: git diff --check
+
 
       - name: Check whitespace errors
         run: git diff --check

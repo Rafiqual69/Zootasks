@@ -27,7 +27,10 @@ def register(request):
                     user=user,
                     entity_type=AccountEntity.EntityType.WORKER,
                 )
-            login(request, user)
+            # Registration creates the user locally; no authentication backend
+            # was attached by authenticate(), so select the configured local
+            # backend explicitly when django-allauth is also enabled.
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             return redirect("dashboard")
     else:
         form = RegistrationForm()
@@ -106,7 +109,7 @@ class OwnerLoginView(LoginView):
     redirect_authenticated_user = False
 
     def get_success_url(self):
-        return reverse("admin:index")
+        return reverse("owner_console")
 
     def form_valid(self, form):
         response = super().form_valid(form)

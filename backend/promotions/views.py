@@ -24,7 +24,7 @@ def marketplace(request):
     cards = ""
     for promotion in promotions:
         claim = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
-        remaining = max(promotion.max_workers - promotion.completed_workers, 0)
+        remaining = max(promotion.max_workers - promotion.reserved_workers, 0)
         if claim:
             if claim.status == "claimed":
                 action = f'<a class="btn-action" href="/promotions/{promotion.id}/submit/">📤 Submit Proof</a>'
@@ -38,7 +38,7 @@ def marketplace(request):
             action = f'<form method="post" action="/promotions/{promotion.id}/start/" style="margin:0"><input type="hidden" name="csrfmiddlewaretoken" value="{get_token(request)}"><button class="btn-action" type="submit">🎯 Start Now</button></form>'
         else:
             action = '<div class="status-badge">🔒 Full</div>'
-        progress = (promotion.completed_workers / max(promotion.max_workers, 1)) * 100
+        progress = min((promotion.reserved_workers / max(promotion.max_workers, 1)) * 100, 100)
         cards += f"""<div class="promo-card">
             <div class="promo-header">
                 <div><h3>{escape(promotion.title)}</h3><p class="promo-advertiser">by {escape(promotion.advertiser_name)}</p></div>
@@ -46,7 +46,7 @@ def marketplace(request):
             </div>
             <p class="promo-desc">{escape(promotion.description[:100])}...</p>
             <div class="progress-bar"><div class="progress-fill" style="width:{progress}%"></div></div>
-            <p class="progress-text">{promotion.completed_workers}/{promotion.max_workers} workers</p>
+            <p class="progress-text">{promotion.reserved_workers}/{promotion.max_workers} workers</p>
             <div class="promo-action">{action}</div>
         </div>"""
     if not cards:
@@ -73,18 +73,18 @@ def start_promotion(request, promotion_id):
         facts={
             "account_entity.active_worker": True,
             "promotion.active": promotion.status in {"active", "approved"},
-            "promotion.capacity_available": promotion.completed_workers < promotion.max_workers,
+            "promotion.capacity_available": promotion.reserved_workers < promotion.max_workers,
             "request.method.POST": True,
         },
     )
     existing = PromotionClaim.objects.filter(promotion=promotion, worker=request.user).first()
-    if existing or promotion.completed_workers >= promotion.max_workers:
+    if existing or promotion.reserved_workers >= promotion.max_workers:
         return redirect("promotion_marketplace")
     PromotionClaim.objects.create(promotion=promotion, worker=request.user)
-    promotion.completed_workers += 1
-    if promotion.completed_workers >= promotion.max_workers:
+    promotion.reserved_workers += 1
+    if promotion.reserved_workers >= promotion.max_workers:
         promotion.status = "paused"
-    promotion.save(update_fields=["completed_workers", "status"])
+    promotion.save(update_fields=["reserved_workers", "status"])
     return redirect("promotion_marketplace")
 
 @worker_required

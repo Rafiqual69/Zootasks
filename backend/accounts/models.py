@@ -3,7 +3,7 @@ from django.db import models
 
 
 class WorkerProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.PROTECT)
     bio = models.TextField(blank=True)
     skills = models.CharField(max_length=500, blank=True)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -11,6 +11,26 @@ class WorkerProfile(models.Model):
     total_earned = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     completed_tasks = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(balance__gte=0),
+                name="worker_profile_balance_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(reserved_balance__gte=0),
+                name="worker_profile_reserved_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_earned__gte=0),
+                name="worker_profile_total_earned_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(reserved_balance__lte=models.F("balance")),
+                name="worker_profile_reserved_lte_balance",
+            ),
+        ]
 
     def __str__(self):
         return self.user.username

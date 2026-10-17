@@ -50,7 +50,7 @@ class OwnerMFATests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/admin/")
+        self.assertEqual(response["Location"], "/owner/")
         self.assertEqual(
             self.client.session.get("_auth_user_id"),
             str(self.owner.pk),
@@ -239,6 +239,10 @@ class RegistrationAccountEntityTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            self.client.session.get("_auth_user_backend"),
+            "django.contrib.auth.backends.ModelBackend",
+        )
         user = User.objects.get(username="new-worker")
         entity = AccountEntity.objects.get(user=user)
 
@@ -260,6 +264,10 @@ class RegistrationAccountEntityTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            self.client.session.get("_auth_user_backend"),
+            "django.contrib.auth.backends.ModelBackend",
+        )
         user = User.objects.get(username="normal-user")
         entity = AccountEntity.objects.get(user=user)
 
