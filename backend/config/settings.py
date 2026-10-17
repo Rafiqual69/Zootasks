@@ -34,6 +34,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     "django_otp",
     "django_otp.plugins.otp_totp",
     "accounts",
@@ -51,6 +55,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -73,6 +78,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "accounts.context_processors.google_oauth",
             ],
         },
     },
@@ -107,6 +113,11 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+]
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -171,15 +182,55 @@ if TRUST_PROXY_SSL:
 
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
+# Google OAuth secrets are deployment-only values and must never be committed.
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = config("GOOGLE_OAUTH_CLIENT_SECRET", default="").strip()
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+ACCOUNT_UNIQUE_EMAIL = True
+
+SOCIALACCOUNT_ADAPTER = "accounts.adapters.SafeGoogleSocialAccountAdapter"
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = False
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": (
+            [
+                {
+                    "client_id": GOOGLE_OAUTH_CLIENT_ID,
+                    "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+                    "key": "",
+                }
+            ]
+            if GOOGLE_OAUTH_ENABLED
+            else []
+        ),
+        "SCOPE": ["openid", "profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "OAUTH_PKCE_ENABLED": True,
+        # Only Google-verified email claims are trusted; matching email alone
+        # never silently links an existing local account.
+        "VERIFIED_EMAIL": True,
+        "EMAIL_AUTHENTICATION": False,
+    }
+}
+
 OWNER_USER_ID = config("OWNER_USER_ID", default="")
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
 OWNER_CONTROL_STATE = config(
     "OWNER_CONTROL_STATE",
     default="DEVELOPMENT_SINGLE_DEVICE",
 )
-LOGOUT_REDIRECT_URL = "/"
 
 # WebAuthn relying-party identity must be deployment-controlled, never derived from Host/Origin headers.
 # Empty defaults intentionally disable Owner WebAuthn ceremonies until explicitly configured.
 OWNER_WEBAUTHN_RP_ID = config("OWNER_WEBAUTHN_RP_ID", default="")
 OWNER_WEBAUTHN_ORIGIN = config("OWNER_WEBAUTHN_ORIGIN", default="")
+
+LOGOUT_REDIRECT_URL = "/"
