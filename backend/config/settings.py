@@ -15,6 +15,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     "django_otp",
     "django_otp.plugins.otp_totp",
     "accounts",
@@ -31,6 +35,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -49,6 +54,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "accounts.context_processors.google_oauth",
             ],
         },
     },
@@ -66,6 +72,11 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+]
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -101,6 +112,9 @@ SECURE_SSL_REDIRECT = config(
 )
 SESSION_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_HSTS_SECONDS = config(
     "SECURE_HSTS_SECONDS",
     default=31536000 if PRODUCTION_MODE else 0,
@@ -120,11 +134,50 @@ TRUST_PROXY_SSL = config("TRUST_PROXY_SSL", default=False, cast=bool)
 if TRUST_PROXY_SSL:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-WSGI_APPLICATION = "config.wsgi.application"
-
 ASGI_APPLICATION = "config.asgi.application"
 
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
+
+# Google OAuth secrets are deployment-only values and must never be committed.
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = config("GOOGLE_OAUTH_CLIENT_SECRET", default="").strip()
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+
+# Allauth's password signup must not bypass the existing registration flow.
+ACCOUNT_ADAPTER = "accounts.account_adapter.ExistingRegistrationOnlyAccountAdapter"
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+ACCOUNT_UNIQUE_EMAIL = True
+
+SOCIALACCOUNT_ADAPTER = "accounts.adapters.SafeGoogleSocialAccountAdapter"
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = False
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": (
+            [
+                {
+                    "client_id": GOOGLE_OAUTH_CLIENT_ID,
+                    "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+                    "key": "",
+                }
+            ]
+            if GOOGLE_OAUTH_ENABLED
+            else []
+        ),
+        "SCOPE": ["openid", "profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "OAUTH_PKCE_ENABLED": True,
+        # Trust Google's verified-email claim, but never auto-link by email alone.
+        "VERIFIED_EMAIL": True,
+        "EMAIL_AUTHENTICATION": False,
+    }
+}
 
 # High-assurance Owner access
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
