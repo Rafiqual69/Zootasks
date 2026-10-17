@@ -27,7 +27,11 @@ def register(request):
                     user=user,
                     entity_type=AccountEntity.EntityType.WORKER,
                 )
-            login(request, user)
+            # Registration creates the user locally; no authentication backend
+            # was attached by authenticate(), so select the configured local
+            # backend explicitly rather than relying on Django's single-backend
+            # fallback (which is invalid when django-allauth is also enabled).
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             return redirect("dashboard")
     else:
         form = RegistrationForm()
