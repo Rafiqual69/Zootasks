@@ -57,9 +57,13 @@ tree included Twisted 26.4.0 flagged as CVE-2026-106454. The reported issue is
 an IMAP pattern regular-expression denial of service; the project's deployment
 uses Gunicorn's WSGI entry point, and the repository had no Daphne/Channels
 usage found during source inspection. Daphne was therefore removed from
-`backend/requirements.txt` rather than suppressing the advisory or pinning an
-unreleased upstream patch. Re-run all workflows and verify the dependency
-tree before treating this remediation as complete.
+`backend/requirements.txt` and its unused `INSTALLED_APPS` entry was removed
+from `backend/config/settings.py`; the first attempt exposed that settings
+still imported the package during Django startup. No source references to
+Daphne or Channels were found, and deployment uses Gunicorn WSGI. This avoids
+suppressing the advisory or pinning an unreleased upstream patch. Re-run all
+workflows and verify the dependency tree before treating this remediation as
+complete.
 
 ## Confirmed migration-name collisions
 
