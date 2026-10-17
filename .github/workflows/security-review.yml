@@ -2,12 +2,13 @@ name: Security Review (Protected Branches)
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "fix/**", "audit/**"]
   push:
     branches:
       - "security/**"
       - "feat/**"
       - "ci/**"
+      - "audit/**"
 
 permissions:
   contents: read
