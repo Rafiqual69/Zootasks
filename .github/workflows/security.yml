@@ -6,9 +6,12 @@ on:
       - main
       - ci/**
       - feat/**
+      - audit/**
   pull_request:
     branches:
       - main
+      - fix/**
+      - audit/**
 
 permissions:
   contents: read
