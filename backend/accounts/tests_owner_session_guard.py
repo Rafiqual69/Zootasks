@@ -2,11 +2,15 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from .models import AccountEntity, OwnerTrustedDevice
 from .owner_devices import bind_owner_device
 from .owner_session_binding import bind_owner_session
-from .owner_session_guard import owner_session_binding_required
+from .owner_session_guard import (
+    OwnerAdminSessionBindingMiddleware,
+    owner_session_binding_required,
+)
 
 
 @override_settings(OWNER_USERNAME="owner-session-guard-test")
@@ -54,13 +58,50 @@ class OwnerSessionBindingGuardTests(TestCase):
         bind_owner_session(request, self.owner, self.device.pk)
 
         self.device.status = OwnerTrustedDevice.Status.REVOKED
-        from django.utils import timezone
         self.device.revoked_at = timezone.now()
         self.device.save(update_fields=("status", "revoked_at", "updated_at"))
 
         response = self._protected_view(request)
 
         self.assertEqual(response.status_code, 403)
+
+    def test_unbound_owner_without_recent_reauthentication_returns_to_owner_login(self):
+        request = self._request()
+        request.path_info = "/admin/"
+        middleware = OwnerAdminSessionBindingMiddleware(
+            lambda _request: HttpResponse("allowed")
+        )
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/owner/login/", response["Location"])
+
+    def test_recently_reauthenticated_unbound_owner_is_sent_to_verification_center(self):
+        request = self._request()
+        request.session["owner_reauthenticated_at"] = timezone.now().timestamp()
+        request.path_info = "/admin/"
+        middleware = OwnerAdminSessionBindingMiddleware(
+            lambda _request: HttpResponse("allowed")
+        )
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/owner/verification/", response["Location"])
+
+    def test_bound_owner_admin_request_is_allowed(self):
+        request = self._request()
+        bind_owner_session(request, self.owner, self.device.pk)
+        request.path_info = "/admin/"
+        middleware = OwnerAdminSessionBindingMiddleware(
+            lambda _request: HttpResponse("allowed")
+        )
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"allowed")
 
     @staticmethod
     @owner_session_binding_required

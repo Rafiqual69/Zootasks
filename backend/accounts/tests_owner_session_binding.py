@@ -1,12 +1,19 @@
+from datetime import timedelta
+
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils import timezone
-from datetime import timedelta
 
 from .models import AccountEntity, OwnerSessionBinding, OwnerTrustedDevice
-from .owner_devices import bind_owner_device
+from .owner_devices import (
+    approve_owner_device_with_challenge,
+    bind_owner_device,
+    issue_owner_device_auth_challenge,
+    request_owner_device_enrollment,
+    verify_owner_device_auth_challenge,
+)
 from .owner_session_binding import (
     SESSION_BINDING_SESSION_KEY,
     bind_owner_session,
@@ -121,6 +128,70 @@ class OwnerSessionBindingTests(TestCase):
 
         self.assertIsNone(request.session.get(SESSION_BINDING_SESSION_KEY))
         self.assertFalse(is_owner_session_bound(request))
+
+    def test_invalid_enrollment_signature_is_rejected_and_challenge_remains_pending(self):
+        pending_private_key = Ed25519PrivateKey.generate()
+        pending_device, challenge = request_owner_device_enrollment(
+            self.owner,
+            "pending-device-1",
+            pending_private_key.public_key().public_bytes_raw(),
+            "Pending Device",
+        )
+
+        with self.assertRaises(ValidationError):
+            approve_owner_device_with_challenge(
+                self.owner,
+                pending_device.pk,
+                challenge,
+                b"\x00" * 64,
+            )
+
+        pending_device.refresh_from_db()
+        self.assertEqual(pending_device.status, OwnerTrustedDevice.Status.PENDING)
+        self.assertTrue(pending_device.enrollment_challenge_hash)
+
+        approved = approve_owner_device_with_challenge(
+            self.owner,
+            pending_device.pk,
+            challenge,
+            pending_private_key.sign(challenge),
+        )
+        self.assertEqual(approved.status, OwnerTrustedDevice.Status.ACTIVE)
+        self.assertIsNone(approved.enrollment_challenge_hash)
+
+    def test_invalid_auth_signature_is_rejected_and_valid_challenge_is_one_time(self):
+        challenge = issue_owner_device_auth_challenge(self.owner, self.device.pk)
+        unrelated_private_key = Ed25519PrivateKey.generate()
+
+        with self.assertRaises(ValidationError):
+            verify_owner_device_auth_challenge(
+                self.owner,
+                self.device.pk,
+                challenge,
+                unrelated_private_key.sign(challenge),
+            )
+
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.auth_challenge_hash)
+        self.assertIsNotNone(self.device.auth_challenge_expires_at)
+
+        verified = verify_owner_device_auth_challenge(
+            self.owner,
+            self.device.pk,
+            challenge,
+            self.private_key.sign(challenge),
+        )
+        self.assertEqual(verified.pk, self.device.pk)
+        self.assertIsNone(verified.auth_challenge_hash)
+        self.assertIsNone(verified.auth_challenge_expires_at)
+
+        with self.assertRaises(ValidationError):
+            verify_owner_device_auth_challenge(
+                self.owner,
+                self.device.pk,
+                challenge,
+                self.private_key.sign(challenge),
+            )
 
     def _request(self, user=None):
         request = self.client.request()
