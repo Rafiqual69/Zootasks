@@ -21,7 +21,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         app_labels = set(options.get("app_labels") or [])
-        loader = MigrationLoader(connection, ignore_no_migrations=True)
+        # Load only source migration files: passing the DB connection here would
+        # make Django validate history first and could abort this diagnostic.
+        loader = MigrationLoader(None, ignore_no_migrations=True)
         recorder = MigrationRecorder(connection)
         applied = recorder.applied_migrations()
         disk = set(loader.disk_migrations)
