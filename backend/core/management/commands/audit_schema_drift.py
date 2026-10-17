@@ -45,7 +45,6 @@ class Command(BaseCommand):
         model_tables = {
             model._meta.db_table
             for model in apps.get_models()
-            if not app_labels or model._meta.app_label in app_labels
         }
         owner_tables = sorted(
             table for table in table_names
