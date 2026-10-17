@@ -45,12 +45,12 @@ class TaskClaim(models.Model):
 
     task = models.ForeignKey(
         Task,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="claims",
     )
     worker = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="task_claims",
     )
     proof = models.TextField(blank=True)
