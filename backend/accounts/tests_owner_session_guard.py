@@ -6,7 +6,10 @@ from django.test import TestCase, override_settings
 from .models import AccountEntity, OwnerTrustedDevice
 from .owner_devices import bind_owner_device
 from .owner_session_binding import bind_owner_session
-from .owner_session_guard import owner_session_binding_required
+from .owner_session_guard import (
+    OwnerAdminSessionBindingMiddleware,
+    owner_session_binding_required,
+)
 
 
 @override_settings(OWNER_USERNAME="owner-session-guard-test")
@@ -61,6 +64,31 @@ class OwnerSessionBindingGuardTests(TestCase):
         response = self._protected_view(request)
 
         self.assertEqual(response.status_code, 403)
+
+    def test_unbound_owner_admin_request_redirects_to_verification_center(self):
+        request = self._request()
+        request.path_info = "/admin/"
+        middleware = OwnerAdminSessionBindingMiddleware(
+            lambda _request: HttpResponse("allowed")
+        )
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/owner/verification/", response["Location"])
+
+    def test_bound_owner_admin_request_is_allowed(self):
+        request = self._request()
+        bind_owner_session(request, self.owner, self.device.pk)
+        request.path_info = "/admin/"
+        middleware = OwnerAdminSessionBindingMiddleware(
+            lambda _request: HttpResponse("allowed")
+        )
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"allowed")
 
     @staticmethod
     @owner_session_binding_required
