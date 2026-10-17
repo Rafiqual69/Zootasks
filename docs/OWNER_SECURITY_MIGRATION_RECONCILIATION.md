@@ -49,6 +49,18 @@ discarded: `PROTECT` on task/promotion claim relationships,
 withdrawal-to-transaction reconciliation, and wallet/task/promotion capacity
 constraints. Do not cherry-pick or merge the Owner-security branch wholesale.
 
+## Dependency audit finding
+
+The first GitHub security-gate run passed Django checks, migration drift checks,
+and all 271 tests, then failed `pip-audit` because the installed dependency
+tree included Twisted 26.4.0 flagged as CVE-2026-106454. The reported issue is
+an IMAP pattern regular-expression denial of service; the project's deployment
+uses Gunicorn's WSGI entry point, and the repository had no Daphne/Channels
+usage found during source inspection. Daphne was therefore removed from
+`backend/requirements.txt` rather than suppressing the advisory or pinning an
+unreleased upstream patch. Re-run all workflows and verify the dependency
+tree before treating this remediation as complete.
+
 ## Confirmed migration-name collisions
 
 The branches reuse migration names for different operations:
