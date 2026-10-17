@@ -2,6 +2,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from .models import AccountEntity, OwnerTrustedDevice
 from .owner_devices import bind_owner_device
