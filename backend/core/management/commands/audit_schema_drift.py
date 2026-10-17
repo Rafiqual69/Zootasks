@@ -54,7 +54,7 @@ class Command(BaseCommand):
         )
         if owner_tables:
             self.stdout.write(self.style.WARNING(
-                "accounts_* tables not represented by selected current models:"
+                "accounts_* tables not represented by any current model:"
             ))
             for table in owner_tables:
                 self.stdout.write(f"  - {table}")
