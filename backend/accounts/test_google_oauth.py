@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from .account_adapter import ExistingRegistrationOnlyAccountAdapter
 from .adapters import SafeGoogleSocialAccountAdapter
 from .models import AccountEntity, WorkerProfile
 
@@ -82,3 +83,9 @@ class SafeGoogleSocialAccountAdapterTests(TestCase):
         self.assertTrue(entity.is_active)
         self.assertFalse(entity.user.is_staff)
         self.assertFalse(entity.user.is_superuser)
+
+
+class ExistingRegistrationBoundaryTests(TestCase):
+    def test_allauth_password_signup_is_closed(self):
+        adapter = ExistingRegistrationOnlyAccountAdapter()
+        self.assertFalse(adapter.is_open_for_signup(None))
