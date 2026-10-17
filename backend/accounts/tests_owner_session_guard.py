@@ -65,8 +65,21 @@ class OwnerSessionBindingGuardTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_unbound_owner_admin_request_redirects_to_verification_center(self):
+    def test_unbound_owner_without_recent_reauthentication_returns_to_owner_login(self):
         request = self._request()
+        request.path_info = "/admin/"
+        middleware = OwnerAdminSessionBindingMiddleware(
+            lambda _request: HttpResponse("allowed")
+        )
+
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/owner/login/", response["Location"])
+
+    def test_recently_reauthenticated_unbound_owner_is_sent_to_verification_center(self):
+        request = self._request()
+        request.session["owner_reauthenticated_at"] = timezone.now().timestamp()
         request.path_info = "/admin/"
         middleware = OwnerAdminSessionBindingMiddleware(
             lambda _request: HttpResponse("allowed")
