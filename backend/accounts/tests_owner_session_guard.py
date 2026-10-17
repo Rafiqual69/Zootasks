@@ -57,7 +57,6 @@ class OwnerSessionBindingGuardTests(TestCase):
         bind_owner_session(request, self.owner, self.device.pk)
 
         self.device.status = OwnerTrustedDevice.Status.REVOKED
-        from django.utils import timezone
         self.device.revoked_at = timezone.now()
         self.device.save(update_fields=("status", "revoked_at", "updated_at"))
 
