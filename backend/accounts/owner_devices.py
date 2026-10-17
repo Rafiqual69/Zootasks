@@ -2,6 +2,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -156,8 +157,8 @@ def approve_owner_device_with_challenge(owner_user, device_id, challenge, challe
         Ed25519PublicKey.from_public_bytes(device.public_key).verify(
             challenge_signature, challenge
         )
-    except (ValueError, TypeError):
-        raise ValidationError("Invalid device challenge signature.")
+    except (InvalidSignature, ValueError, TypeError) as exc:
+        raise ValidationError("Invalid device challenge signature.") from exc
 
     active_count = OwnerTrustedDevice.objects.filter(
         owner_entity=owner_entity,
@@ -182,8 +183,16 @@ def approve_owner_device_with_challenge(owner_user, device_id, challenge, challe
 def issue_owner_device_auth_challenge(owner_user, device_id):
     if not is_owner(owner_user):
         raise PermissionError("Only the canonical active Owner can authenticate devices.")
-    owner_entity = AccountEntity.objects.select_for_update().get(user=owner_user, entity_type=AccountEntity.EntityType.OWNER, is_active=True)
-    device = OwnerTrustedDevice.objects.select_for_update().filter(pk=device_id, owner_entity=owner_entity, status=OwnerTrustedDevice.Status.ACTIVE).first()
+    owner_entity = AccountEntity.objects.select_for_update().get(
+        user=owner_user,
+        entity_type=AccountEntity.EntityType.OWNER,
+        is_active=True,
+    )
+    device = OwnerTrustedDevice.objects.select_for_update().filter(
+        pk=device_id,
+        owner_entity=owner_entity,
+        status=OwnerTrustedDevice.Status.ACTIVE,
+    ).first()
     if device is None or not device.public_key:
         raise ValidationError("Active trusted device not found.")
     challenge = secrets.token_bytes(32)
@@ -201,8 +210,16 @@ def verify_owner_device_auth_challenge(owner_user, device_id, challenge, challen
         raise ValidationError("A valid 32-byte device challenge is required.")
     if not isinstance(challenge_signature, bytes) or not challenge_signature:
         raise ValidationError("A device challenge signature is required.")
-    owner_entity = AccountEntity.objects.select_for_update().get(user=owner_user, entity_type=AccountEntity.EntityType.OWNER, is_active=True)
-    device = OwnerTrustedDevice.objects.select_for_update().filter(pk=device_id, owner_entity=owner_entity, status=OwnerTrustedDevice.Status.ACTIVE).first()
+    owner_entity = AccountEntity.objects.select_for_update().get(
+        user=owner_user,
+        entity_type=AccountEntity.EntityType.OWNER,
+        is_active=True,
+    )
+    device = OwnerTrustedDevice.objects.select_for_update().filter(
+        pk=device_id,
+        owner_entity=owner_entity,
+        status=OwnerTrustedDevice.Status.ACTIVE,
+    ).first()
     if device is None:
         raise ValidationError("Active trusted device not found.")
     now = timezone.now()
@@ -214,8 +231,8 @@ def verify_owner_device_auth_challenge(owner_user, device_id, challenge, challen
         raise ValidationError("Invalid or replayed device authentication challenge.")
     try:
         Ed25519PublicKey.from_public_bytes(device.public_key).verify(challenge_signature, challenge)
-    except (ValueError, TypeError):
-        raise ValidationError("Invalid device authentication signature.")
+    except (InvalidSignature, ValueError, TypeError) as exc:
+        raise ValidationError("Invalid device authentication signature.") from exc
     device.auth_challenge_hash = None
     device.auth_challenge_expires_at = None
     device.last_seen_at = now
