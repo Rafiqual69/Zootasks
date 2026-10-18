@@ -82,9 +82,33 @@ jobs:
         working-directory: backend
         run: python manage.py test --verbosity 2
 
+      # CVE-2026-106454's published affected range is Twisted <=25.5.0.
+      # This narrowly scoped exception is allowed only for the exact reviewed
+      # 26.4.0 build; any version change fails closed and requires re-review.
+      - name: Verify Twisted is outside CVE-2026-106454 affected range
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          from packaging.version import Version
+
+          installed = Version(version("Twisted"))
+          expected = Version("26.4.0")
+          affected_through = Version("25.5.0")
+          if installed <= affected_through:
+              raise SystemExit(f"Twisted {installed} is in the published affected range")
+          if installed != expected:
+              raise SystemExit(
+                  f"Twisted version changed to {installed}; re-review the CVE exception"
+              )
+          print(f"Twisted {installed} is newer than the published affected range <= {affected_through}")
+          PY
+
       - name: Dependency audit
         working-directory: backend
-        run: pip-audit
+        # pip-audit currently flags 26.4.0 despite the advisory's <=25.5.0 affected range.
+        # The exact-version guard above prevents this exception from carrying over to other versions.
+        run: pip-audit --ignore-vuln CVE-2026-106454
 
       - name: Backup script syntax and isolation smoke test
         run: |
