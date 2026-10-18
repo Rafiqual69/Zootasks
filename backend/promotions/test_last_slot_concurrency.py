@@ -3,7 +3,7 @@ from threading import Barrier
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections
+from django.db import connections
 from django.test import Client, TransactionTestCase, skipUnlessDBFeature
 from django.urls import reverse
 
@@ -50,12 +50,14 @@ class PromotionLastSlotConcurrencyTests(TransactionTestCase):
         url = reverse("start_promotion", args=[self.promotion.pk])
 
         def submit_claim(client):
-            close_old_connections()
+            # Force-close thread-local persistent connections so the test DB can
+            # be safely dropped by Django's test runner after the test.
+            connections.close_all()
             try:
                 barrier.wait(timeout=10)
                 return client.post(url)
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=2) as pool:
             responses = list(pool.map(submit_claim, self.clients))
