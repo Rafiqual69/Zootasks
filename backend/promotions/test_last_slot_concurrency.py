@@ -3,7 +3,7 @@ from threading import Barrier
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections, connection
+from django.db import close_old_connections
 from django.test import Client, TransactionTestCase, skipUnlessDBFeature
 from django.urls import reverse
 
@@ -17,7 +17,6 @@ class PromotionLastSlotConcurrencyTests(TransactionTestCase):
 
     def setUp(self):
         User = get_user_model()
-        self.workers = []
         self.clients = []
         for index in range(2):
             user = User.objects.create_user(
@@ -31,7 +30,6 @@ class PromotionLastSlotConcurrencyTests(TransactionTestCase):
             )
             client = Client()
             client.force_login(user)
-            self.workers.append(user)
             self.clients.append(client)
 
         self.promotion = Promotion.objects.create(
@@ -70,4 +68,4 @@ class PromotionLastSlotConcurrencyTests(TransactionTestCase):
             1,
         )
         self.assertEqual(self.promotion.status, "paused")
-        self.assertTrue(any(response.status_code in (302, 404) for response in responses))
+        self.assertEqual(sorted(response.status_code for response in responses), [302, 404])
