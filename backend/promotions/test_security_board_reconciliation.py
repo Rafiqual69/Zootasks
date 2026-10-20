@@ -4,8 +4,9 @@ from unittest.mock import patch
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 
-from accounts.models import WorkerProfile
+from accounts.models import AccountEntity, WorkerProfile
 from promotions.admin import PromotionClaimAdmin
 from promotions.models import Promotion, PromotionClaim
 from wallet.models import WalletTransaction
@@ -139,3 +140,40 @@ class PromotionReconciliationRegressionTests(TestCase):
         self.assertEqual(promotion.completed_workers, 0)
         self.assertEqual(promotion.status, "active")
         authorize_execution.assert_called_once()
+
+    def test_last_available_slot_cannot_be_claimed_twice(self):
+        AccountEntity.objects.create(
+            user=self.worker,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+        second_worker = get_user_model().objects.create_user(
+            username="promotion_reconcile_second_worker",
+            password="test-password-123",
+        )
+        AccountEntity.objects.create(
+            user=second_worker,
+            entity_type=AccountEntity.EntityType.WORKER,
+        )
+        promotion = self.make_promotion(
+            reserved_workers=0,
+            completed_workers=0,
+            status="active",
+        )
+        start_url = reverse("start_promotion", args=[promotion.pk])
+
+        self.client.force_login(self.worker)
+        first_response = self.client.post(start_url)
+        self.assertEqual(first_response.status_code, 302)
+
+        self.client.force_login(second_worker)
+        second_response = self.client.post(start_url)
+        self.assertEqual(second_response.status_code, 404)
+
+        promotion.refresh_from_db()
+        self.assertEqual(promotion.reserved_workers, 1)
+        self.assertEqual(promotion.completed_workers, 0)
+        self.assertEqual(promotion.status, "paused")
+        self.assertEqual(
+            PromotionClaim.objects.filter(promotion=promotion).count(),
+            1,
+        )
