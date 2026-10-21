@@ -4,6 +4,7 @@ python-decouple==3.8
 gunicorn==22.0.0
 whitenoise==6.6.0
 daphne==4.2.2
+Twisted==26.4.0
 django-cors-headers==4.3.1
 pillow==13.0.0
 celery==5.3.4
