@@ -48,7 +48,9 @@ jobs:
       - name: Generate ephemeral CI secret
         working-directory: backend
         run: |
-          python -c 'import secrets; print("SECRET_KEY=" + secrets.token_urlsafe(48))' >> "$GITHUB_ENV"
+          SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          echo "::add-mask::$SECRET_KEY"
+          printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$GITHUB_ENV"
 
       - name: Django checks
         working-directory: backend
