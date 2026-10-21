@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models import F, Sum
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods
 
 from accounts.authorization import worker_required
 from core.security_policy_engine import require_authorized
@@ -79,15 +80,25 @@ def wallet(request):
 
 
 @worker_required
+@require_http_methods(["GET", "POST"])
 @transaction.atomic
 def request_withdrawal(request):
-    require_authorized(
-        actor="worker", resource="withdrawal", action="create", scope="own",
-        facts={
-            "account_entity.active_worker": True,
-            "request.method.POST": request.method == "POST",
-        },
-    )
+    if request.method == "POST":
+        require_authorized(
+            actor="worker", resource="withdrawal", action="create", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "request.method.POST": True,
+            },
+        )
+    else:
+        require_authorized(
+            actor="worker", resource="withdrawal", action="read", scope="own",
+            facts={
+                "account_entity.active_worker": True,
+                "object.owner_is_actor": True,
+            },
+        )
     summary = get_wallet_summary(request.user)
     error = ""
 
