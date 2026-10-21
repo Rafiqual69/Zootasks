@@ -42,10 +42,14 @@ jobs:
           pip install -r requirements.txt
           pip install pip-audit
 
+      - name: Generate ephemeral CI secret
+        working-directory: backend
+        run: |
+          python -c 'import secrets; print("SECRET_KEY=" + secrets.token_urlsafe(48))' >> "$GITHUB_ENV"
+
       - name: Django system check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py check
@@ -53,7 +57,6 @@ jobs:
       - name: Django deployment security check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
           PRODUCTION_MODE: "true"
@@ -68,7 +71,6 @@ jobs:
       - name: Migration drift check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py makemigrations --check --dry-run
@@ -80,7 +82,6 @@ jobs:
       - name: Full regression tests
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: |
