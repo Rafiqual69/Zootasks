@@ -61,10 +61,12 @@ def wallet(request):
     )
 
     require_authorized(actor="worker", resource="withdrawal", action="read", scope="own", facts={"account_entity.active_worker": True, "object.owner_is_actor": True})
+    # Minimize template data: only expose fields rendered on the wallet page.
     withdrawals = (
         WithdrawalRequest.objects
         .filter(user=request.user)
-        .order_by("-requested_at")[:10]
+        .order_by("-requested_at")
+        .values("id", "amount", "bank_name", "status", "requested_at")[:10]
     )
 
     return render(
