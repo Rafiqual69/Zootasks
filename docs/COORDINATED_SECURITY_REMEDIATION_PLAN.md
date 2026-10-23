@@ -96,3 +96,23 @@
 ## Current disposition
 
 The Twisted dependency mitigation is now under CI verification, but is not yet accepted as a final release fix because the pinned upstream version is a release candidate and the new workflows have not been verified. Do not merge, deploy, run production migrations, or claim that every issue is solved until all evidence and independent review are complete. This plan coordinates the work; it does not itself prove controls have passed or constitute a guarantee of complete security.
+
+## Coordinated board research addendum (2026-10-24)
+
+### Latest observed head status
+At head efa81aa20e93805c08b1a2aca538536d098e6567, Security Review #935 and Security Gate #1183 succeeded; PostgreSQL Financial Verification #312 was still in progress at the time of checking. PR #66 remains Draft/unmerged. A documentation update will trigger new workflow runs, so re-check all three gates on the new final head before treating the evidence as current.
+
+### External research validated for the board
+- OWASP ASVS 5.0.0 is the current stable verification standard: https://asvs.owasp.org/ and https://github.com/OWASP/ASVS/tree/v5.0.0.
+- Django's official deployment checklist requires environment-specific settings review: https://docs.djangoproject.com/en/stable/howto/deployment/checklist/.
+- NIST AI RMF Generative AI Profile (AI 600-1) provides lifecycle risk-management context for AI-specific risks: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence.
+- Twisted's upstream releases page currently lists 26.10.0rc1 as a pre-release and its notes say IMAP arbitrary regexes are no longer allowed. NVD still reports no fixed release in its record. Debian's patched downstream package 26.4.0-5 is not evidence that the project's PyPI wheel 26.4.0 is patched. Therefore issue #67 remains a release blocker; verify the stable PyPI artifact, provenance, installed code behavior, audit result, and Daphne/ASGI compatibility before closure. Sources: https://nvd.nist.gov/vuln/detail/CVE-2026-106454, https://github.com/twisted/twisted/releases, https://pypi.org/project/Twisted/26.10.0rc1/, https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1150248.
+
+### Board sequencing
+1. Keep PR #66 Draft/unmerged until stable dependency mitigation and all latest-head gates pass.
+2. Close the financial design gaps in issues #42, #43, #44, and #45 only after documenting state transitions and DB/application invariants, then adding concurrency, duplicate/replay, rollback, exact-budget, rejection-capacity-release, and ledger-reconciliation tests using synthetic data.
+3. Treat issue #46 as a separate AI control-plane gate: model output proposes actions only; an external policy executor authorizes allowlisted tools and exact parameters; high-impact actions require independent human approval; enforce expiry, replay resistance, rate/cost limits, circuit breakers, audit redaction, and fail-closed behavior.
+4. Complete a bounded secret/PII scan of all current workflow logs and artifacts, application/bot logs, exception paths, and admin exports. Use synthetic sentinel data; don't copy sensitive values into issues or reports.
+5. Run backup restore tests only against isolated disposable storage/database. Review real deployment security settings separately; CI settings are not production evidence.
+
+No production changes are authorized by this addendum. These external standards guide the verification plan but do not prove the implementation conforms without test and review evidence.
