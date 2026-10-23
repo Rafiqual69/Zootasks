@@ -4,7 +4,9 @@ python-decouple==3.8
 gunicorn==22.0.0
 whitenoise==6.6.0
 daphne==4.2.2
-Twisted==26.4.0
+# Temporary exact upstream RC pin: includes the merged CVE-2026-106454 fix.
+# Replace with the first verified final upstream release before merge.
+Twisted==26.10.0rc1
 django-cors-headers==4.3.1
 pillow==13.0.0
 celery==5.3.4
