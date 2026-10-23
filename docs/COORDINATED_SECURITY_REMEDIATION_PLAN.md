@@ -6,13 +6,16 @@
 
 ## Evidence snapshot (2026-10-24)
 
-- Latest reviewed application/security code before the current dependency work: `5404d5cbb9f513e4bd2c147dcfcc26128d3f09d0`.
-- On that commit, Security Review #915 and Security Gate #1165 failed at dependency audit; earlier Django checks, deployment checks, policy tests, and full regression steps passed. Backup smoke and diff hygiene were skipped because the audit step failed.
-- PostgreSQL Financial Verification #302 passed Django checks, migration drift check, disposable PostgreSQL migrations, and full PostgreSQL regression on that commit.
-- The failing audit reported `Twisted 26.4.0 / CVE-2026-106454`. This remains a release blocker until the installed artifact, dependency audit, and compatibility checks are verified.
+- Latest validated commit: `a039eab4466600a5f1f0465b2ab86ad7324dc07b`.
+- Security Review #931 succeeded: Twisted installed-artifact semantics, Django system/deployment checks, migration drift, Read/Write policy contract, policy engine, full regression, dependency audit, backup isolation smoke, and diff hygiene all passed.
+- ZooTasks Security Gate #1179 succeeded, including full regression, dependency audit, backup isolation smoke, and diff hygiene.
+- PostgreSQL Financial Verification #310 succeeded on the same commit.
+- The prior head failed the dependency audit on `Twisted 26.4.0 / CVE-2026-106454`; the temporary RC pin and focused tests passed on the current head.
 - Upstream fix commit `2f8a3c29246f4eb324690e06a9767a11dc4aec9f` was inspected. It escapes all non-IMAP-wildcard characters in `wildcardToRegexp`. The official upstream tag `twisted-26.10.0rc1` was inspected and contains that implementation.
 - As a temporary testable mitigation, `backend/requirements.txt` now pins `Twisted==26.10.0rc1`. This is a pre-release, not a final-release recommendation. Replace it with the first verified final upstream release before merge when available, and rerun all gates.
-- Two CI workflows now include a focused installed-artifact check for regex metacharacters and IMAP `*` / `%` semantics. The workflow results for the resulting latest commit are pending and must be inspected before claiming success.
+- Two CI workflows include a focused installed-artifact check for regex metacharacters and IMAP `*` / `%` semantics; both relevant workflows passed on the latest validated commit.
+- Retrieved Security Gate logs show `SECRET_KEY: ***`; a bounded pattern check found no unmasked `SECRET_KEY`-shaped value in that log. This does not prove all historical logs or every artifact are free of sensitive data.
+- The two new unsupported-HTTP-method regression tests for task and promotion proof submission passed as part of the full regression run.
 
 ## Coordinated workstreams and acceptance criteria
 
