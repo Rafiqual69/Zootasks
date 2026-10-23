@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
 from accounts.authorization import worker_required
 from core.security_policy_engine import AuthorizationDenied, require_authorized
@@ -104,6 +105,7 @@ def task_detail(request, task_id):
 
 
 @worker_required
+@require_http_methods(["GET", "POST"])
 @transaction.atomic
 def submit_task(request, task_id):
     claim = get_object_or_404(

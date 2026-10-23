@@ -135,6 +135,17 @@ class WithdrawalFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_withdrawal_form_get_is_authorized_and_read_only(self):
+        response = self.client.get(reverse("request_withdrawal"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            WithdrawalRequest.objects.filter(user=self.user).count(),
+            0,
+        )
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
+
     def test_valid_withdrawal_reserves_balance(self):
         response = self.client.post(
             reverse("request_withdrawal"),
@@ -183,6 +194,26 @@ class WithdrawalFlowTests(TestCase):
 
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.reserved_balance, Decimal("0.00"))
+
+    def test_wallet_context_excludes_raw_payment_identifiers(self):
+        WithdrawalRequest.objects.create(
+            user=self.user,
+            amount=Decimal("50.00"),
+            bank_name="Test Bank",
+            account_holder="Private Account Holder",
+            bank_account="1234567890",
+        )
+
+        response = self.client.get(reverse("wallet"))
+
+        self.assertEqual(response.status_code, 200)
+        withdrawal = response.context["withdrawals"][0]
+        self.assertEqual(
+            set(withdrawal.keys()),
+            {"id", "amount", "bank_name", "status", "requested_at"},
+        )
+        self.assertNotIn("bank_account", withdrawal)
+        self.assertNotIn("account_holder", withdrawal)
 
     def test_available_balance_uses_reserved_balance(self):
         self.profile.reserved_balance = Decimal("75.00")

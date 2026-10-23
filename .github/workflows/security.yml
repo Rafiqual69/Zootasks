@@ -6,6 +6,7 @@ on:
       - main
       - ci/**
       - feat/**
+      - security/**
   pull_request:
     branches:
       - main
@@ -42,10 +43,32 @@ jobs:
           pip install -r requirements.txt
           pip install pip-audit
 
+      - name: Verify Twisted IMAP wildcard fix in installed artifact
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import twisted
+          from twisted.mail.imap4 import wildcardToRegexp
+
+          assert twisted.__version__ == "26.10.0rc1", twisted.__version__
+          assert wildcardToRegexp("box.(a+)+z").fullmatch("box.(a+)+z")
+          assert not wildcardToRegexp("box.(a+)+z").fullmatch("box.aaaaaz")
+          assert wildcardToRegexp("root/*", delim="/").fullmatch("root/a/b")
+          assert wildcardToRegexp("root/%", delim="/").fullmatch("root/child")
+          assert not wildcardToRegexp("root/%", delim="/").fullmatch("root/a/b")
+          print("Installed Twisted version and IMAP wildcard semantics verified.")
+          PY
+
+      - name: Generate ephemeral CI secret
+        working-directory: backend
+        run: |
+          SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          echo "::add-mask::$SECRET_KEY"
+          printf 'SECRET_KEY=%s\n' "$SECRET_KEY" >> "$GITHUB_ENV"
+
       - name: Django system check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py check
@@ -53,7 +76,6 @@ jobs:
       - name: Django deployment security check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
           PRODUCTION_MODE: "true"
@@ -68,7 +90,6 @@ jobs:
       - name: Migration drift check
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: python manage.py makemigrations --check --dry-run
@@ -80,7 +101,6 @@ jobs:
       - name: Full regression tests
         working-directory: backend
         env:
-          SECRET_KEY: ci-only-secret-key-zootasks-security-gate-2026
           ALLOWED_HOSTS: localhost,127.0.0.1
           OWNER_USERNAME: "ci-owner"
         run: |

@@ -5,6 +5,7 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 from .models import Promotion, PromotionClaim
 from wallet.models import WalletTransaction
 from core.security_policy_engine import require_authorized
@@ -88,6 +89,7 @@ def start_promotion(request, promotion_id):
     return redirect("promotion_marketplace")
 
 @worker_required
+@require_http_methods(["GET", "POST"])
 @transaction.atomic
 def submit_promotion(request, promotion_id):
     claim = get_object_or_404(PromotionClaim.objects.select_for_update(), promotion_id=promotion_id, worker=request.user)
