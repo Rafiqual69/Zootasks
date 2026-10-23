@@ -45,6 +45,22 @@ jobs:
           pip install -r requirements.txt
           pip install pip-audit
 
+      - name: Verify Twisted IMAP wildcard fix in installed artifact
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import twisted
+          from twisted.mail.imap4 import wildcardToRegexp
+
+          assert twisted.__version__ == "26.10.0rc1", twisted.__version__
+          assert wildcardToRegexp("box.(a+)+z").fullmatch("box.(a+)+z")
+          assert not wildcardToRegexp("box.(a+)+z").fullmatch("box.aaaaaz")
+          assert wildcardToRegexp("root/*", delim="/").fullmatch("root/a/b")
+          assert wildcardToRegexp("root/%", delim="/").fullmatch("root/child")
+          assert not wildcardToRegexp("root/%", delim="/").fullmatch("root/a/b")
+          print("Installed Twisted version and IMAP wildcard semantics verified.")
+          PY
+
       - name: Generate ephemeral CI secret
         working-directory: backend
         run: |
