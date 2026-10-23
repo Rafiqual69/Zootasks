@@ -65,3 +65,30 @@ References:
 ## 6. Explicit limitations
 
 No process can guarantee “complete security.” This board reduces risk through defense in depth, independent review, verifiable tests, and conservative release gates. No real board membership or human approval is implied until named people are assigned in the repository. This document does not authorize production changes.
+
+## 7. Coordinated research update — 2026-10-24
+
+This is an evidence snapshot, not a security certification. Latest branch head observed before this documentation update: efa81aa20e93805c08b1a2aca538536d098e6567.
+
+### CI snapshot
+- Security Review run #935: success on that head.
+- ZooTasks Security Gate run #1183: success on that head.
+- PostgreSQL Financial Verification run #312: still in progress when checked; financial gate is not yet confirmed.
+- PR #66 remains open, Draft, and unmerged. No independent human review submission was found in the PR review list at the time checked.
+- These statuses apply only to the observed head and may change after this documentation commit triggers new workflows.
+
+### Research findings and source distinction
+- OWASP ASVS 5.0.0 is the current stable application-security verification baseline. Use versioned requirement IDs to turn general intentions into auditable checks: https://asvs.owasp.org/ and https://github.com/OWASP/ASVS/tree/v5.0.0.
+- Django deployment checklist calls for environment-specific review of security settings; CI configuration does not prove the real deployment is secure: https://docs.djangoproject.com/en/stable/howto/deployment/checklist/.
+- NIST AI RMF Generative AI Profile (NIST AI 600-1) supports lifecycle risk governance and documenting AI-specific risks, but does not replace implementation-specific tests: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence.
+- Twisted CVE-2026-106454: NVD still says no fixed release as of its displayed review; upstream release page lists 26.10.0rc1 as a pre-release and explicitly notes that arbitrary regexes are no longer allowed in IMAP. Debian's downstream package 26.4.0-5 is marked fixed, but that is not proof that the PyPI 26.4.0 wheel used by this project is fixed. Keep issue #67 open and the RC pin temporary; verify final stable artifact, provenance, installed behavior, pip-audit, and Daphne/ASGI compatibility before closure. Sources: https://nvd.nist.gov/vuln/detail/CVE-2026-106454, https://github.com/twisted/twisted/releases, https://pypi.org/project/Twisted/26.10.0rc1/, https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1150248.
+
+### Cross-board priority queue
+1. P0 — Release blocker: close issue #67 only with a stable, reproducible patched Twisted artifact or independently reviewed, narrowly scoped time-limited exception; rerun all gates.
+2. P1 — Financial invariants: issue #44 (withdrawal amount/status DB invariants), #43 (promotion budget vs actual approved payouts), #42 (reservation vs completed-worker accounting), and #45 (promotion transition/reconciliation) need explicit state machines, transaction/locking rules, replay/idempotency tests, concurrency tests, and ledger reconciliation. Do not alter production financial behavior before the invariants and regression coverage are approved.
+3. P1 — AI authority boundary: issue #46 requires policy authorization outside model context, allowlisted least-privilege tools, exact-parameter expiring approvals, replay protection, independent approval for irreversible actions, rate/cost limits, fail-closed behavior, and adversarial tests. No direct AI authority to alter wallet balances, payouts, budgets, privileged secrets, or production migrations.
+4. P1 — Data leakage: inspect all latest workflow logs/artifacts plus Django/bot errors and admin exports using synthetic sentinel values; verify redaction and exclusion. The single previously inspected masked log is only narrow evidence.
+5. P2 — Recovery and environment: isolated synthetic backup restore, least-privilege permissions, production security-settings review, and explicit rollback evidence remain open.
+
+### Gate decision
+No merge, production migration, or deployment while a release blocker, financial invariant gap, unreviewed data exposure, missing restore evidence, or independent review requirement remains open. Preserve wallet/withdrawal/reward history; never use production records or credentials in tests.
