@@ -4,28 +4,31 @@
 **Scope:** PR #66, branch `security/ci-ephemeral-secret-20261022`.  
 **Production:** No production deployment or production migration is authorized by this plan.
 
-## Evidence snapshot (2026-10-22)
+## Evidence snapshot (2026-10-24)
 
-- Latest inspected commit before this plan: `122ffd3fdedcc7f50863d7866af162dc9cacd04e`.
-- Security Review run `39662945981` failed at Dependency audit. Full regression passed. Backup smoke and diff hygiene were skipped after the dependency-audit failure.
-- PostgreSQL Financial Verification run `39662945837`: Django system check, migration drift check, PostgreSQL migration apply, and full PostgreSQL regression had passed at the latest inspection; workflow was still finishing.
-- Security Gate run `39662946139`: Django checks, deployment security check, migration drift, and policy contract steps had passed at the latest inspection; workflow was still finishing.
-- CI log confirmed `SECRET_KEY` appears masked as `***` in the inspected run. This is positive evidence for that run only, not a guarantee about every workflow or future log.
-- Dependency audit found one unresolved item: `Twisted 26.4.0 / CVE-2026-106454`. Do not suppress this finding or declare the version fixed solely because it is newer than 25.5.0.
+- Latest reviewed application/security code before the current dependency work: `5404d5cbb9f513e4bd2c147dcfcc26128d3f09d0`.
+- On that commit, Security Review #915 and Security Gate #1165 failed at dependency audit; earlier Django checks, deployment checks, policy tests, and full regression steps passed. Backup smoke and diff hygiene were skipped because the audit step failed.
+- PostgreSQL Financial Verification #302 passed Django checks, migration drift check, disposable PostgreSQL migrations, and full PostgreSQL regression on that commit.
+- The failing audit reported `Twisted 26.4.0 / CVE-2026-106454`. This remains a release blocker until the installed artifact, dependency audit, and compatibility checks are verified.
+- Upstream fix commit `2f8a3c29246f4eb324690e06a9767a11dc4aec9f` was inspected. It escapes all non-IMAP-wildcard characters in `wildcardToRegexp`. The official upstream tag `twisted-26.10.0rc1` was inspected and contains that implementation.
+- As a temporary testable mitigation, `backend/requirements.txt` now pins `Twisted==26.10.0rc1`. This is a pre-release, not a final-release recommendation. Replace it with the first verified final upstream release before merge when available, and rerun all gates.
+- Two CI workflows now include a focused installed-artifact check for regex metacharacters and IMAP `*` / `%` semantics. The workflow results for the resulting latest commit are pending and must be inspected before claiming success.
 
 ## Coordinated workstreams and acceptance criteria
 
 ### A. Dependency vulnerability — release blocker
-**Finding:** CI's `pip-audit` reports CVE-2026-106454 against Twisted 26.4.0 and does not provide a fix version. NVD describes the issue as IMAP wildcard-to-regex catastrophic backtracking and currently says no fixed release is available. Debian separately marks its package 26.4.0-4 vulnerable and 26.4.0-5 fixed, indicating that a distribution patch level matters. Do not assume the plain PyPI wheel contains that distribution patch.
+**Finding:** The PyPI artifact previously installed as Twisted 26.4.0 was reported by `pip-audit` for CVE-2026-106454. The vulnerability concerns catastrophic regex backtracking in IMAP mailbox patterns. Debian fixed its downstream package in 26.4.0-5, but a distro patch level does not prove the PyPI wheel contains the patch.
+
+**Current mitigation:** The official upstream 26.10.0rc1 source contains the upstream fix commit. This exact RC pin is temporary and must not be mistaken for a final stable dependency.
 
 **Actions**
-1. Verify the exact upstream security commit and patch diff against the installed PyPI artifact.
-2. Determine whether the upstream fix has been released in a new upstream version or only backported by downstream distributions.
-3. Prefer an official upstream release containing the fix. If no release exists, evaluate a reviewed, immutable upstream commit pin or a maintained downstream patched package, with provenance, reproducible install, licensing and deployment compatibility reviewed.
-4. Re-run `pip-audit` on the actual resolved environment, not only the requirements text. If the advisory database still flags a verified patched commit, document evidence and choose a transparent, narrow, time-limited advisory exception only after independent security review; do not silently ignore the advisory.
-5. Check Daphne/Twisted compatibility, ASGI startup, and full regression. Keep the dependency audit gate failing until the evidence-backed disposition is accepted.
+1. Verify the installed Twisted version and test that regex syntax is treated literally while IMAP `*` and `%` wildcards retain expected semantics.
+2. Run `pip-audit` against the actual resolved environment and review all findings.
+3. Check Daphne/ASGI startup, Django checks, and full regression with the RC.
+4. Replace the RC with the first final upstream release that contains the fix as soon as available; rerun all gates.
+5. If the advisory database still flags a verified patched artifact, document evidence and use only a transparent, narrow, time-limited exception after independent human security review. Never silently suppress the finding.
 
-**Acceptance:** Resolved dependency and advisory evidence recorded; install reproducible; audit passes or an independently reviewed, explicit and expiring exception is documented; regression passes.
+**Acceptance:** Final dependency is stable/reproducible, patch behavior is verified in the installed artifact, dependency audit has an evidence-backed disposition, compatibility and regression tests pass, and independent review approves.
 
 ### B. CI secrets and data-leak prevention
 - Generate a fresh random Django key per workflow run.
@@ -82,10 +85,11 @@
 
 - NVD CVE-2026-106454: https://nvd.nist.gov/vuln/detail/CVE-2026-106454
 - Debian tracker for CVE-2026-106454: https://security-tracker.debian.org/tracker/CVE-2026-106454
-- Upstream Twisted fix commit cited by NVD: https://github.com/twisted/twisted/commit/2f8a3c29246f4eb324690e06a9767a11dc4aec9
+- Upstream Twisted fix commit: https://github.com/twisted/twisted/commit/2f8a3c29246f4eb324690e06a9767a11dc4aec9
+- Upstream RC release: https://github.com/twisted/twisted/releases/tag/twisted-26.10.0rc1
 - OWASP ASVS: https://asvs.owasp.org/
 - Django deployment checklist: https://docs.djangoproject.com/en/stable/howto/deployment/checklist/
 
 ## Current disposition
 
-The dependency audit failure is an active release blocker. Do not merge, deploy, run production migrations, or claim that every issue is solved until the above evidence is recorded. This plan coordinates the work; it does not itself prove controls have passed or constitute a guarantee of complete security.
+The Twisted dependency mitigation is now under CI verification, but is not yet accepted as a final release fix because the pinned upstream version is a release candidate and the new workflows have not been verified. Do not merge, deploy, run production migrations, or claim that every issue is solved until all evidence and independent review are complete. This plan coordinates the work; it does not itself prove controls have passed or constitute a guarantee of complete security.
