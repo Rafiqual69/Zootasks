@@ -81,6 +81,16 @@ class WithdrawalRequest(models.Model):
 
     class Meta:
         ordering = ["-requested_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0),
+                name="withdrawal_amount_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=["pending", "approved", "rejected", "paid"]),
+                name="withdrawal_status_valid",
+            ),
+        ]
         permissions = [
             ("approve_withdrawal", "Can approve withdrawals"),
             ("reject_withdrawal", "Can reject withdrawals"),
