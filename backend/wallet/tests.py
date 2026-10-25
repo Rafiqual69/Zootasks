@@ -914,3 +914,42 @@ class WithdrawalOperationIdentityTests(TestCase):
                 description=f"Withdrawal #{self.withdrawal.id}",
                 withdrawal=self.withdrawal,
             )
+
+
+class WithdrawalDatabaseInvariantTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="withdrawal_db_invariant_worker",
+            password="test-password-123",
+        )
+
+    def create_withdrawal(self, **overrides):
+        fields = {
+            "user": self.user,
+            "amount": Decimal("50.00"),
+            "bank_account": "TEST-ACCOUNT-0001",
+            "bank_name": "Synthetic Test Bank",
+            "account_holder": "Synthetic Test Holder",
+            "status": "pending",
+        }
+        fields.update(overrides)
+        return WithdrawalRequest.objects.create(**fields)
+
+    def test_negative_amount_is_rejected_by_database(self):
+        with self.assertRaises(IntegrityError):
+            self.create_withdrawal(amount=Decimal("-0.01"))
+
+    def test_unknown_status_is_rejected_by_database(self):
+        with self.assertRaises(IntegrityError):
+            self.create_withdrawal(status="mystery")
+
+    def test_nonnegative_amount_and_each_supported_status_are_allowed(self):
+        for index, status in enumerate(("pending", "approved", "rejected", "paid")):
+            with self.subTest(status=status):
+                withdrawal = self.create_withdrawal(
+                    amount=Decimal("0.00") if index == 0 else Decimal("50.00"),
+                    status=status,
+                )
+                self.assertEqual(withdrawal.status, status)
+                self.assertGreaterEqual(withdrawal.amount, Decimal("0.00"))
+
