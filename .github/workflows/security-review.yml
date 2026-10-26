@@ -43,7 +43,7 @@ jobs:
         run: |
           KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
           echo "::add-mask::$KEY"
-          printf 'SECRET_KEY=%s\\n' "$KEY" >> "$GITHUB_ENV"
+          printf 'SECRET_KEY=%s\n' "$KEY" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         working-directory: backend
