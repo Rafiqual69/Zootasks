@@ -1309,3 +1309,57 @@ a{color:inherit}
         grid-template-columns: 1fr;
     }
 }
+
+
+/* ===== Master initiative: accessibility and truthful preview cues ===== */
+.zt-skip-link{
+    position:absolute;
+    top:8px;
+    left:8px;
+    z-index:100;
+    padding:10px 14px;
+    transform:translateY(-160%);
+    border-radius:10px;
+    background:#fff;
+    color:#0b1220;
+    font-weight:800;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);
+}
+.zt-skip-link:focus{
+    transform:translateY(0);
+}
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{
+    outline:3px solid #22d3ee;
+    outline-offset:3px;
+}
+.zt-live{
+    font-size:11px;
+    font-weight:800;
+    color:#dbeafe;
+}
+.zt-reward{
+    max-width:170px;
+    white-space:normal;
+    text-align:right;
+    font-size:12px;
+    line-height:1.4;
+}
+.zt-footer-note{
+    max-width:520px;
+    font-size:12px;
+    line-height:1.5;
+}
+@media(max-width:640px){
+    .zt-reward{
+        max-width:none;
+        text-align:left;
+    }
+}
+@media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+        scroll-behavior:auto!important;
+        animation-duration:.01ms!important;
+        animation-iteration-count:1!important;
+        transition-duration:.01ms!important;
+    }
+}
