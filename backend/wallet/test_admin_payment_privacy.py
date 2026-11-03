@@ -71,8 +71,8 @@ class WithdrawalPaymentDetailPrivacyTests(TestCase):
         self.assertIn("bank_account", fields)
         self.assertNotIn("masked_account_holder", fields)
         self.assertNotIn("masked_bank_account", fields)
-        self.assertIn("account_holder", self.model_admin.readonly_fields)
-        self.assertIn("bank_account", self.model_admin.readonly_fields)
+        self.assertIn("account_holder", self.model_admin.get_readonly_fields(self.request_for(payer)))
+        self.assertIn("bank_account", self.model_admin.get_readonly_fields(self.request_for(payer)))
 
     def test_unprivileged_staff_cannot_view_withdrawal_details(self):
         staff = User.objects.create_user(
@@ -96,5 +96,5 @@ class WithdrawalPaymentDetailPrivacyTests(TestCase):
 
         self.assertIn("account_holder", fields)
         self.assertIn("bank_account", fields)
-        self.assertIn("account_holder", self.model_admin.readonly_fields)
-        self.assertIn("bank_account", self.model_admin.readonly_fields)
+        self.assertIn("account_holder", self.model_admin.get_readonly_fields(self.request_for(owner)))
+        self.assertIn("bank_account", self.model_admin.get_readonly_fields(self.request_for(owner)))
