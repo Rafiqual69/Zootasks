@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("tasks", "0004_protect_claim_history"),
+        ("tasks", "0003_alter_task_options"),
     ]
 
     operations = [

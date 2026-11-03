@@ -422,6 +422,40 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
     )
 
     @staticmethod
+    def _can_view_sensitive_payment_details(request):
+        user = request.user
+        return bool(
+            user.is_authenticated
+            and user.is_staff
+            and (
+                user.is_superuser
+                or user.has_perm("wallet.mark_withdrawal_paid")
+            )
+        )
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if self._can_view_sensitive_payment_details(request):
+            return fields + ("account_holder", "bank_account")
+        return fields
+
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if self._can_view_sensitive_payment_details(request):
+            return [
+                field for field in fields
+                if field not in ("masked_account_holder", "masked_bank_account")
+            ]
+
+        # Approvers and rejectors can process requests without seeing full
+        # bank identifiers. Only the designated payout role (or superuser)
+        # receives the raw values, and those values remain read-only.
+        return [
+            field for field in fields
+            if field not in ("account_holder", "bank_account")
+        ]
+
+    @staticmethod
     def _mask(value: str, visible_suffix: int = 0) -> str:
         if not value:
             return "—"
