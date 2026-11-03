@@ -414,8 +414,6 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
         "user",
         "amount",
         "bank_name",
-        "account_holder",
-        "bank_account",
         "masked_account_holder",
         "masked_bank_account",
         "status",
@@ -434,6 +432,12 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
                 or user.has_perm("wallet.mark_withdrawal_paid")
             )
         )
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if self._can_view_sensitive_payment_details(request):
+            return fields + ("account_holder", "bank_account")
+        return fields
 
     def get_fields(self, request, obj=None):
         fields = list(super().get_fields(request, obj))
