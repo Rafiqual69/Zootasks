@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.db.models.deletion import ProtectedError
 from django.urls import reverse
 from decimal import Decimal
 
@@ -561,3 +562,24 @@ class FinancialAdminPolicyBoundaryTests(TestCase):
             set(self.admin.get_readonly_fields(request, task)),
             {"reward", "max_workers", "completed_workers", "status"},
         )
+
+class TaskClaimHistoryProtectionTests(TestCase):
+    def test_task_with_claim_history_cannot_be_deleted(self):
+        worker = User.objects.create_user(
+            username="claim_history_worker",
+            password="StrongTestPass123!",
+        )
+        task = Task.objects.create(
+            title="Historical Task",
+            description="Task history must remain available.",
+            reward=Decimal("10.00"),
+            max_workers=1,
+        )
+        claim = TaskClaim.objects.create(task=task, worker=worker)
+
+        with self.assertRaises(ProtectedError):
+            task.delete()
+
+        self.assertTrue(Task.objects.filter(pk=task.pk).exists())
+        self.assertTrue(TaskClaim.objects.filter(pk=claim.pk).exists())
+
