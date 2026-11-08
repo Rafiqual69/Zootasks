@@ -12,14 +12,19 @@ class WhatsAppDeliveryError(Exception):
 
 def keyed_digest(value):
     return hmac.new(
-        settings.SECRET_KEY.encode("utf-8"),
+        settings.WHATSAPP_PHONE_HASH_KEY.encode("utf-8"),
         value.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
 
 
 def otp_digest(challenge_id, code):
-    return keyed_digest(f"whatsapp-otp:{challenge_id}:{code}")
+    value = f"whatsapp-otp:{challenge_id}:{code}".encode("utf-8")
+    return hmac.new(
+        settings.SECRET_KEY.encode("utf-8"),
+        value,
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def send_whatsapp_otp(phone_number, code):
