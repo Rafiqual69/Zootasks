@@ -176,10 +176,11 @@ class WhatsAppOTPLoginTests(TestCase):
 
     def test_invalid_code_is_limited_to_five_attempts(self):
         self.request_code()
-        _, challenge = self.sent_code()
+        actual_code, challenge = self.sent_code()
+        invalid_code = "000000" if actual_code != "000000" else "000001"
 
         for _ in range(5):
-            response = self.verify("000000")
+            response = self.verify(invalid_code)
         self.assertEqual(response.status_code, 200)
 
         challenge.refresh_from_db()
