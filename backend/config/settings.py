@@ -20,6 +20,7 @@ YAHOO_OAUTH_CLIENT_ID = config("YAHOO_OAUTH_CLIENT_ID", default="").strip()
 YAHOO_OAUTH_CLIENT_SECRET = config("YAHOO_OAUTH_CLIENT_SECRET", default="").strip()
 
 META_WHATSAPP_ACCESS_TOKEN = config("META_WHATSAPP_ACCESS_TOKEN", default="").strip()
+WHATSAPP_PHONE_HASH_KEY = config("WHATSAPP_PHONE_HASH_KEY", default="").strip()
 META_WHATSAPP_PHONE_NUMBER_ID = config("META_WHATSAPP_PHONE_NUMBER_ID", default="").strip()
 META_WHATSAPP_GRAPH_API_VERSION = config(
     "META_WHATSAPP_GRAPH_API_VERSION", default="v26.0"
@@ -32,6 +33,7 @@ META_WHATSAPP_OTP_LANGUAGE_CODE = config(
 ).strip()
 WHATSAPP_OTP_ENABLED = bool(
     META_WHATSAPP_ACCESS_TOKEN
+    and len(WHATSAPP_PHONE_HASH_KEY) >= 32
     and re.fullmatch(r"[0-9]{5,25}", META_WHATSAPP_PHONE_NUMBER_ID)
     and re.fullmatch(r"v[0-9]+\.[0-9]+", META_WHATSAPP_GRAPH_API_VERSION)
     and re.fullmatch(r"[a-z0-9_]{1,512}", META_WHATSAPP_OTP_TEMPLATE_NAME)
