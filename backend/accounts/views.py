@@ -1,16 +1,36 @@
 import hmac
+import secrets
+from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.views import LoginView
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from .authorization import worker_required
 from core.security_policy_engine import require_authorized
-from .forms import OwnerOTPAuthenticationForm, RegistrationForm
-from .models import AccountEntity, WorkerProfile
+from .forms import (
+    OwnerOTPAuthenticationForm,
+    RegistrationForm,
+    WhatsAppOTPVerifyForm,
+    WhatsAppPhoneForm,
+)
+from .models import (
+    AccountEntity,
+    WhatsAppIdentity,
+    WhatsAppOTPChallenge,
+    WorkerProfile,
+)
+from .whatsapp import (
+    WhatsAppDeliveryError,
+    keyed_digest,
+    otp_digest,
+    send_whatsapp_otp,
+)
 from wallet.models import WalletTransaction
 
 
@@ -119,19 +139,6 @@ class OwnerLoginView(LoginView):
         return response
 
 # =============== WHATSAPP OTP AUTHENTICATION ===============
-import secrets
-from datetime import timedelta
-
-from django.conf import settings
-from django.contrib.auth import login
-from django.db import IntegrityError
-from django.utils import timezone
-
-from .forms import WhatsAppPhoneForm, WhatsAppOTPVerifyForm
-from .models import WhatsAppIdentity, WhatsAppOTPChallenge
-from .whatsapp import WhatsAppDeliveryError, keyed_digest, otp_digest, send_whatsapp_otp
-
-
 def _whatsapp_login_page(request, phone_form=None, verify_form=None, error=None):
     challenge_id = request.session.get("whatsapp_otp_challenge_id")
     return render(
@@ -203,22 +210,28 @@ def whatsapp_login(request):
                 error="A code cannot be sent right now. Please wait and try again.",
             )
 
-        # Retire any previous pending code before issuing a fresh one.
-        WhatsAppOTPChallenge.objects.filter(
-            phone_hash=phone_hash,
-            consumed_at__isnull=True,
-        ).update(consumed_at=now, phone_number="")
-
         code = f"{secrets.randbelow(900000) + 100000:06d}"
-        challenge = WhatsAppOTPChallenge.objects.create(
-            phone_number=phone_number,
-            phone_hash=phone_hash,
-            code_hash="pending",
-            requester_hash=requester_hash,
-            expires_at=now + timedelta(seconds=settings.WHATSAPP_OTP_TTL_SECONDS),
-        )
-        challenge.code_hash = otp_digest(challenge.pk, code)
-        challenge.save(update_fields=["code_hash"])
+        try:
+            with transaction.atomic():
+                # Retire any previous pending code before issuing a fresh one.
+                WhatsAppOTPChallenge.objects.filter(
+                    phone_hash=phone_hash,
+                    consumed_at__isnull=True,
+                ).update(consumed_at=now, phone_number="")
+                challenge = WhatsAppOTPChallenge.objects.create(
+                    phone_number=phone_number,
+                    phone_hash=phone_hash,
+                    code_hash="pending",
+                    requester_hash=requester_hash,
+                    expires_at=now + timedelta(seconds=settings.WHATSAPP_OTP_TTL_SECONDS),
+                )
+                challenge.code_hash = otp_digest(challenge.pk, code)
+                challenge.save(update_fields=["code_hash"])
+        except IntegrityError:
+            return _whatsapp_login_page(
+                request,
+                error="A code request is already being processed. Please try again shortly.",
+            )
 
         try:
             send_whatsapp_otp(phone_number, code)
