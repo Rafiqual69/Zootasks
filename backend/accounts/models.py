@@ -79,7 +79,8 @@ class WhatsAppIdentity(models.Model):
         on_delete=models.PROTECT,
         related_name="whatsapp_identity",
     )
-    phone_number = models.CharField(max_length=16, unique=True)
+    phone_hash = models.CharField(max_length=64, unique=True)
+    phone_last4 = models.CharField(max_length=4, blank=True)
     verified_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
