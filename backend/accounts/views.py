@@ -1,6 +1,6 @@
 import hmac
 
-from django.contrib.auth import login
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.views import LoginView
 from django.db import transaction
 from django.db.models import Sum
@@ -305,9 +305,9 @@ def whatsapp_login(request):
                                 authenticated_user = candidate
                         else:
                             username = "wa_" + challenge.phone_hash[:24]
-                            if User.objects.filter(username=username).exists():
+                            if get_user_model().objects.filter(username=username).exists():
                                 username = "wa_" + secrets.token_hex(16)
-                            candidate = User.objects.create_user(
+                            candidate = get_user_model().objects.create_user(
                                 username=username,
                                 password=None,
                             )
