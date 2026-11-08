@@ -70,8 +70,11 @@ def send_whatsapp_otp(phone_number, code):
     )
 
     try:
-        with urlopen(request, timeout=8) as response:
+        response = urlopen(request, timeout=8)
+        try:
             result = json.loads(response.read().decode("utf-8"))
+        finally:
+            response.close()
     except (OSError, ValueError):
         # Never include the provider response, token, phone, or OTP in logs/errors.
         raise WhatsAppDeliveryError("WhatsApp delivery failed.") from None
