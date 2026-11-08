@@ -1,4 +1,7 @@
+from datetime import timedelta
 from unittest.mock import patch
+
+from django.db import IntegrityError, transaction
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
@@ -194,6 +197,41 @@ class WhatsAppOTPLoginTests(TestCase):
         self.assertIsNotNone(challenge.consumed_at)
         self.assertFalse(self.client.session.get("_auth_user_id"))
         self.assertEqual(WhatsAppIdentity.objects.count(), 0)
+
+
+    def test_expired_code_is_rejected_and_phone_data_is_cleared(self):
+        self.request_code()
+        code, challenge = self.sent_code()
+        challenge.expires_at = timezone.now() - timedelta(seconds=1)
+        challenge.save(update_fields=["expires_at"])
+
+        response = self.verify(code)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(WhatsAppIdentity.objects.count(), 0)
+        challenge.refresh_from_db()
+        self.assertIsNotNone(challenge.consumed_at)
+        self.assertEqual(challenge.phone_number, "")
+
+    def test_database_allows_only_one_active_challenge_per_phone_hash(self):
+        first = WhatsAppOTPChallenge.objects.create(
+            phone_number=self.phone,
+            phone_hash=self.phone_hash,
+            code_hash="a" * 64,
+            requester_hash=keyed_digest("ip:127.0.0.1"),
+            expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                WhatsAppOTPChallenge.objects.create(
+                    phone_number=self.phone,
+                    phone_hash=self.phone_hash,
+                    code_hash="b" * 64,
+                    requester_hash=keyed_digest("ip:127.0.0.1"),
+                    expires_at=timezone.now() + timedelta(minutes=5),
+                )
+        first.refresh_from_db()
+        self.assertIsNone(first.consumed_at)
 
     def test_resend_cooldown_blocks_second_message(self):
         self.request_code()
