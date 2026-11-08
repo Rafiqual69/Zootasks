@@ -2,7 +2,7 @@ name: Security Review (Protected Branches)
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "security/**"]
   push:
     branches:
       - "security/**"
