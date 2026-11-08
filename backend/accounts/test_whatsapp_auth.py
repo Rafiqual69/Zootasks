@@ -167,7 +167,8 @@ class WhatsAppOTPLoginTests(TestCase):
         )
         WhatsAppIdentity.objects.create(
             user=owner,
-            phone_number=self.phone,
+            phone_hash=self.phone_hash,
+            phone_last4=self.phone[-4:],
             verified_at=timezone.now(),
         )
 
