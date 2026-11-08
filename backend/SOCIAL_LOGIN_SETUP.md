@@ -32,9 +32,9 @@ The production domain above is a planned ZooTasks domain. Do not activate a prov
 - New social signups are provisioned as ordinary workers using the existing WorkerProfile and AccountEntity records.
 - Owner access remains on the separate password + TOTP login route.
 
-## WhatsApp
+## WhatsApp sign-in
 
-WhatsApp is not an OAuth identity provider. A WhatsApp sign-in option must use a verified phone-number OTP flow backed by the official WhatsApp Business Platform (or an approved provider such as Twilio Verify). It needs a business sender, server-side credentials, an approved authentication message template, OTP expiry, attempt limits, resend cooldowns, and abuse controls. This branch does not enable WhatsApp OTP or expose a non-functional WhatsApp button.
+WhatsApp uses a separate phone-number OTP flow, not OAuth. See the setup and activation requirements below.
 
 
 ## WhatsApp OTP login (separate from OAuth)
