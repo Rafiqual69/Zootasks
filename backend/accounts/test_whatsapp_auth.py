@@ -26,10 +26,10 @@ from .whatsapp import keyed_digest, otp_digest
 )
 class WhatsAppOTPLoginTests(TestCase):
     phone = "+8801712345678"
-    phone_hash = keyed_digest("phone:" + phone)
 
     def setUp(self):
         self.client = Client()
+        self.phone_hash = keyed_digest("phone:" + self.phone)
         self.send_patcher = patch("accounts.views.send_whatsapp_otp")
         self.send_mock = self.send_patcher.start()
         self.addCleanup(self.send_patcher.stop)
