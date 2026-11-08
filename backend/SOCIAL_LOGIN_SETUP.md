@@ -56,6 +56,40 @@ WhatsApp is not an OAuth identity provider. ZooTasks implements a separate phone
 
 Create the template as an Authentication category with Meta's preset verification-code body, a Copy Code OTP button, and a five-minute code-expiration footer. The API sends an approved authentication template to `/{PHONE_NUMBER_ID}/messages`. Meta's Cloud API requires a WhatsApp Business Account, business phone number and access token; Meta's official collection documents the required permissions and message endpoint. See [Meta's WhatsApp Cloud API collection](https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api) and [authentication template example](https://www.postman.com/meta/whatsapp-business-platform/request/6vkv46u/create-authentication-template-w-otp-copy-code-button).
 
+### Authentication template definition
+
+Create this template in WhatsApp Manager (or submit the equivalent template-creation request through the WhatsApp Business Management API) and wait for Meta approval:
+
+```json
+{
+  "name": "zootasks_login_otp",
+  "language": "en_US",
+  "category": "AUTHENTICATION",
+  "components": [
+    {
+      "type": "BODY",
+      "add_security_recommendation": true
+    },
+    {
+      "type": "FOOTER",
+      "code_expiration_minutes": 5
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "OTP",
+          "otp_type": "COPY_CODE",
+          "text": "Copy code"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The exact template locale must match the approved template. For the runtime sender, grant the least privilege needed for message delivery; use WhatsApp Business Management permissions only for the separate template/account setup tasks.
+
 ### Application controls
 
 - Phone numbers are normalized to E.164; Bangladesh local `01XXXXXXXXX` input is normalized to `+8801XXXXXXXXX`.
