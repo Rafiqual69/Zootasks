@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django_otp.forms import OTPAuthenticationForm
 from django.contrib.auth.models import User
@@ -40,6 +42,40 @@ class RegistrationForm(forms.ModelForm):
             user.save()
 
         return user
+
+
+class WhatsAppPhoneForm(forms.Form):
+    phone_number = forms.CharField(max_length=24, strip=True)
+
+    def clean_phone_number(self):
+        value = re.sub(r"[\s().-]", "", self.cleaned_data["phone_number"])
+        if value.startswith("00"):
+            value = "+" + value[2:]
+        elif re.fullmatch(r"01[3-9][0-9]{8}", value):
+            value = "+880" + value[1:]
+        elif re.fullmatch(r"8801[3-9][0-9]{8}", value):
+            value = "+" + value
+
+        if not re.fullmatch(r"\+[1-9][0-9]{7,14}", value):
+            raise forms.ValidationError(
+                "Enter a valid phone number with country code, e.g. +8801XXXXXXXXX."
+            )
+        return value
+
+
+class WhatsAppOTPVerifyForm(forms.Form):
+    code = forms.CharField(
+        min_length=6,
+        max_length=6,
+        strip=True,
+        widget=forms.PasswordInput(attrs={"inputmode": "numeric", "autocomplete": "one-time-code"}),
+    )
+
+    def clean_code(self):
+        value = self.cleaned_data["code"]
+        if not value.isascii() or not value.isdigit():
+            raise forms.ValidationError("Enter the six-digit verification code.")
+        return value
 
 
 class OwnerOTPAuthenticationForm(OTPAuthenticationForm):
