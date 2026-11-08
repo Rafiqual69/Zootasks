@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import json
-from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -68,7 +67,7 @@ def send_whatsapp_otp(phone_number, code):
     try:
         with urlopen(request, timeout=8) as response:
             result = json.loads(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError):
+    except (OSError, ValueError):
         # Never include the provider response, token, phone, or OTP in logs/errors.
         raise WhatsAppDeliveryError("WhatsApp delivery failed.") from None
 
