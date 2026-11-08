@@ -1,4 +1,5 @@
 {% load static %}
+{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,11 +35,42 @@
             </div>
         {% endif %}
 
+        {% if SOCIAL_LOGIN_ENABLED.google or SOCIAL_LOGIN_ENABLED.facebook or SOCIAL_LOGIN_ENABLED.linkedin or SOCIAL_LOGIN_ENABLED.yahoo %}
+            <div class="zt-social-login" aria-label="Social sign-in options">
+                {% if SOCIAL_LOGIN_ENABLED.google %}
+                    <form method="post" action="{% provider_login_url 'google' process='login' %}">
+                        {% csrf_token %}
+                        <button class="zt-auth-submit" type="submit">Continue with Google</button>
+                    </form>
+                {% endif %}
+
+                {% if SOCIAL_LOGIN_ENABLED.facebook %}
+                    <form method="post" action="{% provider_login_url 'facebook' process='login' %}">
+                        {% csrf_token %}
+                        <button class="zt-auth-submit" type="submit">Continue with Facebook</button>
+                    </form>
+                {% endif %}
+
+                {% if SOCIAL_LOGIN_ENABLED.linkedin %}
+                    <form method="post" action="/accounts/oidc/linkedin/login/">
+                        {% csrf_token %}
+                        <button class="zt-auth-submit" type="submit">Continue with LinkedIn</button>
+                    </form>
+                {% endif %}
+
+                {% if SOCIAL_LOGIN_ENABLED.yahoo %}
+                    <form method="post" action="{% provider_login_url 'yahoo' process='login' %}">
+                        {% csrf_token %}
+                        <button class="zt-auth-submit" type="submit">Continue with Yahoo</button>
+                    </form>
+                {% endif %}
+            </div>
+            <p class="zt-auth-intro">Or use your ZooTasks username and password.</p>
+        {% endif %}
+
         <form method="post" class="zt-auth-form">
             {% csrf_token %}
-
             {{ form.as_p }}
-
             <button class="zt-auth-submit" type="submit">
                 Sign in
             </button>
