@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from decouple import config
 
@@ -31,9 +32,10 @@ META_WHATSAPP_OTP_LANGUAGE_CODE = config(
 ).strip()
 WHATSAPP_OTP_ENABLED = bool(
     META_WHATSAPP_ACCESS_TOKEN
-    and META_WHATSAPP_PHONE_NUMBER_ID
-    and META_WHATSAPP_OTP_TEMPLATE_NAME
-    and META_WHATSAPP_GRAPH_API_VERSION.startswith("v")
+    and re.fullmatch(r"[0-9]{5,25}", META_WHATSAPP_PHONE_NUMBER_ID)
+    and re.fullmatch(r"v[0-9]+\\.[0-9]+", META_WHATSAPP_GRAPH_API_VERSION)
+    and re.fullmatch(r"[a-z0-9_]{1,512}", META_WHATSAPP_OTP_TEMPLATE_NAME)
+    and re.fullmatch(r"[a-z]{2}(?:_[A-Z]{2})?", META_WHATSAPP_OTP_LANGUAGE_CODE)
 )
 WHATSAPP_OTP_TTL_SECONDS = 300
 WHATSAPP_OTP_RESEND_SECONDS = 60
