@@ -1,5 +1,5 @@
 from django.contrib.auth.views import LoginView, LogoutView
-from django.urls import path
+from django.urls import include, path
 
 from .views import OwnerLoginView, register, dashboard
 
@@ -12,4 +12,5 @@ urlpatterns = [
     path("register/", register, name="register"),
     path("dashboard/", dashboard, name="dashboard"),
     path("logout/", LogoutView.as_view(next_page="/"), name="logout"),
+    path("", include("allauth.urls")),
 ]
