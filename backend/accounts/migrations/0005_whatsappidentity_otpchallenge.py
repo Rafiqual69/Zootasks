@@ -17,7 +17,8 @@ class Migration(migrations.Migration):
             name="WhatsAppIdentity",
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("phone_number", models.CharField(max_length=16, unique=True)),
+                ("phone_hash", models.CharField(max_length=64, unique=True)),
+                ("phone_last4", models.CharField(blank=True, max_length=4)),
                 ("verified_at", models.DateTimeField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
