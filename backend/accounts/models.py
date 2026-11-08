@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -67,3 +69,43 @@ class AccountEntity(models.Model):
 
     def __str__(self):
         return f"{self.get_entity_type_display()}: {self.user.username}"
+
+
+class WhatsAppIdentity(models.Model):
+    """A phone number becomes an account identifier only after OTP verification."""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.PROTECT,
+        related_name="whatsapp_identity",
+    )
+    phone_number = models.CharField(max_length=16, unique=True)
+    verified_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "WhatsApp identity (masked)"
+
+
+class WhatsAppOTPChallenge(models.Model):
+    """Short-lived OTP challenge; only an HMAC of the code is stored."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    phone_number = models.CharField(max_length=16)
+    phone_hash = models.CharField(max_length=64, db_index=True)
+    code_hash = models.CharField(max_length=64)
+    requester_hash = models.CharField(max_length=64, db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("phone_hash", "created_at")),
+            models.Index(fields=("requester_hash", "created_at")),
+        ]
+
+    def __str__(self):
+        return "WhatsApp OTP challenge"
