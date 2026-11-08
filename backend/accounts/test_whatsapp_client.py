@@ -1,5 +1,5 @@
 import json
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
 
@@ -16,9 +16,7 @@ from .whatsapp import WhatsAppDeliveryError, send_whatsapp_otp
 )
 class WhatsAppCloudAPITests(SimpleTestCase):
     def test_sends_only_approved_template_payload_over_https(self):
-        response = Mock()
-        response.__enter__ = Mock(return_value=response)
-        response.__exit__ = Mock(return_value=False)
+        response = MagicMock()
         response.read.return_value = json.dumps(
             {"messages": [{"id": "wamid.test"}]}
         ).encode("utf-8")
