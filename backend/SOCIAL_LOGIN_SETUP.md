@@ -48,6 +48,7 @@ WhatsApp is not an OAuth identity provider. ZooTasks implements a separate phone
 3. In WhatsApp Manager, create an **Authentication** template with a **Copy Code OTP** button. Use template name `zootasks_login_otp`, language `en_US`, and a five-minute expiry. Submit it for Meta approval and wait until its status is APPROVED.
 4. Configure these server environment variables:
    - `META_WHATSAPP_ACCESS_TOKEN`
+   - `WHATSAPP_PHONE_HASH_KEY` (generate a random value with `python -c 'import secrets; print(secrets.token_urlsafe(48))'`; keep it stable across deployments and never commit it)
    - `META_WHATSAPP_PHONE_NUMBER_ID`
    - `META_WHATSAPP_GRAPH_API_VERSION` (default `v26.0`; use a currently supported version for the app)
    - `META_WHATSAPP_OTP_TEMPLATE_NAME` (default `zootasks_login_otp`)
@@ -100,7 +101,7 @@ The exact template locale must match the approved template. For the runtime send
 - An authenticated Worker can link a phone only after OTP verification. A phone already linked to another account cannot be transferred this way.
 - Staff, superusers, Owner accounts and inactive accounts cannot use WhatsApp OTP login.
 - Provider credentials are never sent to templates. Missing configuration disables the feature.
-- The database stores the phone number for the verified identity and the active challenge; protect database backups and access accordingly.
+- Verified identities store only a keyed phone-number hash and the last four digits. A phone number is held in the short-lived OTP challenge only until the code is consumed; old challenge rows are purged after 24 hours. Keep `WHATSAPP_PHONE_HASH_KEY` stable across deployments so existing phone identities remain usable. Protect database backups and access accordingly.
 
 Meta approval, production credentials, sender registration, HTTPS, staging tests and the production migration are external release gates. This branch does not activate the integration in production.
 
