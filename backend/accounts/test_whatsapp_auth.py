@@ -11,7 +11,7 @@ from .models import (
     WhatsAppOTPChallenge,
     WorkerProfile,
 )
-from .whatsapp import otp_digest
+from .whatsapp import keyed_digest, otp_digest
 
 
 @override_settings(
@@ -22,9 +22,11 @@ from .whatsapp import otp_digest
     WHATSAPP_OTP_MAX_SENDS_PER_PHONE_HOUR=5,
     WHATSAPP_OTP_MAX_SENDS_PER_IP_HOUR=10,
     SECRET_KEY="test-only-whatsapp-hmac-secret",
+    WHATSAPP_PHONE_HASH_KEY="test-only-stable-phone-hash-key-1234567890",
 )
 class WhatsAppOTPLoginTests(TestCase):
     phone = "+8801712345678"
+    phone_hash = keyed_digest("phone:" + phone)
 
     def setUp(self):
         self.client = Client()
@@ -66,7 +68,7 @@ class WhatsAppOTPLoginTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("dashboard"))
-        identity = WhatsAppIdentity.objects.get(phone_number=self.phone)
+        identity = WhatsAppIdentity.objects.get(phone_hash=self.phone_hash)
         user = identity.user
         self.assertTrue(user.is_active)
         self.assertTrue(user.has_usable_password() is False)
@@ -77,6 +79,7 @@ class WhatsAppOTPLoginTests(TestCase):
         )
         challenge.refresh_from_db()
         self.assertIsNotNone(challenge.consumed_at)
+        self.assertEqual(challenge.phone_number, "")
         self.assertEqual(self.client.session.get("_auth_user_id"), str(user.pk))
 
     def test_existing_verified_phone_logs_into_same_worker(self):
@@ -92,7 +95,8 @@ class WhatsAppOTPLoginTests(TestCase):
         )
         WhatsAppIdentity.objects.create(
             user=user,
-            phone_number=self.phone,
+            phone_hash=self.phone_hash,
+            phone_last4=self.phone[-4:],
             verified_at=timezone.now(),
         )
 
@@ -135,7 +139,8 @@ class WhatsAppOTPLoginTests(TestCase):
         AccountEntity.objects.create(user=second, entity_type=AccountEntity.EntityType.WORKER)
         WhatsAppIdentity.objects.create(
             user=first,
-            phone_number=self.phone,
+            phone_hash=self.phone_hash,
+            phone_last4=self.phone[-4:],
             verified_at=timezone.now(),
         )
         self.client.force_login(second)
