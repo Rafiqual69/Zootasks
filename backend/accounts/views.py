@@ -163,6 +163,10 @@ def whatsapp_login(request):
 
     action = request.POST.get("action", "")
     now = timezone.now()
+    # OTP challenge records contain temporary phone data only; purge after 24h.
+    WhatsAppOTPChallenge.objects.filter(
+        created_at__lt=now - timedelta(days=1)
+    ).delete()
 
     if action == "send_otp":
         form = WhatsAppPhoneForm(request.POST)
@@ -199,6 +203,12 @@ def whatsapp_login(request):
                 error="A code cannot be sent right now. Please wait and try again.",
             )
 
+        # Retire any previous pending code before issuing a fresh one.
+        WhatsAppOTPChallenge.objects.filter(
+            phone_hash=phone_hash,
+            consumed_at__isnull=True,
+        ).update(consumed_at=now, phone_number="")
+
         code = f"{secrets.randbelow(900000) + 100000:06d}"
         challenge = WhatsAppOTPChallenge.objects.create(
             phone_number=phone_number,
@@ -214,7 +224,8 @@ def whatsapp_login(request):
             send_whatsapp_otp(phone_number, code)
         except WhatsAppDeliveryError:
             challenge.consumed_at = now
-            challenge.save(update_fields=["consumed_at"])
+            challenge.phone_number = ""
+            challenge.save(update_fields=["consumed_at", "phone_number"])
             return _whatsapp_login_page(
                 request,
                 error="We could not send a code. Please try again later.",
@@ -250,6 +261,10 @@ def whatsapp_login(request):
                     or challenge.expires_at <= now
                     or challenge.attempts >= settings.WHATSAPP_OTP_MAX_ATTEMPTS
                 ):
+                    if challenge is not None and challenge.consumed_at is None:
+                        challenge.consumed_at = now
+                        challenge.phone_number = ""
+                        challenge.save(update_fields=["consumed_at", "phone_number"])
                     verification_error = "The code is invalid or expired. Request a new code."
                 else:
                     challenge.attempts += 1
@@ -258,14 +273,16 @@ def whatsapp_login(request):
                     if not valid:
                         if challenge.attempts >= settings.WHATSAPP_OTP_MAX_ATTEMPTS:
                             challenge.consumed_at = now
-                        challenge.save(update_fields=["attempts", "consumed_at"])
+                            challenge.phone_number = ""
+                        challenge.save(update_fields=["attempts", "consumed_at", "phone_number"])
                         verification_error = "The code is invalid or expired. Request a new code."
                     else:
                         challenge.consumed_at = now
                         challenge.save(update_fields=["attempts", "consumed_at"])
+                        verified_phone = challenge.phone_number
 
                         identity = WhatsAppIdentity.objects.select_related("user").filter(
-                            phone_number=challenge.phone_number
+                            phone_number=verified_phone
                         ).first()
 
                         if request.user.is_authenticated:
@@ -285,7 +302,7 @@ def whatsapp_login(request):
                                 if identity is None:
                                     WhatsAppIdentity.objects.create(
                                         user=candidate,
-                                        phone_number=challenge.phone_number,
+                                        phone_number=verified_phone,
                                         verified_at=now,
                                     )
                                 authenticated_user = candidate
@@ -319,10 +336,13 @@ def whatsapp_login(request):
                             )
                             WhatsAppIdentity.objects.create(
                                 user=candidate,
-                                phone_number=challenge.phone_number,
+                                phone_number=verified_phone,
                                 verified_at=now,
                             )
                             authenticated_user = candidate
+
+                        challenge.phone_number = ""
+                        challenge.save(update_fields=["phone_number"])
         except IntegrityError:
             verification_error = "The phone number could not be linked. Please sign in and try again."
 
