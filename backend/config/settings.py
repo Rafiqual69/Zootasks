@@ -204,7 +204,7 @@ SOCIALACCOUNT_PROVIDERS = {
                 "client_id": LINKEDIN_OAUTH_CLIENT_ID,
                 "secret": LINKEDIN_OAUTH_CLIENT_SECRET,
                 "settings": {
-                    "server_url": "https://www.linkedin.com/oauth",
+                    "server_url": "https://www.linkedin.com",
                     "oauth_pkce_enabled": True,
                 },
             }]
