@@ -92,7 +92,7 @@ class WhatsAppOTPChallenge(models.Model):
     """Short-lived OTP challenge; only an HMAC of the code is stored."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    phone_number = models.CharField(max_length=16)
+    phone_number = models.CharField(max_length=16, blank=True, default="")
     phone_hash = models.CharField(max_length=64, db_index=True)
     code_hash = models.CharField(max_length=64)
     requester_hash = models.CharField(max_length=64, db_index=True)
@@ -105,6 +105,13 @@ class WhatsAppOTPChallenge(models.Model):
         indexes = [
             models.Index(fields=("phone_hash", "created_at")),
             models.Index(fields=("requester_hash", "created_at")),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("phone_hash",),
+                condition=models.Q(consumed_at__isnull=True),
+                name="accounts_one_active_whatsapp_otp",
+            ),
         ]
 
     def __str__(self):
