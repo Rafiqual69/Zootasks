@@ -6,8 +6,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",") if h.strip()]
-INSTALLED_APPS = [
 
+# OAuth credentials are read only from the deployment environment. Blank
+# credentials keep each provider disabled; secrets are never exposed to templates.
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="").strip()
+GOOGLE_OAUTH_CLIENT_SECRET = config("GOOGLE_OAUTH_CLIENT_SECRET", default="").strip()
+FACEBOOK_OAUTH_CLIENT_ID = config("FACEBOOK_OAUTH_CLIENT_ID", default="").strip()
+FACEBOOK_OAUTH_CLIENT_SECRET = config("FACEBOOK_OAUTH_CLIENT_SECRET", default="").strip()
+LINKEDIN_OAUTH_CLIENT_ID = config("LINKEDIN_OAUTH_CLIENT_ID", default="").strip()
+LINKEDIN_OAUTH_CLIENT_SECRET = config("LINKEDIN_OAUTH_CLIENT_SECRET", default="").strip()
+YAHOO_OAUTH_CLIENT_ID = config("YAHOO_OAUTH_CLIENT_ID", default="").strip()
+YAHOO_OAUTH_CLIENT_SECRET = config("YAHOO_OAUTH_CLIENT_SECRET", default="").strip()
+
+SOCIAL_LOGIN_ENABLED = {
+    "google": bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET),
+    "facebook": bool(FACEBOOK_OAUTH_CLIENT_ID and FACEBOOK_OAUTH_CLIENT_SECRET),
+    "linkedin": bool(LINKEDIN_OAUTH_CLIENT_ID and LINKEDIN_OAUTH_CLIENT_SECRET),
+    "yahoo": bool(YAHOO_OAUTH_CLIENT_ID and YAHOO_OAUTH_CLIENT_SECRET),
+}
+
+INSTALLED_APPS = [
     "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -15,6 +33,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.facebook",
+    "allauth.socialaccount.providers.openid_connect",
+    "allauth.socialaccount.providers.yahoo",
     "django_otp",
     "django_otp.plugins.otp_totp",
     "accounts",
@@ -31,6 +56,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -49,6 +75,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "accounts.context_processors.social_login_providers",
             ],
         },
     },
@@ -66,6 +93,11 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+]
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -90,10 +122,82 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "noreply@zootasks.com")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = "ZooTasks <noreply@zootasks.com>"
 
+# =============== SOCIAL AUTHENTICATION ===============
+# Keep normal password registration on the existing atomic registration view.
+# Social signups use a separate adapter that provisions worker-only accounts.
+ACCOUNT_ADAPTER = "accounts.account_adapter.ExistingRegistrationOnlyAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "accounts.adapters.SafeSocialAccountAdapter"
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+ACCOUNT_UNIQUE_EMAIL = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = False
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_REQUESTS_TIMEOUT = 5
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": (
+            [{
+                "client_id": GOOGLE_OAUTH_CLIENT_ID,
+                "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+                "key": "",
+            }]
+            if SOCIAL_LOGIN_ENABLED["google"] else []
+        ),
+        "SCOPE": ["openid", "profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "OAUTH_PKCE_ENABLED": True,
+    },
+    "facebook": {
+        "APPS": (
+            [{
+                "client_id": FACEBOOK_OAUTH_CLIENT_ID,
+                "secret": FACEBOOK_OAUTH_CLIENT_SECRET,
+                "key": "",
+            }]
+            if SOCIAL_LOGIN_ENABLED["facebook"] else []
+        ),
+        "METHOD": "oauth2",
+        "SCOPE": ["email", "public_profile"],
+        "FIELDS": ["id", "first_name", "last_name", "name", "email"],
+        # Facebook email verification is not assumed.
+        "VERIFIED_EMAIL": False,
+    },
+    "openid_connect": {
+        "OAUTH_PKCE_ENABLED": True,
+        "APPS": (
+            [{
+                "provider_id": "linkedin",
+                "name": "LinkedIn",
+                "client_id": LINKEDIN_OAUTH_CLIENT_ID,
+                "secret": LINKEDIN_OAUTH_CLIENT_SECRET,
+                "settings": {
+                    "server_url": "https://www.linkedin.com/oauth",
+                    "oauth_pkce_enabled": True,
+                },
+            }]
+            if SOCIAL_LOGIN_ENABLED["linkedin"] else []
+        ),
+    },
+    "yahoo": {
+        "APPS": (
+            [{
+                "client_id": YAHOO_OAUTH_CLIENT_ID,
+                "secret": YAHOO_OAUTH_CLIENT_SECRET,
+                "key": "",
+            }]
+            if SOCIAL_LOGIN_ENABLED["yahoo"] else []
+        ),
+        "SCOPE": ["openid", "profile", "email"],
+    },
+}
+
 # =============== SECURITY ===============
-# Keep local development usable over HTTP, while making production security
-# explicit and environment-controlled. Never hard-code production secrets or
-# transport-security decisions into source.
 PRODUCTION_MODE = config("PRODUCTION_MODE", default=False, cast=bool)
 SECURE_COOKIES = config("SECURE_COOKIES", default=PRODUCTION_MODE, cast=bool)
 SECURE_SSL_REDIRECT = config(
@@ -120,12 +224,9 @@ TRUST_PROXY_SSL = config("TRUST_PROXY_SSL", default=False, cast=bool)
 if TRUST_PROXY_SSL:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-WSGI_APPLICATION = "config.wsgi.application"
-
 ASGI_APPLICATION = "config.asgi.application"
-
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 
-# High-assurance Owner access
+# Privileged Owner authentication remains password + enrolled TOTP only.
 OWNER_USERNAME = config("OWNER_USERNAME", default="")
 LOGOUT_REDIRECT_URL = "/"
