@@ -29,6 +29,12 @@
             Access your tasks, rewards and account activity securely.
         </p>
 
+        {% if WHATSAPP_OTP_ENABLED %}
+            <a class="zt-auth-submit" href="{% url 'whatsapp_login' %}">
+                Continue with WhatsApp
+            </a>
+        {% endif %}
+
         {% if form.non_field_errors %}
             <div class="zt-alert zt-alert-error">
                 {{ form.non_field_errors }}
