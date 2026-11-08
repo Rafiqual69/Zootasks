@@ -45,16 +45,16 @@ WhatsApp is not an OAuth identity provider. ZooTasks implements a separate phone
 
 1. Create a Meta business portfolio and WhatsApp Business Account, add/verify a business sender number, and create a Meta developer app with WhatsApp product.
 2. Generate a production system-user access token with only the required `whatsapp_business_messaging` permission for sending messages. Keep it in the hosting provider's secret manager.
-3. In WhatsApp Manager, create an **Authentication** template with a **Copy Code OTP** button. Use template name `zootasks_login_otp`, language `en`, and a five-minute expiry. Submit it for Meta approval and wait until its status is APPROVED.
+3. In WhatsApp Manager, create an **Authentication** template with a **Copy Code OTP** button. Use template name `zootasks_login_otp`, language `en_US`, and a five-minute expiry. Submit it for Meta approval and wait until its status is APPROVED.
 4. Configure these server environment variables:
    - `META_WHATSAPP_ACCESS_TOKEN`
    - `META_WHATSAPP_PHONE_NUMBER_ID`
    - `META_WHATSAPP_GRAPH_API_VERSION` (default `v26.0`; use a currently supported version for the app)
    - `META_WHATSAPP_OTP_TEMPLATE_NAME` (default `zootasks_login_otp`)
-   - `META_WHATSAPP_OTP_LANGUAGE_CODE` (default `en`)
+   - `META_WHATSAPP_OTP_LANGUAGE_CODE` (default `en_US`)
 5. Apply the new accounts migration in staging, then test with an opted-in test recipient before enabling production.
 
-The API sends an approved authentication template to `/{PHONE_NUMBER_ID}/messages`. Meta's Cloud API requires a WhatsApp Business Account, business phone number and access token; Meta's official collection documents the required permissions and message endpoint. See [Meta's WhatsApp Cloud API collection](https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api) and [authentication template example](https://www.postman.com/meta/whatsapp-business-platform/request/6vkv46u/create-authentication-template-w-otp-copy-code-button).
+Create the template as an Authentication category with Meta's preset verification-code body, a Copy Code OTP button, and a five-minute code-expiration footer. The API sends an approved authentication template to `/{PHONE_NUMBER_ID}/messages`. Meta's Cloud API requires a WhatsApp Business Account, business phone number and access token; Meta's official collection documents the required permissions and message endpoint. See [Meta's WhatsApp Cloud API collection](https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api) and [authentication template example](https://www.postman.com/meta/whatsapp-business-platform/request/6vkv46u/create-authentication-template-w-otp-copy-code-button).
 
 ### Application controls
 
