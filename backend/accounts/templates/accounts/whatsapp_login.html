@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Verify your phone to sign in to ZooTasks with WhatsApp.">
+    <title>WhatsApp Sign In — ZooTasks</title>
+    <link rel="stylesheet" href="{% static 'css/zootasks.css' %}">
+</head>
+<body class="zt-auth-page">
+<header class="zt-auth-header">
+    <a class="zt-brand" href="/">
+        <span class="zt-brand-mark">Z</span>
+        <span>ZooTasks</span>
+    </a>
+</header>
+<main class="zt-auth-main">
+    <section class="zt-auth-card">
+        <span class="zt-kicker">PHONE VERIFICATION</span>
+        <h1>Continue with WhatsApp</h1>
+        <p class="zt-auth-intro">
+            We will send a one-time verification code to your phone using WhatsApp.
+        </p>
+
+        {% if error %}
+            <div class="zt-alert zt-alert-error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        {% if not whatsapp_otp_enabled %}
+            <p class="zt-auth-intro">
+                WhatsApp sign-in is not active yet. Please use another sign-in method.
+            </p>
+        {% else %}
+            {% if challenge_sent %}
+                <form method="post" class="zt-auth-form">
+                    {% csrf_token %}
+                    {{ verify_form.as_p }}
+                    <button class="zt-auth-submit" type="submit" name="action" value="verify_otp">
+                        Verify and sign in
+                    </button>
+                </form>
+                <p class="zt-auth-intro">
+                    The code expires after five minutes. You have a limited number of attempts.
+                </p>
+            {% endif %}
+
+            <form method="post" class="zt-auth-form">
+                {% csrf_token %}
+                {{ phone_form.as_p }}
+                <button class="zt-auth-submit" type="submit" name="action" value="send_otp">
+                    {% if challenge_sent %}Send a new code{% else %}Send WhatsApp code{% endif %}
+                </button>
+            </form>
+        {% endif %}
+
+        <p class="zt-auth-footer">
+            <a href="{% url 'login' %}">Back to all sign-in options</a>
+        </p>
+    </section>
+</main>
+<footer class="zt-auth-bottom">
+    <a href="/">ZooTasks</a>
+    <span>Secure task & reward platform</span>
+</footer>
+</body>
+</html>
