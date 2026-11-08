@@ -54,6 +54,7 @@ WhatsApp is not an OAuth identity provider. ZooTasks implements a separate phone
    - `META_WHATSAPP_OTP_TEMPLATE_NAME` (default `zootasks_login_otp`)
    - `META_WHATSAPP_OTP_LANGUAGE_CODE` (default `en_US`)
 5. Apply the new accounts migration in staging, then test with an opted-in test recipient before enabling production.
+6. Schedule `python manage.py cleanup_whatsapp_otp_challenges` to run daily; it deletes OTP challenge records older than 24 hours.
 
 Create the template as an Authentication category with Meta's preset verification-code body, a Copy Code OTP button, and a five-minute code-expiration footer. The API sends an approved authentication template to `/{PHONE_NUMBER_ID}/messages`. Meta's Cloud API requires a WhatsApp Business Account, business phone number and access token; Meta's official collection documents the required permissions and message endpoint. See [Meta's WhatsApp Cloud API collection](https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api) and [authentication template example](https://www.postman.com/meta/whatsapp-business-platform/request/6vkv46u/create-authentication-template-w-otp-copy-code-button).
 
@@ -101,7 +102,7 @@ The exact template locale must match the approved template. For the runtime send
 - An authenticated Worker can link a phone only after OTP verification. A phone already linked to another account cannot be transferred this way.
 - Staff, superusers, Owner accounts and inactive accounts cannot use WhatsApp OTP login.
 - Provider credentials are never sent to templates. Missing configuration disables the feature.
-- Verified identities store only a keyed phone-number hash and the last four digits. A phone number is held in the short-lived OTP challenge only until the code is consumed; old challenge rows are purged after 24 hours. Keep `WHATSAPP_PHONE_HASH_KEY` stable across deployments so existing phone identities remain usable. Protect database backups and access accordingly.
+- Verified identities store only a keyed phone-number hash and the last four digits. A phone number is held in the short-lived OTP challenge only until the code is consumed; the login endpoint opportunistically purges old challenge rows, and the `cleanup_whatsapp_otp_challenges` management command deletes challenge records older than 24 hours. Schedule `python manage.py cleanup_whatsapp_otp_challenges` daily in the hosting environment to enforce retention even when no new OTP requests arrive. Keep `WHATSAPP_PHONE_HASH_KEY` stable across deployments so existing phone identities remain usable. Protect database backups and access accordingly.
 
 Meta approval, production credentials, sender registration, HTTPS, staging tests and the production migration are external release gates. This branch does not activate the integration in production.
 
