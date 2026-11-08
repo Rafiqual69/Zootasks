@@ -20,7 +20,7 @@ Register the exact HTTPS callback URL for the production domain with each provid
 - LinkedIn: `https://www.zootasks.com/accounts/oidc/linkedin/login/callback/`
 - Yahoo: `https://www.zootasks.com/accounts/yahoo/login/callback/`
 
-The production domain above is a planned ZooTasks domain. Do not activate a provider until DNS, HTTPS, and the matching OAuth application redirect URI are confirmed for the actual deployment hostname.
+LinkedIn OIDC authenticates a LinkedIn account; it does not independently verify a person’s legal identity. The production domain above is a planned ZooTasks domain. Do not activate a provider until DNS, HTTPS, and the matching OAuth application redirect URI are confirmed for the actual deployment hostname.
 
 ## Security rules
 
@@ -67,6 +67,7 @@ Create this template in WhatsApp Manager (or submit the equivalent template-crea
   "name": "zootasks_login_otp",
   "language": "en_US",
   "category": "AUTHENTICATION",
+  "message_send_ttl_seconds": 300,
   "components": [
     {
       "type": "BODY",
@@ -94,6 +95,7 @@ The exact template locale must match the approved template. For the runtime send
 
 ### Application controls
 
+- OTP messages are sent only after a user submits their number to request a sign-in code; no unsolicited or bulk messages are sent.
 - Phone numbers are normalized to E.164; Bangladesh local `01XXXXXXXXX` input is normalized to `+8801XXXXXXXXX`.
 - Codes are cryptographically random, valid for five minutes, stored only as keyed HMAC digests, and never written to logs.
 - Five verification attempts maximum; 60-second resend cooldown; per-phone and per-IP hourly send limits.
