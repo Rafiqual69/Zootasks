@@ -49,7 +49,7 @@ def register(request):
                     user=user,
                     entity_type=AccountEntity.EntityType.WORKER,
                 )
-            login(request, user)
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             return redirect("dashboard")
     else:
         form = RegistrationForm()
@@ -260,6 +260,7 @@ def whatsapp_login(request):
 
         authenticated_user = None
         verification_error = None
+        keep_challenge = False
 
         try:
             with transaction.atomic():
@@ -287,6 +288,8 @@ def whatsapp_login(request):
                         if challenge.attempts >= settings.WHATSAPP_OTP_MAX_ATTEMPTS:
                             challenge.consumed_at = now
                             challenge.phone_number = ""
+                        else:
+                            keep_challenge = True
                         challenge.save(update_fields=["attempts", "consumed_at", "phone_number"])
                         verification_error = "The code is invalid or expired. Request a new code."
                     else:
@@ -362,8 +365,9 @@ def whatsapp_login(request):
             verification_error = "The phone number could not be linked. Please sign in and try again."
 
         if verification_error or authenticated_user is None:
-            request.session.pop("whatsapp_otp_challenge_id", None)
-            request.session.modified = True
+            if not keep_challenge:
+                request.session.pop("whatsapp_otp_challenge_id", None)
+                request.session.modified = True
             return _whatsapp_login_page(
                 request,
                 error=verification_error or "Verification could not be completed.",
