@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             name="WhatsAppOTPChallenge",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ("phone_number", models.CharField(max_length=16)),
+                ("phone_number", models.CharField(blank=True, default="", max_length=16)),
                 ("phone_hash", models.CharField(db_index=True, max_length=64)),
                 ("code_hash", models.CharField(max_length=64)),
                 ("requester_hash", models.CharField(db_index=True, max_length=64)),
@@ -43,5 +43,13 @@ class Migration(migrations.Migration):
                     models.Index(fields=["requester_hash", "created_at"], name="accounts_wa_ip_created"),
                 ],
             },
+        ),
+        migrations.AddConstraint(
+            model_name="whatsappotpchallenge",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("consumed_at__isnull", True)),
+                fields=("phone_hash",),
+                name="accounts_one_active_whatsapp_otp",
+            ),
         ),
     ]
