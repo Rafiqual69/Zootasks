@@ -295,7 +295,7 @@ def whatsapp_login(request):
                         verified_phone = challenge.phone_number
 
                         identity = WhatsAppIdentity.objects.select_related("user").filter(
-                            phone_number=verified_phone
+                            phone_hash=challenge.phone_hash
                         ).first()
 
                         if request.user.is_authenticated:
@@ -315,7 +315,8 @@ def whatsapp_login(request):
                                 if identity is None:
                                     WhatsAppIdentity.objects.create(
                                         user=candidate,
-                                        phone_number=verified_phone,
+                                        phone_hash=challenge.phone_hash,
+                                        phone_last4=verified_phone[-4:],
                                         verified_at=now,
                                     )
                                 authenticated_user = candidate
@@ -349,7 +350,8 @@ def whatsapp_login(request):
                             )
                             WhatsAppIdentity.objects.create(
                                 user=candidate,
-                                phone_number=verified_phone,
+                                phone_hash=challenge.phone_hash,
+                                phone_last4=verified_phone[-4:],
                                 verified_at=now,
                             )
                             authenticated_user = candidate
