@@ -103,8 +103,8 @@ class WhatsAppOTPChallenge(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=("phone_hash", "created_at")),
-            models.Index(fields=("requester_hash", "created_at")),
+            models.Index(fields=("phone_hash", "created_at"), name="accounts_wa_phone_created"),
+            models.Index(fields=("requester_hash", "created_at"), name="accounts_wa_ip_created"),
         ]
         constraints = [
             models.UniqueConstraint(
