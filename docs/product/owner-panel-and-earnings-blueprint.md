@@ -334,3 +334,212 @@ The proposed 15% fee pool (10% Owner account / 5% development, AI, and operating
 ### Safety and delivery record
 
 This update changes research documentation only on the existing feature branch. No application code, configuration, financial logic, access controls, production database, or migration state was changed. No raw logs/artifacts, secrets, credentials, PII, or customer/financial records were accessed or added. No workflow was manually dispatched or rerun. Keep this PR Draft until its new exact-head CI, source review, and independent human review are complete.
+
+
+---
+
+## Research board refresh — 2026-11-25
+
+**Scope and handling.** This refresh uses public GitHub metadata, safe source-file reads, Railway service inventory, and official public web pages. It does not read .env files, secrets, credentials, PII, customer or financial records, raw CI logs, or private workflow artifacts. No production database or migration was accessed. Workflow evidence below is queried by the exact commit SHA; a run on another SHA or base is not a substitute.
+
+### 1. Current repository and release state
+
+- Default branch: **main**
+- Exact current main head: **aa548d148d36df0c8ed2af3d58d8e1f0d8e38512**
+- Main commit date: **2026-10-06T14:58:00Z**
+- Commit message: **Security: align task claim migration state**
+- GitHub branch metadata reports **protected: false**; the repository rulesets endpoint returned an empty list.
+- Exact-head workflow evidence for main: ZooTasks Security Gate run [37483388868](https://github.com/Rafiqual69/Zootasks/actions/runs/37483388868) failed; Security Review run [40273321095](https://github.com/Rafiqual69/Zootasks/actions/runs/40273321095) failed. No PostgreSQL Financial Verification run was returned for the main SHA. The PostgreSQL workflow is configured for pull requests to main and manual dispatch, so the absence of a main push run is not a passing result.
+- The main tree contains backend/tasks/migrations/0005_alter_taskclaim_task.py, whose dependency is tasks.0004_protect_claim_history; the 0004_protect_claim_history.py file is absent from main. This is a source-level migration-graph defect, not a claim about any live database.
+- Two competing repair approaches are open: PR #74 restores a 0004 migration and protects both task and worker references; PR #75 changes 0005 to depend directly on 0003. These are different migration lineages. Do not combine, fake, rename, or mark migrations applied without a reviewed fresh-database and disposable-legacy-database reconciliation.
+- The release gate is currently not enforceable at repository level because main is unprotected and no rulesets were returned. Required reviews, exact-head security checks, PostgreSQL financial verification, migration review, and a deployment gate must be configured by an authorized repository administrator before release.
+
+#### Open issue queue
+
+These are issues, not pull requests; they have no head SHA or workflow runs.
+
+| Issue | Current open requirement | Product/security consequence |
+|---:|---|---|
+| [#43](https://github.com/Rafiqual69/Zootasks/issues/43) | Define promotion budget semantics and prevent approvals from exceeding the funded reward ceiling under concurrency | Separate reserved capacity from approved completions; lock the promotion or equivalent reservation record; make approval idempotent |
+| [#45](https://github.com/Rafiqual69/Zootasks/issues/45) | Reconcile reservation and completion transitions | Increment completed only once on approval; release reserved capacity once on rejection/cancellation/expiry; test replay and last-slot concurrency |
+| [#46](https://github.com/Rafiqual69/Zootasks/issues/46) | AI-agent authority boundary and human governance | The model proposes; an independent runtime policy engine authorizes; high-impact actions require exact-action human approval and dual control |
+| [#48](https://github.com/Rafiqual69/Zootasks/issues/48) | Single primary Owner input device | A device identifier is not authorization; require server-verified passkey ceremonies, revocation, recovery, short sessions and separate critical-action approvals |
+| [#54](https://github.com/Rafiqual69/Zootasks/issues/54) | Evidence-led website UX and trust improvements | Keep UX hypotheses measurable and inspect existing homepage, Owner and security PRs before creating overlapping work |
+
+#### Exact-head PR matrix
+
+Run IDs below are GitHub Actions workflow-run IDs. “Pass” means the listed workflow completed successfully on that exact head SHA; it does not establish independent review, safe migration integration, production readiness, or approval to merge.
+
+| PR | Exact head SHA | Base branch (recorded base SHA where relevant) | State | Exact-head workflow evidence |
+|---:|---|---|---|---|
+| [#41](https://github.com/Rafiqual69/Zootasks/pull/41) | 841b65cbb6ef51b563537d49f809e58830e70104 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 39055731591 failed; Security Review 39055731615 failed; PostgreSQL Financial Verification 39055731605 passed. This is the failing base used by #53. |
+| [#52](https://github.com/Rafiqual69/Zootasks/pull/52) | b14aece21769fc7c3782e9326b3a0fc5213730b4 | fix/restore-task-claim-migration-20261009 (dd5c3b9d25af27306069651682348bb98388b238) | Open, Draft | Security Gate 39065416499 passed; Security Review 39065416663 passed; PostgreSQL Financial Verification 39065416559 passed. All are branch-local; this PR does not target main. |
+| [#53](https://github.com/Rafiqual69/Zootasks/pull/53) | 4d5b5e58495263064c71dea40911bc4b8403732c | security/full-integrated-security-board-20261007 (841b65cbb6ef51b563537d49f809e58830e70104) | Open, Draft | Security Review push run 39146130309 passed; Promotion PostgreSQL Regression PR run 39146133710 passed. No exact-head Security Gate or full PostgreSQL Financial Verification was returned. Stacked on #41, whose Security Gate and Security Review failed. |
+| [#55](https://github.com/Rafiqual69/Zootasks/pull/55) | a33432cb40ced36ad152a7a31e917c80953b70ce | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 39147130401 failed; Security Review 39147130469 failed; PostgreSQL Financial Verification 39147130476 failed. |
+| [#56](https://github.com/Rafiqual69/Zootasks/pull/56) | 2619ef1486c55af7884a97411826c3f64b189248 before this refresh | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 39191955330 failed; Security Review 39191955324 failed; PostgreSQL Financial Verification 39191955309 failed. This document is being refreshed on the existing research branch; these runs will be stale once the new commit is created. |
+| [#57](https://github.com/Rafiqual69/Zootasks/pull/57) | 3a5c3f0cc0425fb06666ab075fef69da1f6ee96e | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 39148226265 failed; Security Review 39148226226 failed; PostgreSQL Financial Verification 39148226231 failed. The template is read-only, but current release checks and render/accessibility evidence are not sufficient. |
+| [#66](https://github.com/Rafiqual69/Zootasks/pull/66) | e7e4b3eacd39aa0b6146354ac2545c491fa25934 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 40011292003 passed; Security Review 40011291937 passed; PostgreSQL Financial Verification 40011291839 passed. The PR description still identifies Twisted 26.10.0rc1 as a pre-release blocker; verify the installed stable artifact and dependency audit before treating this branch as releasable. |
+| [#69](https://github.com/Rafiqual69/Zootasks/pull/69) | df6311bd81388eafc29da45de1cbabf68b8ebc83 | security/ci-ephemeral-secret-20261022 (e7e4b3eacd39aa0b6146354ac2545c491fa25934) | Open, Draft | Security Gate 40171986340 failed; Security Review 40171986327 failed; PostgreSQL Financial Verification 40171986317 failed. Explicitly stacked on #66; do not merge independently of its base and migration review. |
+| [#71](https://github.com/Rafiqual69/Zootasks/pull/71) | 4a09b2aa032e7c33eaa336be2dc5cc9fdeb93994 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 40271645126 failed; Security Review 40271645136 failed; PostgreSQL Financial Verification 40271645139 failed. Homepage work overlaps #55 and #73. |
+| [#73](https://github.com/Rafiqual69/Zootasks/pull/73) | d57616188ffac3abf2e82b1d4acccb4faffb9a62 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 40271860129 failed; Security Review 40271860145 failed; PostgreSQL Financial Verification 40271860188 failed. Homepage work overlaps #55 and #71. |
+| [#74](https://github.com/Rafiqual69/Zootasks/pull/74) | 655d4476bb24161cd0724232271734140323c91d | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | PostgreSQL Financial Verification 40273069238 passed; Security Gate 40273069246 failed; Security Review 40273069281 failed. This branch restores the missing 0004 migration. |
+| [#75](https://github.com/Rafiqual69/Zootasks/pull/75) | c935b5cd06167890aa8849c4cc378ca06ad64747 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft | Security Gate 41617278377 passed; Security Review 41617278184 passed; PostgreSQL Financial Verification 41617278403 passed. Later exact-head Security Review push run 42505462940 passed. Its migration file changes 0005 to depend on 0003 rather than restoring 0004; reconcile this against #74 before selecting one migration lineage. |
+| [#77](https://github.com/Rafiqual69/Zootasks/pull/77) | 96d10046e0eaeb8a6b7895695b51f7841badcce9 | security/multi-provider-review-base-20261108 (recorded base 550a8aede970812e3dc2ae8f1e9076f70f95a0ef) | Open, Draft | Security Gate push run 42505990731 passed; Security Review PR run 42505995213 passed; PostgreSQL Financial Verification PR run 42505995188 passed. This is stacked, not main-based. Its recorded base is one commit behind the current base branch tip 9952c85fdbe9b397fbd3b805cb4b53bff5f43081; update/retest against the current base before review. |
+| [#47](https://github.com/Rafiqual69/Zootasks/pull/47) | fdc4e0ee88199c910193da8c7cfccc1bbad174f6 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, not Draft | Security Gate 37926180609 failed; Security Review 37926180563 failed; PostgreSQL Financial Verification 37926180491 failed. Railway deployment configuration is therefore not release evidence. |
+
+**Stack and release interpretation**
+
+- #52 has green branch-local checks but targets an unmerged migration branch, not main.
+- #53 is stacked on #41; its dedicated promotion regression does not replace the missing full Security Gate and PostgreSQL Financial Verification.
+- #69 is stacked on #66 and its exact-head checks fail.
+- #77 is stacked on a security review base containing a long chain of security commits; it is not a clean main-based candidate, and its base advanced after the PR's recorded base SHA.
+- #74 and #75 propose different fixes for the missing task migration. Choose one reviewed lineage after comparing migration operations and fresh/legacy rehearsal results; do not infer safety from a green PostgreSQL job alone.
+- #56, #57, #71 and #73 are existing overlapping research/Owner/homepage work. Keep using these PRs rather than creating duplicate product PRs.
+- A passing PR workflow is not merge authorization. Main currently has no branch protection/rulesets, no exact-head PostgreSQL verification, and no recorded independent review gate in this refresh.
+
+### 2. Railway inventory
+
+The Railway project inventory returned the ZooTasks project with two configured services: PostgreSQL and Redis. The environment status reported both services as **Offline**, and no active application deployment was returned. No web/application service appeared in the service list. The environment descriptor had no latest deployment. This is an inventory/status observation, not proof that an external deployment cannot exist. No Railway variables, secrets, customer data, or logs were read.
+
+**Implication (hypothesis):** before describing ZooTasks as cloud-hosted or 24/7, verify a dedicated web service, worker/bot service if required, health checks, database/Redis connectivity, backups and restore tests, deployment health, and a monitored rollback path. Do not deploy as part of this research run.
+
+### 3. Official-source benchmark refresh
+
+All links below were checked on **2026-11-25**. Where an official page exposes an update date, that date is noted. Source statements are evidence about the named provider only; the ZooTasks recommendation is a hypothesis until implemented and measured. Region, account plan, payout eligibility and current terms must be rechecked before copying any fee or payment rule.
+
+| Checked | Official source | Observable feature — evidence | ZooTasks implication — hypothesis |
+|---|---|---|---|
+| 2026-11-25 | [Upwork freelancer fee](https://support.upwork.com/hc/en-us/articles/211062538-Learn-about-the-Freelancer-Service-Fee) and [payment protection](https://support.upwork.com/hc/en-us/articles/211062578-How-are-hourly-payment-protection-and-fixed-price-payment-protection-different) | Contract-level fee disclosure and distinct hourly/fixed-price protection rules. | Lock the fee formula at claim/contract acceptance; show gross, deductions, net, eligibility, evidence requirements and protection limits before work starts. |
+| 2026-11-25 | [Fiverr — how it works for freelancers](https://help.fiverr.com/hc/en-us/articles/34069565843985-How-Fiverr-works-for-freelancers) | The official guide describes the freelancer's 80% share, a clearing period, order states and a Resolution Center. | Separate pending, cleared and withdrawable earnings; display the review/payout timeline and an appeal path. |
+| 2026-11-25 | [Freelancer.com fees and charges](https://www.freelancer.com/feesandcharges) and [milestone payments](https://www.freelancer.com/support/payments/milestone-payments) | Fee rules vary by project/payment type; milestone funding and release are separate steps. | Itemize client charges and worker deductions; reserve funds per milestone and show who can release them. |
+| 2026-11-25 | [PeoplePerHour commission policy](https://support.peopleperhour.com/hc/en-us/articles/205218337-Freelancer-commission-fees) | The official page describes lifetime-buyer commission tiers; the page is old and should not be treated as a current rate card. | Loyalty pricing is only an experiment hypothesis; verify current policy, buyer/worker impact and contribution margin before testing. |
+| 2026-11-25 | [Toptal talent FAQ](https://www.toptal.com/freelance-jobs/faq) | Screening and talent matching are explicit parts of the marketplace; the FAQ describes rate-setting and payment handling. | Use transparent skill/quality qualification and a reviewable eligibility process; never imply a screening badge guarantees future work. |
+| 2026-11-25 | [Workana commission calculation](https://help.workana.com/hc/en-us/articles/360041235874-How-is-the-commission-calculated-at-Workana) | The page updated 2026-09-17 describes tiered freelancer commission and a client-side fee. | If testing repeat-client discounts, show the formula and both sides' effective cost; do not assume tiers improve ZooTasks' economics. |
+| 2026-11-25 | [Contra fees overview](https://help.contra.com/en/articles/9322934-fees-overview) and [pricing](https://contra.com/pricing) | Platform positioning separates commission from plan, payment-processing and payout-related charges. | Distinguish platform fee, provider fee, payout fee and optional plan costs on the receipt; verify country/payment-rail availability. |
+| 2026-11-25 | [Guru SafePay](https://www.guru.com/help/freelancer/safepay) and [Guru WorkRoom](https://www.guru.com/help/freelancer/workroom) | SafePay funding and WorkRoom records provide a structured place for agreements, work and payment release. | Make task scope, funded amount, evidence, review and release state visible; keep dispute evidence attached to a versioned task record. |
+| 2026-11-25 | [Airtasker service fee](https://support.airtasker.com/hc/en-us/articles/200294499-What-is-the-service-fee) and [connection fee](https://support.airtasker.com/hc/en-us/articles/360031769372-What-is-the-Connection-Fee) | Worker and customer-side fees are distinct and jurisdiction-specific. | Show payer, purpose and amount for every fee; never transplant one country's fee schedule into Bangladesh. |
+| 2026-11-25 | [Taskrabbit payment](https://support.taskrabbit.com/hc/en-us/articles/204411660-How-does-payment-work) and [Trust & Support Fee](https://support.taskrabbit.com/hc/en-us/articles/46260504648731-What-s-the-Taskrabbit-Trust-Support-Fee) | On-platform payment and separately itemized support fees are part of the booking/payment flow. | Keep payment and dispute records on-platform; explain each fee and the conditions for any platform protection. |
+| 2026-11-25 | [Clickworker payment options](https://support-workplace.clickworker.com/support/solutions/articles/80000672350-what-payment-options-do-i-have-) | Payment method, threshold, verification and availability depend on country and payment route. | Show only payout methods actually enabled for the member's country, plus threshold, fee and expected processing window before work begins. |
+| 2026-11-25 | [Prolific minimum hourly reward](https://participant-help.prolific.com/en/articles/445230-what-is-the-minimum-payment-per-hour-for-a-study) and [payment timing](https://participant-help.prolific.com/en/articles/445059-when-will-i-be-paid-for-a-study) | Minimum/recommended hourly reward and a defined review/auto-approval policy are published for participants. | Show estimated minutes, effective reward per hour, eligibility and review deadline before claim; create a timeout/escalation policy for unreviewed work. |
+| 2026-11-25 | [Toloka task rules](https://toloka.ai/docs/guide/unwanted/) and [user agreement](https://toloka.ai/tolokers/user-agreement-january-2025) | Task moderation and acceptance/rejection conditions are documented; the linked agreement is dated January 2025. | Moderate prohibited/deceptive tasks before publication. Re-verify current agreement and country/payout rules before adopting any timing or rejection policy. |
+| 2026-11-25 | [UserTesting — where is my payment?](https://support.usertesting.com/hc/en-us/articles/4405125498003-Where-s-my-payment) | Contributor help describes payment timing and task-level payment status. | Show task-level payment state, expected date and a clear delay-report route; do not promise a universal payout time across countries. |
+| 2026-11-25 | [Microworkers FAQ](https://www.microworkers.com/faq.php) | The FAQ documents withdrawal conditions, verification and payment history; methods and thresholds can vary. | Explain KYC and withdrawal thresholds before work; separate earned, approved and withdrawable amounts. |
+| 2026-11-25 | [Linear Insights](https://linear.app/docs/insights) and [audit log](https://linear.app/docs/audit-log) | Work tracking includes cycle/lead-time style metrics and a role-gated audit history. | Track task review age, approval time, dispute time and moderation backlog; give audit search only to authorized roles. |
+| 2026-11-25 | [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security) and [platform audit logs](https://supabase.com/docs/guides/security/platform-audit-logs) | RLS requires both suitable grants and policies; the service role bypasses RLS. Audit events identify actor/action/target. RLS guidance was updated 2026-11-24. | Test grants and policies together for every exposed table; keep privileged service credentials server-side; audit sensitive reads/writes with safe metadata. |
+| 2026-11-25 | [Vercel preview deployments](https://vercel.com/docs/deployments/preview-deployments) and [deployment protection](https://vercel.com/docs/deployment-protection) | Preview and production environments can be separated and access to previews can be protected. | Use isolated preview environments and require authorization before exposing private test data or promoting a build. |
+| 2026-11-25 | [Cloudflare managed WAF rules](https://developers.cloudflare.com/waf/managed-rules/) and [rate limiting](https://developers.cloudflare.com/waf/rate-limiting-rules/) | Managed rules and configurable rate limits provide layered request filtering; rule availability depends on plan. | Apply targeted limits to login, task claim, proof submission and withdrawal endpoints; tune false positives and do not assume paid-plan features. |
+| 2026-11-25 | [Cloudflare Bot Management](https://developers.cloudflare.com/bots/get-started/bot-management/) | Enterprise Bot Management exposes a per-request score, but a score does not block traffic by itself; a separate WAF rule must act on it. | Treat bot scores as signals, not authorization. Combine velocity, account, task and payment signals with reviewable policy decisions. |
+| 2026-11-25 | [GitHub ruleset requirements](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) | Rulesets can require PRs, reviews, status checks and other merge conditions, with explicit bypass controls. | Protect main with required exact-head security and PostgreSQL checks, independent review, stale-approval dismissal and minimal audited bypass. |
+| 2026-11-25 | [NIST AI RMF](https://www.nist.gov/itl/ai-risk-management-framework) and [Playbook](https://www.nist.gov/itl/ai-risk-management-framework/nist-ai-rmf-playbook) | The voluntary framework organizes risk work as Govern, Map, Measure and Manage; NIST says AI RMF 1.0 is being revised. | Maintain an AI risk register, named owners, impact assessments, test evidence, residual risk and rollback/incident actions; version the mapping as NIST updates it. |
+| 2026-11-25 | [OWASP Agent Control Standard](https://genai.owasp.org/resource/agent-control-standard-acs/) | ACS describes inspectable, traceable agents and middleware hooks for declarative runtime policy enforcement. | Enforce tool permissions outside model prompts; log the policy decision and bind human approvals to the exact action and parameters. |
+| 2026-11-25 | [OWASP AISVS 1.0](https://owasp.github.io/www-project-artificial-intelligence-security-verification-standard-aisvs-docs/) | AISVS 1.0 (June 2026) defines 191 testable requirements across 12 chapters and three verification levels, including identity, orchestration, MCP and monitoring. | Map applicable requirements to versioned acceptance tests; target at least Level 2 for production AI that handles personal or consequential data, alongside ordinary application-security controls. |
+| 2026-11-25 | [W3C WCAG 2.2](https://www.w3.org/TR/WCAG22/) | WCAG 2.2 is a testable W3C accessibility standard covering keyboard, focus, interaction and content accessibility. | Set WCAG 2.2 AA as the design target; test keyboard, screen-reader, mobile, contrast, focus and error recovery on real flows. |
+| 2026-11-25 | [Amazon Mechanical Turk closure FAQ](https://www.mturk.com/help) — discontinued-platform lesson only | The official FAQ states MTurk permanently closed on 2026-09-30; worker payment preferences can be verified through 2026-11-30 and transaction history is stated to remain available until 2027-01-28. | Do not list MTurk as an active competitor or rely on stale marketplace assumptions. Design clear wind-down, worker payment and transaction-history retention procedures. |
+| 2026-11-25 | [Bangladesh Personal Data Protection Act, 2026](https://bdlaws.minlaw.gov.bd/act-1692.html) | The current law index identifies Act No. 63 of 2026, dated 2026-04-10. The official page is Bengali; direct retrieval timed out during this run, so commencement notices and the consolidated text require counsel verification. | Map lawful purpose, consent/other legal basis, minimization, retention, data-subject requests, processor contracts, cross-border transfers and breach response before collecting identity or payment data. Do not rely on the repealed 2025 ordinance as the current law. |
+| 2026-11-25 | [Bangladesh Cyber Security Act, 2026](https://bdlaws.minlaw.gov.bd/act-1710.html) and [2026 amendment Gazette](https://www.dpp.gov.bd/bgpress/index.php/document/get_extraordinary/62172) | The official Laws of Bangladesh page identifies Act No. 81 of 2026; the Government Press lists a 2026 amendment Act No. 99. | Review cyber incident response, access controls, evidence preservation and any applicable critical-infrastructure obligations against the current consolidated text. |
+| 2026-11-25 | [Bangladesh Labour Act, 2006 — current text](https://bdlaws.minlaw.gov.bd/act-print-952.html) and [section 175](https://bdlaws.minlaw.gov.bd/act-print-952/section-print-28053.html) | The official text records 2026 amendments; section 175 includes self-employed, daily/temporary and digital labour-platform workers for the purposes of that chapter. | Do not assume that calling members “independent contractors” settles their legal status. Obtain Bangladesh labour counsel's classification and worker-rights review for the actual task model. |
+| 2026-11-25 | [Consumer Rights Protection Act, 2009](https://bdlaws.minlaw.gov.bd/act-print-1014.html) | The official law text establishes consumer-protection and complaint mechanisms. | Publish accurate prices, fee payer, cancellation/refund rules, task-owner obligations and a reachable complaint/dispute path; counsel should assess the platform's role in each transaction. |
+| 2026-11-25 | [Bangladesh Bank Payment and Settlement Systems Regulations, 2014](https://www.bb.org.bd/aboutus/regulationguideline/bpss.pdf), [Payment Systems Report](https://www.bb.org.bd/en/index.php/financialactivity/paysystems), and [2024 payment report](https://www.bb.org.bd/pub/annual/psdreport/paymentreport_dec2024.pdf) | Bangladesh Bank describes PSP/PSO licensing and oversight; its 2024 report lists the Payment and Settlement Systems Act, 2024 alongside applicable regulations and directives. | Use a properly authorized bank/PSP/PSO for payment and settlement. Have counsel determine whether any proposed wallet, stored value, escrow-like reserve, pooled funds or cross-border payout would require additional authorization. |
+| 2026-11-25 | [NBR Income Tax Acts](https://nbr.gov.bd/regulations/acts/income-tax-acts) and [authentic English Income Tax Act, 2023](https://nbr.gov.bd/uploads/acts/3190-SRO-404-NBR-16_October_2025%2810455-10741%29.pdf) | NBR publishes the Income Tax Act, 2023 and an authentic English text dated 2025-11-20. | Have a Bangladesh tax adviser check the latest Finance Act/SROs, withholding, VAT, platform-fee treatment, worker tax reporting and cross-border remittance before pricing or payout changes. |
+
+### 4. Product design decisions to carry forward
+
+#### Public website
+
+- Homepage must distinguish live, funded tasks from examples, previews and unavailable tasks. Never show fabricated counts, fake scarcity or guaranteed-income claims.
+- Each task card should show category, skill/eligibility, estimated active minutes, gross reward, every known deduction, estimated worker net, approval window, payout route and proof requirements before a member claims it.
+- Show a **funding verified** label only when a server-side reserve or authorized provider confirmation proves the remaining worker reward is funded. Do not call an internal database number “escrow” unless the legal/payment structure supports that term.
+- Task detail should explain scope, accepted proof, prohibited behavior, rejection reasons, appeal route, cancellation/expiry rules and the time estimate's basis.
+- Public trust pages should explain platform fees, provider fees, privacy, complaints, refunds, task-owner duties and country-specific payout availability.
+
+#### Member experience
+
+- Keep available, claimed, submitted, under review, approved, rejected, disputed, paid and withdrawable states separate.
+- Show gross reward, known fee, estimated net reward and estimated time-to-earn before claim. After completion, replace estimates with actual recorded values.
+- Show task-level submission, review, approval and payout timestamps. Report median and percentile time-to-earn using a clearly defined cohort and time window.
+- Keep pending, approved, withdrawable and lifetime earnings separate; every total must reconcile to an authorized statement or ledger view.
+- Offer passkeys, session review, account recovery, data access/deletion request routes, and task/user reporting.
+- Low-bandwidth defaults: server-rendered core content, progressive enhancement, compressed images, no autoplay, small payloads, explicit retry states, idempotent submissions, keyboard access and readable validation errors.
+
+#### Owner panel — read-only first
+
+1. **Overview:** funded task value, reserved worker rewards, approved worker rewards, gross platform fees, refunds/reversals, provider costs, tax/VAT liabilities, support/fraud costs, hosting/AI costs and contribution margin. Each metric needs a definition, source, date range and reconciliation status.
+2. **Funding and capacity:** funded coverage, reserved slots, completed slots, remaining capacity, budget utilization, expired/cancelled reservations and exact-boundary exceptions.
+3. **Task quality:** completion/approval rate, evidence failure categories, rework, review age, median approval time, dispute rate, appeal reversal rate and repeat buyer rate.
+4. **Worker fairness:** median net reward per active hour by task type, time to first task, time to first approved earning, time to first payout, rejection rate and payout delay. Suppress small cohorts and never expose a worker's private risk score to general support.
+5. **Finance:** read-only ledger, reconciliation exceptions, refund/chargeback queue, payout status and versioned fee policy. No manual balance editing and no direct wallet writes from the dashboard.
+6. **Access and governance:** role grants, passkey/session status, pending dual-control actions, access reviews, audit search, retention policy, backup/restore status and incident freeze controls.
+7. **AI policy:** approved models/tools, scoped identities, policy version, decision outcome, human approvals, blocked actions, cost/velocity limits and rollback status. Do not display prompts, credentials or full private submissions.
+
+#### Unit economics and the 15% proposal
+
+The proposed 15% platform-fee pool remains an **unvalidated allocation hypothesis**: 10% proposed for the Owner account and 5% proposed for development, AI and operating costs. It is not net profit, does not prove positive contribution margin, and is not a profitability guarantee.
+
+Before testing it, define the fee denominator, who pays the fee, whether the fee is taken from buyer funding or a separately disclosed platform charge, rounding, refunds, chargebacks, taxes, provider costs, payout costs and revenue-recognition timing. Never reduce a worker's accepted reward after claim.
+
+For each settled task, report separately:
+
+- buyer funding received and still available;
+- worker reward reserved, approved, paid and reversed;
+- platform fee earned under the disclosed policy;
+- provider and payout costs;
+- refunds and chargebacks;
+- taxes/VAT/withholding payable;
+- attributable support, fraud, infrastructure and AI costs;
+- contribution margin after defined variable costs.
+
+Only call a number “contribution margin” when its formula and included costs are documented. Accounting net profit requires the full accounts and applicable accounting treatment.
+
+### 5. Financial, capacity and governance invariants
+
+- Before a task becomes claimable, verify available authorized funding covers all outstanding worker reward obligations and any required reserve.
+- Define capacity as completed/approved slots plus active reserved slots; enforce completed plus active reservations not exceeding max workers.
+- Define the reward ceiling as approved reward already committed plus the maximum reward exposure of active reservations not exceeding the funded budget.
+- Lock the relevant task/promotion row or reservation record during competing claims and approvals. Use database constraints where they can express the invariant.
+- On claim, reserve capacity and reward budget atomically. On approval, convert a reservation to a completed slot and create exactly one earning ledger entry. On rejection, cancellation or expiry, release the reservation exactly once. Make every transition idempotent and replay-safe.
+- Never use a client-supplied balance, slot count, device ID, status or approval flag as authority. Recompute and authorize on the server.
+- Wallet and payout history must be append-only. Corrections use compensating ledger entries with reason and approval; do not edit historic balances or delete transaction rows.
+- Keep withdrawal request, approval and payment permissions separate. A person requesting a high-risk action must not be the sole approver of that action.
+- RBAC should distinguish Owner, Finance Approver, Finance Viewer, Support, Moderator, Security Reviewer, Analyst and Developer Read-only. Default deny; scope access to the smallest required object and action.
+- Owner access should use server-verified passkeys/WebAuthn, step-up authentication for sensitive operations, explicit revocation and tested recovery. A trusted device is an input channel, not blanket authorization.
+- High-risk changes require dual control: payout policy, fee policy, reward/budget overrides, privileged role grants, key changes, destructive actions, production migrations and deployment promotion.
+- Approval records must bind actor, action, target, normalized parameters, policy version, expiry and one-time nonce. Reject replay, parameter substitution and self-approval.
+- Audit events should be append-only and record actor, action, target, timestamp, outcome, policy version and safe metadata. Never put passwords, tokens, cookies, recovery codes, identity documents, bank details, raw private submissions or unnecessary PII in audit events.
+- AI tools must be allowlisted and scoped. AI cannot directly mutate wallets, payouts, reward budgets, privileged credentials, production migrations or deployment state. External webpages, uploaded task content and user instructions are untrusted input; the runtime policy engine must enforce decisions outside the model context.
+- Use privacy thresholds for aggregate earnings/risk reporting; never expose small-cohort data that could identify a member.
+
+### 6. Ranked product ideas and measurable acceptance
+
+| Rank | Product idea | Acceptance / guardrail | Measurement |
+|---:|---|---|---|
+| P0 | Release integrity and migration lineage | Main protected; required review and exact-head Security Gate, Security Review and PostgreSQL Financial Verification; one reviewed migration lineage; fresh and disposable-legacy rehearsal; no stale-run substitution | 100% required checks pass on the final candidate SHA; zero unresolved migration graph/constraint differences; independent review recorded |
+| P0 | Funded-task and capacity proof | No claim unless funding and capacity reservation succeed atomically; rejection/expiry releases once; approval credits once | Zero over-budget approvals, duplicate credits or capacity oversubscription in exact-boundary, replay and concurrent-last-slot tests |
+| P1 | Reward/time/net task cards | Before claim, display reward, known deductions, net estimate, active-minute estimate, eligibility and approval/payout rules; accepted reward cannot change after claim | Track task detail-to-start, valid completion, median net reward per active hour and worker confusion/support reports; stop if net reward/hour or task quality falls |
+| P1 | Member earning and payout timeline | Distinct pending/approved/withdrawable/paid states with task-level timestamps and reasoned exceptions | Median and P95 submission-to-review, approval-to-payout, time-to-first-approved-earning and payout failure rate |
+| P1 | Owner read-only unit-economics panel | Read-only source data, metric definitions, reconciliation status, no balance editing or payout actions | Ledger-to-dashboard reconciliation difference; stale-data age; zero unauthorized financial writes |
+| P1 | Task quality and fair dispute flow | Clear proof requirements, reason-coded rejection, appeal, reviewer SLA and audit trail | Valid completion rate, rejection rate, appeal reversal, dispute rate, resolution time and repeat buyer rate |
+| P2 | Owner passkeys, RBAC and dual control | Server-side permission tests, step-up, revocation/recovery, independent approval and replay protection | Zero unauthorized access/action in negative tests; 100% dual-control coverage for designated high-risk actions |
+| P2 | Privacy and low-bandwidth accessibility | Data minimization, small-cohort suppression, safe audit, WCAG 2.2 AA review and slow-network retry tests | Zero sensitive fields in unauthorized views/audit; keyboard/screen-reader/mobile checks; successful retry without duplicate submission |
+| P3 | AI-assisted moderation and task matching | Shadow mode first; tool allowlist; deterministic policy engine; human review for consequential decisions; kill switch | Precision/recall on reviewed samples, false-positive appeal rate, cost per reviewed task and zero unauthorized tool writes |
+
+### 7. Phased implementation plan
+
+1. **Phase 0 — Release and data integrity.** Resolve the main migration graph with one reviewed approach; compare migration operations, constraints and data semantics on a fresh database and disposable legacy copy. Protect main and configure exact-head release checks. Do not migrate or deploy production.
+2. **Phase 1 — Read-only measurement.** Define event names, metric formulas, cohort rules, data retention and access roles. Build sanitized aggregate queries and reconcile them to the existing ledger. No financial behavior changes.
+3. **Phase 2 — Public/member experience.** Update one existing homepage/task-flow PR after duplicate review. Add live-versus-example labels, fee/net/time disclosure, task proof and status clarity, payout country checks, mobile/keyboard/low-bandwidth behavior.
+4. **Phase 3 — Owner read-only panel.** Reuse the existing #57 dashboard direction only after its render/accessibility and authorization gates pass. Add metric definitions, reconciliation status and task quality/worker fairness views. No write actions.
+5. **Phase 4 — Funding and capacity state machine.** Only after the written budget definition and legal/payment structure are approved, implement atomic reservation, approval, release and idempotent ledger transitions on a dedicated branch. Add PostgreSQL concurrency and exact-boundary tests. No production migration without explicit authorization.
+6. **Phase 5 — Owner governance.** Implement role separation, passkey enrollment/recovery/revocation, step-up auth, append-only audit and dual-control workflow. Test negative permissions, replay, parameter substitution and account recovery.
+7. **Phase 6 — AI control plane and measured experiments.** Keep AI read-only/shadow-mode first. Add runtime tool policy, scoped identities, human review, cost/rate limits and kill switch. Run small UX experiments only with baseline and rollback criteria.
+
+### 8. Bangladesh and international legal review
+
+The current official source set includes the Personal Data Protection Act, 2026 (official page retrieval timed out in this run), Cyber Security Act, 2026 and its 2026 amendment, Bangladesh Labour Act, 2006 as amended in 2026, Consumer Rights Protection Act, 2009, Bangladesh Bank payment-system rules and reports, and NBR's Income Tax Act, 2023. The Labour Act's current section 175 expressly includes digital-platform workers for the purposes of that chapter; the platform should not assume that an “independent contractor” label resolves classification or worker rights.
+
+Before launch or monetization, obtain qualified Bangladesh advice on the actual operating model: worker classification and terms, payment/settlement licensing, use of licensed PSP/bank partners, AML/CFT/KYC, consumer fee and refund disclosure, VAT and withholding, foreign exchange and cross-border payouts, privacy lawful basis and transfers, breach response, data retention, and any critical-infrastructure designation. Verify the current consolidated Gazette text and commencement notices rather than relying on older ordinances or unofficial summaries.
+
+For international users or clients, map the actual jurisdictions and contracts to applicable privacy, consumer, tax, payment, accessibility and security obligations. NIST AI RMF is voluntary risk-management guidance; OWASP ACS and AISVS are security resources, not legal certification. WCAG 2.2 AA is a product target, not a claim of compliance until tested.
+
+### 9. Run record and limits
+
+This is a dated research/design refresh and a documentation-only update to the existing Draft PR #56. It does not implement application code, change permissions, alter wallet/payout/reward-budget logic, edit migrations, access production data, run production migrations, deploy, merge, or manually dispatch/rerun workflows. The new document commit will have a new SHA; all previous PR #56 workflow results are stale for that new head. Automatic CI triggered by the branch update must be checked against the resulting exact SHA. Keep the PR Draft and do not infer release readiness from documentation-only changes or prior runs.
