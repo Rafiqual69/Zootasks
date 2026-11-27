@@ -672,11 +672,11 @@ The requested issues #43, #45, #46, #48 and #54 are all open:
 | PR | Exact head SHA | Base branch (recorded base SHA) | State | Exact-head workflow evidence |
 |---|---|---|---|---|
 | #52 | b14aece21769fc7c3782e9326b3a0fc5213730b4 | fix/restore-task-claim-migration-20261009 (dd5c3b9d25af27306069651682348bb98388b238) | Open, Draft, unmerged | Security Gate passed; Security Review passed; PostgreSQL Financial Verification passed |
-| #53 | 4d5b5e58495263064c71dea40911bc4b8403732c | security/full-integrated-security-board-20261007 (841b65cbb6ef51b563537d49f809e58830e70104) | Open, Draft, unmerged | Promotion PostgreSQL Regression passed; full Security Gate, Security Review and full PostgreSQL Financial Verification not present on this head |
+| #53 | 4d5b5e58495263064c71dea40911bc4b8403732c | security/full-integrated-security-board-20261007 (841b65cbb6ef51b563537d49f809e58830e70104) | Open, Draft, unmerged | Security Review passed; Promotion PostgreSQL Regression passed; full Security Gate and full PostgreSQL Financial Verification not present on this head |
 | #55 | a33432cb40ced36ad152a7a31e917c80953b70ce | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft, unmerged | Security Gate failed; Security Review failed; PostgreSQL Financial Verification failed |
 | #56 | c41e44faf3ce700ce10ccdb0a5921d223d15abe5 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft, unmerged | Security Gate failed; Security Review failed; PostgreSQL Financial Verification failed |
 | #75 | c935b5cd06167890aa8849c4cc378ca06ad64747 | main (aa548d148d36df0c8ed2af3d58d8e1f0d8e38512) | Open, Draft, unmerged | Security Gate passed; Security Review passed; PostgreSQL Financial Verification passed |
-| #77 | 96d10046e0eaeb8a6b7895695b51f7841badcce9 | security/multi-provider-review-base-20261108 (550a8aede970812e3dc2ae8f1e9076f70f95a0ef) | Open, Draft, unmerged | Security Review passed; PostgreSQL Financial Verification passed; Security Gate not returned |
+| #77 | 96d10046e0eaeb8a6b7895695b51f7841badcce9 | security/multi-provider-review-base-20261108 (550a8aede970812e3dc2ae8f1e9076f70f95a0ef) | Open, Draft, unmerged | Security Gate passed; Security Review passed; PostgreSQL Financial Verification passed |
 
 **Stacked-base and related-PR notes**
 
