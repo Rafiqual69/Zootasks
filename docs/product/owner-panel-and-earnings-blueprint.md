@@ -766,3 +766,15 @@ This section is a product-risk register, not legal advice.
 ### Run boundary — 2026-11-27
 
 This research refresh changes only this Markdown document on the existing PR #56 research branch. It does not change application code, secrets, permissions, financial records, wallet/payout/reward-budget logic or migrations. The new commit, if accepted by GitHub, will trigger only normal automatic PR workflows; none are manually dispatched or rerun. PR #56 remains Draft and unmerged. No production migration, deployment or live financial-data access is authorized or performed.
+
+
+### Dependency-advisory review — 2026-11-27
+
+The PR diffs reveal a release-gate issue that needs explicit review:
+
+- PR #53's security-review workflow allows only Twisted 26.4.0 and suppresses CVE-2026-106454 on the premise that the affected range ends at 25.5.0. The upstream [Twisted GitHub advisory](https://github.com/twisted/twisted/security/advisories/GHSA-8pqf-f4m5-798g), published 2026-08-15 and checked 2026-11-27, lists affected versions as <=26.4.0 and lists no patched version. Therefore the PR #53 26.4.0 exception is not supported by that advisory and must remain fail-closed. Its single promotion regression pass does not resolve this.
+- The [Twisted 26.10.0 release notes](https://github.com/twisted/twisted/releases) list the IMAP fix under #12787 (“no longer allows clients to specify arbitrary regexes”). The upstream fix was merged in [Twisted PR #12788](https://github.com/twisted/twisted/pull/12788) on 2026-08-15. [PyPI's Twisted 26.10.0 release record](https://pypi.org/project/Twisted/26.10.0/) shows the release uploaded 2026-10-30 with provenance. PR #75 pins Twisted 26.10.0, so it is materially different from PR #53's 26.4.0 pin. Still verify the exact artifact and runtime dependency tree and retain the upstream release-note/advisory evidence with the dependency review; do not rely on a blanket CVE suppression.
+- [OSV's CVE record](https://osv.dev/vulnerability/CVE-2026-106454) currently records the affected range through 25.5.0 and a fixed upstream commit, while the upstream GitHub advisory lists <=26.4.0 and no patched version. Treat the advisory metadata as inconsistent until the vendor record is reconciled. The 26.10.0 upstream release notes provide evidence that the relevant code fix shipped; they do not authorize suppressing other Twisted advisories.
+- [PyPI's Pillow 13.0.0 record](https://pypi.org/project/pillow/13.0.0/) shows a release uploaded 2026-10-16 with provenance. This verifies that the PR #75 pin is a published release, not that the package is automatically suitable; retain dependency and compatibility testing.
+
+**Disposition:** PR #53's Twisted 26.4.0 exception is a security-review blocker. PR #75's Twisted 26.10.0 pin has upstream release-note evidence for the IMAP fix, but still requires independent dependency review and all exact-head release gates. No dependency or application code was changed by this research note.
